@@ -1,0 +1,101 @@
+{
+  "appName": "Khata",
+  "nav": { "home": "Home", "add": "Add", "history": "History" },
+  "menu": {
+    "language": "Language",
+    "backup": "Backup & Restore",
+    "archived": "Archived Notebooks",
+    "settings": "Settings",
+    "about": "About / Share this app",
+    "help": "Help"
+  },
+  "home": {
+    "yourNotebooks": "Your notebooks",
+    "newNotebook": "New notebook",
+    "emptyTitle": "Start your first notebook",
+    "emptyBody": "A notebook keeps track of money you give or take with people — like a shop's daily cash ledger.",
+    "emptyCta": "Create notebook",
+    "people": "people",
+    "person": "person"
+  },
+  "notebook": {
+    "openingBalance": "Opening balance",
+    "updated": "Updated",
+    "peopleSection": "People",
+    "gave": "Gave",
+    "got": "Got",
+    "emptyTitle": "No entries yet",
+    "emptyBody": "Tap Gave or Got below to add your first entry.",
+    "owesYou": "Owes you",
+    "youOwe": "You owe",
+    "settled": "Settled",
+    "last": "Last",
+    "editNotebook": "Edit notebook",
+    "archiveNotebook": "Archive this notebook",
+    "deletePermanently": "Delete permanently"
+  },
+  "form": {
+    "notebookName": "Notebook name",
+    "notebookNamePlaceholder": "e.g. Cloth Shop",
+    "openingBalance": "Opening balance",
+    "color": "Color",
+    "icon": "Icon",
+    "save": "Save notebook",
+    "cancel": "Cancel"
+  },
+  "sheet": {
+    "amount": "Amount",
+    "person": "Person",
+    "personPlaceholder": "Search or add a name",
+    "addAsNewPerson": "Add \"{name}\" as new person",
+    "dateTime": "Date & time",
+    "note": "Note",
+    "notePlaceholder": "What was this for? (optional)",
+    "save": "Save",
+    "update": "Update",
+    "delete": "Delete",
+    "savedToast": "Saved — {amount} {direction} {person}",
+    "to": "to",
+    "from": "from",
+    "whichNotebook": "Which notebook?"
+  },
+  "person": {
+    "totalGiven": "Total given",
+    "totalTaken": "Total taken"
+  },
+  "history": {
+    "title": "History",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "empty": "No transactions yet",
+    "emptyBody": "Go to Home to open a notebook and add your first entry.",
+    "filterAll": "All notebooks"
+  },
+  "settings": {
+    "title": "Settings",
+    "preferences": "Preferences",
+    "language": "Language",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "data": "Data",
+    "about": "About"
+  },
+  "backup": {
+    "title": "Backup & Restore",
+    "export": "Export backup",
+    "import": "Import backup",
+    "lastBackup": "Last backup",
+    "never": "Never",
+    "importWarning": "This will add data from the backup file. Existing data won't be deleted."
+  },
+  "common": {
+    "back": "Back",
+    "undo": "Undo",
+    "deleted": "Deleted",
+    "linkCopied": "Link copied",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  }
+}

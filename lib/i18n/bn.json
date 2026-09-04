@@ -1,0 +1,101 @@
+{
+  "appName": "খাতা",
+  "nav": { "home": "হোম", "add": "যোগ করুন", "history": "ইতিহাস" },
+  "menu": {
+    "language": "ভাষা",
+    "backup": "ব্যাকআপ ও রিস্টোর",
+    "archived": "আর্কাইভ করা খাতা",
+    "settings": "সেটিংস",
+    "about": "অ্যাপ সম্পর্কে / শেয়ার করুন",
+    "help": "সাহায্য"
+  },
+  "home": {
+    "yourNotebooks": "আপনার খাতাসমূহ",
+    "newNotebook": "নতুন খাতা",
+    "emptyTitle": "প্রথম খাতা শুরু করুন",
+    "emptyBody": "একটি খাতায় আপনি কাকে টাকা দিলেন বা কার থেকে নিলেন তার হিসাব রাখতে পারবেন — যেমন দোকানের দৈনিক হিসাব।",
+    "emptyCta": "খাতা তৈরি করুন",
+    "people": "জন",
+    "person": "জন"
+  },
+  "notebook": {
+    "openingBalance": "শুরুর টাকা",
+    "updated": "আপডেট হয়েছে",
+    "peopleSection": "মানুষ",
+    "gave": "দিলাম",
+    "got": "নিলাম",
+    "emptyTitle": "এখনো কোনো হিসাব নেই",
+    "emptyBody": "নিচে দিলাম বা নিলাম-এ চাপ দিয়ে প্রথম হিসাব যোগ করুন।",
+    "owesYou": "আপনাকে দিবে",
+    "youOwe": "আপনি দিবেন",
+    "settled": "সমান",
+    "last": "সর্বশেষ",
+    "editNotebook": "খাতা এডিট করুন",
+    "archiveNotebook": "এই খাতা আর্কাইভ করুন",
+    "deletePermanently": "স্থায়ীভাবে মুছুন"
+  },
+  "form": {
+    "notebookName": "খাতার নাম",
+    "notebookNamePlaceholder": "যেমন: কাপড়ের দোকান",
+    "openingBalance": "শুরুর টাকা",
+    "color": "রং",
+    "icon": "আইকন",
+    "save": "খাতা সেভ করুন",
+    "cancel": "বাতিল"
+  },
+  "sheet": {
+    "amount": "টাকার পরিমাণ",
+    "person": "ব্যক্তি",
+    "personPlaceholder": "নাম খুঁজুন বা যোগ করুন",
+    "addAsNewPerson": "\"{name}\" কে নতুন ব্যক্তি হিসেবে যোগ করুন",
+    "dateTime": "তারিখ ও সময়",
+    "note": "নোট",
+    "notePlaceholder": "কী কারণে? (ঐচ্ছিক)",
+    "save": "সেভ করুন",
+    "update": "আপডেট করুন",
+    "delete": "মুছুন",
+    "savedToast": "সেভ হয়েছে — {person}কে {amount} {direction}",
+    "to": "দেওয়া হলো",
+    "from": "নেওয়া হলো",
+    "whichNotebook": "কোন খাতা?"
+  },
+  "person": {
+    "totalGiven": "মোট দিয়েছি",
+    "totalTaken": "মোট নিয়েছি"
+  },
+  "history": {
+    "title": "ইতিহাস",
+    "today": "আজ",
+    "yesterday": "গতকাল",
+    "empty": "এখনো কোনো লেনদেন নেই",
+    "emptyBody": "হোম-এ গিয়ে একটি খাতা খুলে প্রথম হিসাব যোগ করুন।",
+    "filterAll": "সব খাতা"
+  },
+  "settings": {
+    "title": "সেটিংস",
+    "preferences": "পছন্দসমূহ",
+    "language": "ভাষা",
+    "theme": "থিম",
+    "light": "লাইট",
+    "dark": "ডার্ক",
+    "system": "সিস্টেম",
+    "data": "ডেটা",
+    "about": "অ্যাপ সম্পর্কে"
+  },
+  "backup": {
+    "title": "ব্যাকআপ ও রিস্টোর",
+    "export": "ব্যাকআপ এক্সপোর্ট করুন",
+    "import": "ব্যাকআপ ইমপোর্ট করুন",
+    "lastBackup": "সর্বশেষ ব্যাকআপ",
+    "never": "কখনো না",
+    "importWarning": "এতে ব্যাকআপ ফাইলের ডেটা যোগ হবে। বর্তমান ডেটা মুছে যাবে না।"
+  },
+  "common": {
+    "back": "পিছনে",
+    "undo": "আনডু",
+    "deleted": "মুছে ফেলা হয়েছে",
+    "linkCopied": "লিংক কপি হয়েছে",
+    "cancel": "বাতিল",
+    "confirm": "নিশ্চিত করুন"
+  }
+}

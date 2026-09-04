@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --color-paper: #FBF7EF;
+  --color-paper-dark: #14140F;
+  --color-ink: #241F16;
+  --color-ink-dim: #6B6455;
+  --color-rule: #E4DCC8;
+
+  --color-accent: #2F6B4F;
+  --color-accent-soft: #E4EFE7;
+
+  --color-owe-you: #B4491F;
+  --color-owe-you-soft: #F6E4DA;
+  --color-you-owe: #2F6B4F;
+  --color-you-owe-soft: #E4EFE7;
+
+  --color-neutral-settled: #6B6455;
+  --color-danger: #A13A2E;
+
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+}
+
+@theme inline {
+  --color-paper: var(--color-paper);
+  --color-ink: var(--color-ink);
+  --color-ink-dim: var(--color-ink-dim);
+  --color-rule: var(--color-rule);
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-owe-you: var(--color-owe-you);
+  --color-owe-you-soft: var(--color-owe-you-soft);
+  --color-you-owe: var(--color-you-owe);
+  --color-you-owe-soft: var(--color-you-owe-soft);
+  --color-neutral-settled: var(--color-neutral-settled);
+  --color-danger: var(--color-danger);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-bengali: var(--font-noto-bengali);
+}
+
+.dark {
+  --background: var(--color-paper-dark);
+  --foreground: #F2EFE6;
+  --color-rule: #2A2A22;
+  --color-ink-dim: #A39C8A;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), var(--font-bengali), sans-serif;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Safe-area padding for PWA standalone mode on notched phones */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
