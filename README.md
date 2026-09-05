@@ -65,3 +65,5 @@ khata-money-notebook/
 ├── public/         # PWA icons, manifest assets, service worker
 └── docs/           # Full planning spec (read this to understand the "why")
 ```
+
+_Deployed via Vercel — production branch: main._
