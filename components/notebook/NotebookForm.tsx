@@ -118,11 +118,11 @@ export function NotebookForm({ existing }: { existing?: Notebook }) {
         </button>
       )}
 
-      <div className="fixed bottom-0 inset-x-0 max-w-md mx-auto px-5 pb-safe pt-3 bg-paper border-t border-rule">
+      <div className="fixed bottom-20 inset-x-0 z-40 max-w-md mx-auto px-5">
         <button
           disabled={!canSave}
           onClick={handleSave}
-          className="w-full rounded-full bg-accent text-paper font-semibold py-3.5 disabled:opacity-40"
+          className="w-full rounded-full bg-accent text-paper font-semibold py-3.5 shadow-md disabled:opacity-40"
         >
           {t("form.save")}
         </button>

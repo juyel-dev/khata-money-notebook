@@ -62,7 +62,7 @@ export default function PersonDetailPage({
         ))}
       </div>
 
-      <div className="fixed bottom-20 inset-x-0 max-w-md mx-auto px-5">
+      <div className="fixed bottom-20 inset-x-0 z-20 max-w-md mx-auto px-5">
         <div className="flex gap-3">
           <button
             onClick={() => openAddSheet({ notebookId: id, type: "gave", personId })}
