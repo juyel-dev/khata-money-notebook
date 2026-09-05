@@ -31,7 +31,7 @@ export default function BackupPage() {
     const now = new Date().toLocaleString();
     localStorage.setItem("khata:lastBackup", now);
     setLastBackup(now);
-    showToast("Backup downloaded");
+    showToast(t("backup.exported"));
   };
 
   const handleImport = () => {
@@ -50,9 +50,9 @@ export default function BackupPage() {
           if (Array.isArray(data.people)) await db.people.bulkPut(data.people);
           if (Array.isArray(data.transactions)) await db.transactions.bulkPut(data.transactions);
         });
-        showToast("Import complete");
+        showToast(t("backup.imported"));
       } catch {
-        showToast("Invalid backup file");
+        showToast(t("backup.invalid"));
       }
     };
     input.click();

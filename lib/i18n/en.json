@@ -1,13 +1,18 @@
 {
   "appName": "Khata",
-  "nav": { "home": "Home", "add": "Add", "history": "History" },
+  "nav": {
+    "home": "Home",
+    "add": "Add",
+    "history": "History"
+  },
   "menu": {
     "language": "Language",
     "backup": "Backup & Restore",
     "archived": "Archived Notebooks",
     "settings": "Settings",
     "about": "About / Share this app",
-    "help": "Help"
+    "help": "Help",
+    "archivedEmpty": "No archived notebooks."
   },
   "home": {
     "yourNotebooks": "Your notebooks",
@@ -88,7 +93,10 @@
     "import": "Import backup",
     "lastBackup": "Last backup",
     "never": "Never",
-    "importWarning": "This will add data from the backup file. Existing data won't be deleted."
+    "importWarning": "This will add data from the backup file. Existing data won't be deleted.",
+    "exported": "Backup downloaded",
+    "imported": "Import complete",
+    "invalid": "Invalid backup file"
   },
   "common": {
     "back": "Back",

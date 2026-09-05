@@ -25,7 +25,7 @@ export default function ArchivedNotebooksPage() {
 
       <div className="px-5">
         {archived && archived.length === 0 && (
-          <EmptyState icon={Archive} title={t("menu.archived")} body="—" />
+          <EmptyState icon={Archive} title={t("menu.archived")} body={t("menu.archivedEmpty")} />
         )}
         {archived?.map((nb) => (
           <div key={nb.id} className="flex items-center justify-between py-3 border-b border-rule">
