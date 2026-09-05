@@ -31,8 +31,8 @@
     "got": "নিলাম",
     "emptyTitle": "এখনো কোনো হিসাব নেই",
     "emptyBody": "নিচে দিলাম বা নিলাম-এ চাপ দিয়ে প্রথম হিসাব যোগ করুন।",
-    "owesYou": "আপনাকে দিবে",
-    "youOwe": "আপনি দিবেন",
+    "owesYou": "দিয়েছি",
+    "youOwe": "নিয়েছি",
     "settled": "সমান",
     "last": "সর্বশেষ",
     "editNotebook": "খাতা এডিট করুন",
@@ -62,7 +62,8 @@
     "savedToast": "সেভ হয়েছে — {person}কে {amount} {direction}",
     "to": "দেওয়া হলো",
     "from": "নেওয়া হলো",
-    "whichNotebook": "কোন খাতা?"
+    "whichNotebook": "কোন খাতা?",
+    "createNotebookFirst": "প্রথমে একটি খাতা তৈরি করুন"
   },
   "person": {
     "totalGiven": "মোট দিয়েছি",

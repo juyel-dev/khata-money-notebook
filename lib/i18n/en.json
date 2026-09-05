@@ -62,7 +62,8 @@
     "savedToast": "Saved — {amount} {direction} {person}",
     "to": "to",
     "from": "from",
-    "whichNotebook": "Which notebook?"
+    "whichNotebook": "Which notebook?",
+    "createNotebookFirst": "Create a notebook first"
   },
   "person": {
     "totalGiven": "Total given",

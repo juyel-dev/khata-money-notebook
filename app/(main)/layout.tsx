@@ -1,5 +1,6 @@
 import { BottomNav } from "@/components/nav/BottomNav";
 import { TransactionSheet } from "@/components/transaction/TransactionSheet";
+import { NotebookPickerSheet } from "@/components/notebook/NotebookPickerSheet";
 import { ToastHost } from "@/components/shared/Toast";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -8,6 +9,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <div className="max-w-md mx-auto pt-safe">{children}</div>
       <BottomNav />
       <TransactionSheet />
+      <NotebookPickerSheet />
       <ToastHost />
     </div>
   );

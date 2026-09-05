@@ -15,6 +15,13 @@ interface UIState {
   }) => void;
   openEditSheet: (opts: { notebookId: string; transactionId: string }) => void;
   closeSheet: () => void;
+
+  // "Which notebook?" picker — shown from the bottom-nav Add button when more
+  // than one notebook exists, so Add always leads somewhere instead of being
+  // a dead end (see docs/NAVIGATION.md).
+  notebookPickerOpen: boolean;
+  openNotebookPicker: () => void;
+  closeNotebookPicker: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -32,6 +39,7 @@ export const useUIStore = create<UIState>((set) => ({
       sheetType: type,
       sheetPersonId: personId ?? null,
       sheetTransactionId: null,
+      notebookPickerOpen: false,
     }),
   openEditSheet: ({ notebookId, transactionId }) =>
     set({
@@ -41,4 +49,8 @@ export const useUIStore = create<UIState>((set) => ({
       sheetTransactionId: transactionId,
     }),
   closeSheet: () => set({ sheetOpen: false }),
+
+  notebookPickerOpen: false,
+  openNotebookPicker: () => set({ notebookPickerOpen: true }),
+  closeNotebookPicker: () => set({ notebookPickerOpen: false }),
 }));

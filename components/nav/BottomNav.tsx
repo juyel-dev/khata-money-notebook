@@ -7,25 +7,29 @@ import { useI18n } from "@/lib/i18n";
 import { useUIStore } from "@/lib/store";
 import { db } from "@/lib/db/schema";
 import { useLiveQuery } from "dexie-react-hooks";
+import { showToast } from "@/components/shared/Toast";
 
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
   const openAddSheet = useUIStore((s) => s.openAddSheet);
+  const openNotebookPicker = useUIStore((s) => s.openNotebookPicker);
   const notebooks = useLiveQuery(
     () => db.notebooks.filter((n) => !n.archived).toArray(),
     []
   );
 
   const handleAdd = () => {
-    if (!notebooks || notebooks.length === 0) return; // nothing to add to yet
+    if (!notebooks || notebooks.length === 0) {
+      showToast(t("sheet.createNotebookFirst"));
+      router.push("/");
+      return;
+    }
     if (notebooks.length === 1) {
       openAddSheet({ notebookId: notebooks[0].id });
     } else {
-      // Simple path for v1: send them to Home to pick a notebook, then use its own Gave/Got buttons.
-      // (A lightweight notebook-picker sheet is a natural Phase 2 refinement.)
-      router.push("/");
+      openNotebookPicker();
     }
   };
 
