@@ -26,6 +26,7 @@ export function TransactionRow({
     month: "short",
     hour: "numeric",
     minute: "2-digit",
+    numberingSystem: "latn",
   });
 
   return (

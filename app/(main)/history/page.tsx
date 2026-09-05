@@ -24,6 +24,7 @@ function dayLabel(ts: number, t: (k: string) => string, locale: string): string 
     day: "numeric",
     month: "short",
     year: "numeric",
+    numberingSystem: "latn",
   });
 }
 

@@ -31,6 +31,7 @@ export function PersonRow({
     ? new Date(totals.lastTransactionAt).toLocaleDateString(locale === "bn" ? "bn-BD" : "en-IN", {
         day: "numeric",
         month: "short",
+        numberingSystem: "latn",
       })
     : "";
 
