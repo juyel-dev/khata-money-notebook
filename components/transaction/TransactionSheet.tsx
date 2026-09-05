@@ -9,7 +9,7 @@ import { db } from "@/lib/db/schema";
 import type { TransactionType } from "@/lib/db/schema";
 import { findOrCreatePerson } from "@/lib/db/people";
 import { addTransaction, updateTransaction, deleteTransaction, getTransaction } from "@/lib/db/transactions";
-import { rupeesToPaise, paiseToRupees, formatMoney } from "@/lib/money";
+import { rupeesToPaise, rupeesInputValue, formatMoney, MAX_AMOUNT_RUPEES } from "@/lib/money";
 import { showToast } from "@/components/shared/Toast";
 
 function toLocalInputValue(ts: number): string {
@@ -54,7 +54,7 @@ export function TransactionSheet() {
         const txn = await getTransaction(sheetTransactionId);
         if (txn) {
           setType(txn.type);
-          setAmount(String(paiseToRupees(txn.amount)));
+          setAmount(rupeesInputValue(txn.amount));
           setSelectedPersonId(txn.personId);
           const person = await db.people.get(txn.personId);
           setPersonQuery(person?.name ?? "");
@@ -193,8 +193,13 @@ export function TransactionSheet() {
                   <input
                     autoFocus={sheetMode === "add"}
                     inputMode="decimal"
+                    maxLength={12}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                    onBlur={() => {
+                      const n = Number(amount || 0);
+                      if (n > MAX_AMOUNT_RUPEES) setAmount(String(MAX_AMOUNT_RUPEES));
+                    }}
                     placeholder="0"
                     className="w-full bg-transparent text-3xl font-bold text-ink outline-none tabular-nums"
                   />

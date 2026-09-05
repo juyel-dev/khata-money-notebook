@@ -37,7 +37,7 @@ export function BalanceHeader({ notebook }: { notebook: Notebook }) {
         initial={{ scale: 0.97, opacity: 0.6 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.25 }}
-        className="text-4xl font-bold tabular-nums text-ink"
+        className="text-4xl font-bold tabular-nums text-ink break-all"
       >
         {balance != null ? formatMoney(balance) : "…"}
       </motion.div>

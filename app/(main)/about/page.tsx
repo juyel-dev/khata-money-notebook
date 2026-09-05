@@ -7,7 +7,7 @@ import { showToast } from "@/components/shared/Toast";
 
 export default function AboutPage() {
   const router = useRouter();
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
 
   const handleShare = async () => {
     const url = typeof window !== "undefined" ? window.location.origin : "";
@@ -19,7 +19,7 @@ export default function AboutPage() {
       }
     } else if (navigator.clipboard) {
       await navigator.clipboard.writeText(url);
-      showToast("Link copied");
+      showToast(t("common.linkCopied"));
     }
   };
 
@@ -60,7 +60,7 @@ export default function AboutPage() {
                 <br />
                 <b>নিলাম</b> মানে আপনি কারো থেকে টাকা নিয়েছেন — আপনার ব্যালেন্স বাড়বে।
                 <br />
-                কোনো ব্যক্তির পাশে <b>&quot;আপনাকে দিবে&quot;</b> মানে তিনি আপনার কাছে ঋণী; <b>&quot;আপনি দিবেন&quot;</b> মানে আপনি তার কাছে ঋণী।
+                কোনো ব্যক্তির পাশে <b>&quot;দিয়েছি&quot;</b> মানে আপনি তাকে বেশি টাকা দিয়েছেন; <b>&quot;নিয়েছি&quot;</b> মানে আপনি তার থেকে বেশি টাকা নিয়েছেন।
               </>
             ) : (
               <>

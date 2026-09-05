@@ -7,14 +7,14 @@ import { NOTEBOOK_COLORS, NOTEBOOK_ICONS } from "@/lib/shared/notebookStyle";
 import { NOTEBOOK_ICON_MAP } from "./icons";
 import type { Notebook, NotebookColor, NotebookIcon } from "@/lib/db/schema";
 import { createNotebook, updateNotebook, archiveNotebook } from "@/lib/db/notebooks";
-import { rupeesToPaise, paiseToRupees } from "@/lib/money";
+import { rupeesToPaise, rupeesInputValue, MAX_AMOUNT_RUPEES } from "@/lib/money";
 
 export function NotebookForm({ existing }: { existing?: Notebook }) {
   const { t } = useI18n();
   const router = useRouter();
   const [name, setName] = useState(existing?.name ?? "");
   const [openingBalance, setOpeningBalance] = useState(
-    existing ? String(paiseToRupees(existing.openingBalance)) : ""
+    existing ? rupeesInputValue(existing.openingBalance) : ""
   );
   const [color, setColor] = useState<NotebookColor>(existing?.color ?? "green");
   const [icon, setIcon] = useState<NotebookIcon>(existing?.icon ?? "book");
@@ -58,8 +58,16 @@ export function NotebookForm({ existing }: { existing?: Notebook }) {
           <span className="text-ink-dim mr-1">₹</span>
           <input
             inputMode="decimal"
+            maxLength={12}
             value={openingBalance}
-            onChange={(e) => setOpeningBalance(e.target.value.replace(/[^0-9.]/g, ""))}
+            onChange={(e) => {
+              const digitsOnly = e.target.value.replace(/[^0-9.]/g, "");
+              setOpeningBalance(digitsOnly);
+            }}
+            onBlur={() => {
+              const n = Number(openingBalance || 0);
+              if (n > MAX_AMOUNT_RUPEES) setOpeningBalance(String(MAX_AMOUNT_RUPEES));
+            }}
             placeholder="0"
             className="w-full bg-transparent py-3 text-base text-ink outline-none tabular-nums"
           />
