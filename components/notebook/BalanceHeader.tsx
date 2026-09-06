@@ -26,6 +26,13 @@ export function BalanceHeader({ notebook }: { notebook: Notebook }) {
   const lastActivity = useLiveQuery(() => getLastActivityAt(notebook.id), [notebook.id]);
   const hex = colorHex(notebook.color);
 
+  const createdStr = new Date(notebook.createdAt).toLocaleDateString(locale === "bn" ? "bn-BD" : "en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    numberingSystem: "latn",
+  });
+
   return (
     <div
       className="px-6 pt-6 pb-7 text-center"
@@ -43,6 +50,9 @@ export function BalanceHeader({ notebook }: { notebook: Notebook }) {
       </motion.div>
       <div className="text-xs text-ink-dim mt-2">
         {t("notebook.openingBalance")} {formatMoney(notebook.openingBalance)}
+      </div>
+      <div className="text-xs text-ink-dim mt-0.5">
+        {t("notebook.createdOn")} {createdStr}
         {lastActivity ? ` · ${t("notebook.updated")} ${relativeTime(lastActivity, locale)}` : ""}
       </div>
     </div>

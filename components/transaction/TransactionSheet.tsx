@@ -12,6 +12,11 @@ import { addTransaction, updateTransaction, deleteTransaction, getTransaction } 
 import { rupeesToPaise, rupeesInputValue, formatMoney, MAX_AMOUNT_RUPEES } from "@/lib/money";
 import { showToast } from "@/components/shared/Toast";
 
+// A note is a short annotation, not a second transaction log — this keeps it
+// that way and, just as importantly, keeps it a bounded string so it can
+// never grow long enough to overflow the row it's displayed in elsewhere.
+const NOTE_MAX_LENGTH = 200;
+
 function toLocalInputValue(ts: number): string {
   const d = new Date(ts);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -259,12 +264,19 @@ export function TransactionSheet() {
 
               {/* Note */}
               <div>
-                <label className="block text-xs font-medium text-ink-dim mb-1">{t("sheet.note")}</label>
-                <input
+                <div className="flex items-baseline justify-between mb-1">
+                  <label className="block text-xs font-medium text-ink-dim">{t("sheet.note")}</label>
+                  <span className="text-xs text-ink-dim tabular-nums">
+                    {note.length}/{NOTE_MAX_LENGTH}
+                  </span>
+                </div>
+                <textarea
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  onChange={(e) => setNote(e.target.value.slice(0, NOTE_MAX_LENGTH))}
+                  maxLength={NOTE_MAX_LENGTH}
                   placeholder={t("sheet.notePlaceholder")}
-                  className="w-full rounded-xl border border-rule px-4 py-3 text-base text-ink outline-none focus:border-accent"
+                  rows={2}
+                  className="w-full rounded-xl border border-rule px-4 py-3 text-base text-ink outline-none focus:border-accent resize-none"
                 />
               </div>
 

@@ -21,7 +21,9 @@
     "emptyBody": "A notebook keeps track of money you give or take with people — like a shop's daily cash ledger.",
     "emptyCta": "Create notebook",
     "people": "people",
-    "person": "person"
+    "person": "person",
+    "pinnedSection": "Pinned",
+    "ungroupedSection": "Others"
   },
   "notebook": {
     "openingBalance": "Opening balance",
@@ -37,7 +39,10 @@
     "last": "Last",
     "editNotebook": "Edit notebook",
     "archiveNotebook": "Archive this notebook",
-    "deletePermanently": "Delete permanently"
+    "deletePermanently": "Delete permanently",
+    "pinAction": "Pin this notebook",
+    "unpinAction": "Unpin this notebook",
+    "createdOn": "Created"
   },
   "form": {
     "notebookName": "Notebook name",
@@ -46,7 +51,11 @@
     "color": "Color",
     "icon": "Icon",
     "save": "Save notebook",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "group": "Group",
+    "groupPlaceholder": "Search or add a group",
+    "addAsNewGroup": "Add \"{name}\" as new group",
+    "noGroup": "No group"
   },
   "sheet": {
     "amount": "Amount",
@@ -63,7 +72,8 @@
     "to": "to",
     "from": "from",
     "whichNotebook": "Which notebook?",
-    "createNotebookFirst": "Create a notebook first"
+    "createNotebookFirst": "Create a notebook first",
+    "noteMax": "Note can be up to {max} characters"
   },
   "person": {
     "totalGiven": "Total given",

@@ -21,7 +21,9 @@
     "emptyBody": "একটি খাতায় আপনি কাকে টাকা দিলেন বা কার থেকে নিলেন তার হিসাব রাখতে পারবেন — যেমন দোকানের দৈনিক হিসাব।",
     "emptyCta": "খাতা তৈরি করুন",
     "people": "জন",
-    "person": "জন"
+    "person": "জন",
+    "pinnedSection": "পিন করা",
+    "ungroupedSection": "অন্যান্য"
   },
   "notebook": {
     "openingBalance": "শুরুর টাকা",
@@ -37,7 +39,10 @@
     "last": "সর্বশেষ",
     "editNotebook": "খাতা এডিট করুন",
     "archiveNotebook": "এই খাতা আর্কাইভ করুন",
-    "deletePermanently": "স্থায়ীভাবে মুছুন"
+    "deletePermanently": "স্থায়ীভাবে মুছুন",
+    "pinAction": "এই খাতা পিন করুন",
+    "unpinAction": "পিন খুলুন",
+    "createdOn": "তৈরি হয়েছে"
   },
   "form": {
     "notebookName": "খাতার নাম",
@@ -46,7 +51,11 @@
     "color": "রং",
     "icon": "আইকন",
     "save": "খাতা সেভ করুন",
-    "cancel": "বাতিল"
+    "cancel": "বাতিল",
+    "group": "গ্রুপ",
+    "groupPlaceholder": "গ্রুপ খুঁজুন বা যোগ করুন",
+    "addAsNewGroup": "\"{name}\" নতুন গ্রুপ হিসেবে যোগ করুন",
+    "noGroup": "কোনো গ্রুপ নেই"
   },
   "sheet": {
     "amount": "টাকার পরিমাণ",
@@ -63,7 +72,8 @@
     "to": "দেওয়া হলো",
     "from": "নেওয়া হলো",
     "whichNotebook": "কোন খাতা?",
-    "createNotebookFirst": "প্রথমে একটি খাতা তৈরি করুন"
+    "createNotebookFirst": "প্রথমে একটি খাতা তৈরি করুন",
+    "noteMax": "নোট সর্বোচ্চ {max} অক্ষর পর্যন্ত হতে পারে"
   },
   "person": {
     "totalGiven": "মোট দিয়েছি",

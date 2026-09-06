@@ -42,7 +42,7 @@ export function TransactionRow({
         {isGave ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-ink truncate">{primaryLabel}</div>
+        <div className="font-medium text-ink line-clamp-2 break-words">{primaryLabel}</div>
         <div className="text-xs text-ink-dim flex items-center gap-1.5">
           {notebookLabel}
           {dateStr}

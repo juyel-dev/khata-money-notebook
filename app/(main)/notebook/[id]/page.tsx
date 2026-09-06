@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronLeft, MoreVertical, Users } from "lucide-react";
+import { ChevronLeft, MoreVertical, Users, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { db } from "@/lib/db/schema";
 import { getPeopleWithTotals } from "@/lib/db/people";
@@ -13,7 +13,7 @@ import { PersonRow } from "@/components/person/PersonRow";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useI18n } from "@/lib/i18n";
 import { useUIStore } from "@/lib/store";
-import { archiveNotebook } from "@/lib/db/notebooks";
+import { archiveNotebook, setNotebookPinned } from "@/lib/db/notebooks";
 
 export default function NotebookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -33,7 +33,10 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
         <button onClick={() => router.push("/")} className="p-2 text-ink">
           <ChevronLeft size={22} />
         </button>
-        <span className="text-base font-semibold text-ink truncate">{notebook.name}</span>
+        <span className="text-base font-semibold text-ink truncate flex items-center gap-1.5">
+          {notebook.pinned && <Pin size={14} className="text-accent shrink-0" fill="currentColor" />}
+          {notebook.name}
+        </span>
         <button onClick={() => setMenuOpen((v) => !v)} className="p-2 text-ink">
           <MoreVertical size={20} />
         </button>
@@ -46,8 +49,18 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                className="absolute right-3 top-12 z-40 bg-paper border border-rule rounded-xl shadow-lg overflow-hidden w-48"
+                className="absolute right-3 top-12 z-40 bg-paper border border-rule rounded-xl shadow-lg overflow-hidden w-52"
               >
+                <button
+                  onClick={() => {
+                    setNotebookPinned(id, !notebook.pinned);
+                    setMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
+                >
+                  {notebook.pinned ? <PinOff size={16} /> : <Pin size={16} />}
+                  {notebook.pinned ? t("notebook.unpinAction") : t("notebook.pinAction")}
+                </button>
                 <Link
                   href={`/notebook/${id}/edit`}
                   className="block px-4 py-3 text-sm text-ink hover:bg-accent-soft"
