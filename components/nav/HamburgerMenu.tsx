@@ -7,6 +7,8 @@ import { useI18n } from "@/lib/i18n";
 import { AnimatePresence, motion } from "framer-motion";
 import { shareApp } from "@/lib/shareApp";
 import { showToast } from "@/components/shared/Toast";
+import { AppLogoLockup } from "@/components/shared/AppLogoLockup";
+import { InstallAppButton } from "@/components/shared/InstallAppButton";
 
 export function HamburgerMenu() {
   const [open, setOpen] = useState(false);
@@ -46,7 +48,7 @@ export function HamburgerMenu() {
               className="fixed inset-y-0 left-0 z-50 w-72 bg-paper pt-safe shadow-xl flex flex-col"
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-rule">
-                <span className="text-h1 font-bold text-ink text-lg">{t("appName")}</span>
+                <AppLogoLockup size="sm" />
                 <button onClick={() => setOpen(false)} aria-label="Close" className="p-1 text-ink-dim">
                   <X size={22} />
                 </button>
@@ -72,6 +74,10 @@ export function HamburgerMenu() {
                       {t("menu.comingSoon")}
                     </span>
                   </button>
+                </div>
+
+                <div className="mx-5 mt-3">
+                  <InstallAppButton />
                 </div>
 
                 <div className="px-5 py-4 border-b border-rule mt-4">

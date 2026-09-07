@@ -8,6 +8,8 @@ import { HamburgerMenu } from "@/components/nav/HamburgerMenu";
 import { NotebookCard } from "@/components/notebook/NotebookCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { HeroBannerCarousel } from "@/components/home/HeroBannerCarousel";
+import { AppLogoLockup } from "@/components/shared/AppLogoLockup";
+import { InstallAppButton } from "@/components/shared/InstallAppButton";
 import { useI18n } from "@/lib/i18n";
 
 export default function HomePage() {
@@ -21,7 +23,10 @@ export default function HomePage() {
     <div>
       <div className="px-5 pt-4 flex items-center gap-3 mb-3">
         <HamburgerMenu />
-        <span className="text-lg font-bold text-ink">{t("appName")}</span>
+        <AppLogoLockup />
+      </div>
+      <div className="px-5 mb-1">
+        <InstallAppButton />
       </div>
 
       {/* Full-bleed so the carousel's peek effect reaches the screen edges,
