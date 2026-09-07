@@ -2,20 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Globe, Archive, Settings, Info, HelpCircle, DatabaseBackup } from "lucide-react";
+import { Menu, X, Globe, Archive, Settings, HelpCircle, DatabaseBackup, Share2, Cloud } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { AnimatePresence, motion } from "framer-motion";
+import { shareApp } from "@/lib/shareApp";
+import { showToast } from "@/components/shared/Toast";
 
 export function HamburgerMenu() {
   const [open, setOpen] = useState(false);
   const { t, locale, setLocale } = useI18n();
 
-  const items = [
+  const links = [
     { href: "/settings/backup", icon: DatabaseBackup, label: t("menu.backup") },
     { href: "/settings/archived", icon: Archive, label: t("menu.archived") },
     { href: "/settings", icon: Settings, label: t("menu.settings") },
-    { href: "/about", icon: Info, label: t("menu.about") },
-    { href: "/about#help", icon: HelpCircle, label: t("menu.help") },
   ];
 
   return (
@@ -52,48 +52,94 @@ export function HamburgerMenu() {
                 </button>
               </div>
 
-              <div className="px-5 py-4 border-b border-rule">
-                <div className="flex items-center gap-2 text-sm text-ink-dim mb-2">
-                  <Globe size={16} />
-                  {t("menu.language")}
-                </div>
-                <div className="flex gap-2">
+              <div className="flex-1 overflow-y-auto">
+                {/* Cloud Sync — Phase 3 (Supabase), not built yet. Shown as a
+                    clearly-disabled preview so it sets expectations honestly
+                    rather than being a dead/misleading button. */}
+                <div className="mx-5 mt-4 rounded-2xl border border-rule p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-ink mb-1">
+                    <Cloud size={16} className="text-ink-dim" />
+                    {t("menu.cloudSyncTitle")}
+                  </div>
+                  <p className="text-xs text-ink-dim leading-relaxed mb-3">{t("menu.cloudSyncDesc")}</p>
                   <button
-                    onClick={() => setLocale("en")}
-                    className={`flex-1 py-2 rounded-full text-sm font-medium border ${
-                      locale === "en"
-                        ? "bg-accent text-paper border-accent"
-                        : "border-rule text-ink"
-                    }`}
+                    disabled
+                    onClick={() => showToast(t("menu.comingSoon"))}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full bg-rule text-ink-dim text-sm font-semibold cursor-not-allowed"
                   >
-                    English
-                  </button>
-                  <button
-                    onClick={() => setLocale("bn")}
-                    className={`flex-1 py-2 rounded-full text-sm font-medium border ${
-                      locale === "bn"
-                        ? "bg-accent text-paper border-accent"
-                        : "border-rule text-ink"
-                    }`}
-                  >
-                    বাংলা
+                    {t("menu.signInGoogle")}
+                    <span className="text-[10px] font-bold uppercase tracking-wide bg-paper px-1.5 py-0.5 rounded-full border border-rule">
+                      {t("menu.comingSoon")}
+                    </span>
                   </button>
                 </div>
-              </div>
 
-              <nav className="flex-1 py-2">
-                {items.map(({ href, icon: Icon, label }) => (
+                <div className="px-5 py-4 border-b border-rule mt-4">
+                  <div className="flex items-center gap-2 text-sm text-ink-dim mb-2">
+                    <Globe size={16} />
+                    {t("menu.language")}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setLocale("en")}
+                      className={`flex-1 py-2 rounded-full text-sm font-medium border ${
+                        locale === "en"
+                          ? "bg-accent text-paper border-accent"
+                          : "border-rule text-ink"
+                      }`}
+                    >
+                      English
+                    </button>
+                    <button
+                      onClick={() => setLocale("bn")}
+                      className={`flex-1 py-2 rounded-full text-sm font-medium border ${
+                        locale === "bn"
+                          ? "bg-accent text-paper border-accent"
+                          : "border-rule text-ink"
+                      }`}
+                    >
+                      বাংলা
+                    </button>
+                  </div>
+                </div>
+
+                <nav className="py-2">
+                  {links.map(({ href, icon: Icon, label }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-3 px-5 py-3 text-ink hover:bg-accent-soft"
+                    >
+                      <Icon size={19} className="text-ink-dim" />
+                      <span className="text-sm">{label}</span>
+                    </Link>
+                  ))}
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      shareApp(t("common.linkCopied"));
+                    }}
+                    className="w-full flex items-center gap-3 px-5 py-3 text-ink hover:bg-accent-soft text-left"
+                  >
+                    <Share2 size={19} className="text-ink-dim" />
+                    <span className="text-sm">{t("menu.shareApp")}</span>
+                  </button>
                   <Link
-                    key={href}
-                    href={href}
+                    href="/about#help"
                     onClick={() => setOpen(false)}
                     className="flex items-center gap-3 px-5 py-3 text-ink hover:bg-accent-soft"
                   >
-                    <Icon size={19} className="text-ink-dim" />
-                    <span className="text-sm">{label}</span>
+                    <HelpCircle size={19} className="text-ink-dim" />
+                    <span className="text-sm">{t("menu.help")}</span>
                   </Link>
-                ))}
-              </nav>
+                </nav>
+              </div>
+
+              <div className="px-5 py-4 border-t border-rule">
+                <div className="text-xs font-semibold text-ink">{t("appName")} • {t("appTagline")}</div>
+                <div className="text-xs text-ink-dim mt-0.5">{t("menu.footerTagline")}</div>
+              </div>
             </motion.div>
           </>
         )}

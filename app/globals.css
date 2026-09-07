@@ -42,10 +42,19 @@
 }
 
 .dark {
-  --background: var(--color-paper-dark);
+  --color-paper: #1E1E16;
+  --background: var(--color-paper);
   --foreground: #F2EFE6;
   --color-rule: #2A2A22;
   --color-ink-dim: #A39C8A;
+  --color-ink: #F2EFE6;
+
+  /* Soft tint tokens are solid pastel hex in light mode — on a dark
+     background those same values would look like bright washed-out
+     patches, so darker/desaturated variants are used instead. */
+  --color-accent-soft: #1B3327;
+  --color-owe-you-soft: #3A2419;
+  --color-you-owe-soft: #1B3327;
 }
 
 body {

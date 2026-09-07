@@ -12,7 +12,13 @@
     "settings": "Settings",
     "about": "About / Share this app",
     "help": "Help",
-    "archivedEmpty": "No archived notebooks."
+    "archivedEmpty": "No archived notebooks.",
+    "cloudSyncTitle": "Cloud Sync & Backup",
+    "cloudSyncDesc": "Sign in to backup and sync your Khata across all devices.",
+    "signInGoogle": "Sign in with Google",
+    "comingSoon": "Coming soon",
+    "shareApp": "Share this app",
+    "footerTagline": "100% Offline & Private"
   },
   "home": {
     "yourNotebooks": "Your notebooks",
@@ -96,7 +102,13 @@
     "dark": "Dark",
     "system": "System",
     "data": "Data",
-    "about": "About"
+    "about": "About",
+    "backupDesc": "Export or import JSON backup",
+    "archivedDesc": "Restore or permanently delete",
+    "aboutHelp": "About Khata & Help",
+    "currency": "Currency",
+    "privacyNote": "All your data stays completely private on your device in your browser. No account required, no tracking, and fully functional without an internet connection.",
+    "aboutSection": "About & Help"
   },
   "backup": {
     "title": "Backup & Restore",
@@ -116,5 +128,6 @@
     "linkCopied": "Link copied",
     "cancel": "Cancel",
     "confirm": "Confirm"
-  }
+  },
+  "appTagline": "Simple Money Notebook"
 }

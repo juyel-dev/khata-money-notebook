@@ -41,7 +41,7 @@ export function PersonRow({
       className="flex items-center gap-3 py-3 border-b border-rule active:opacity-70"
     >
       <span
-        className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-ink shrink-0"
+        className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-[#241F16] shrink-0"
         style={{ backgroundColor: bg }}
       >
         {initial}
