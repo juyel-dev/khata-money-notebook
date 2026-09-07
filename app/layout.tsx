@@ -3,6 +3,7 @@ import { Inter, Noto_Sans_Bengali } from "next/font/google";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/theme";
+import { InstallPromptProvider } from "@/lib/useInstallPrompt";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 
 const inter = Inter({
@@ -58,7 +59,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.variable} ${notoBengali.variable} antialiased`}>
         <ThemeProvider>
-          <I18nProvider>{children}</I18nProvider>
+          <I18nProvider>
+            <InstallPromptProvider>{children}</InstallPromptProvider>
+          </I18nProvider>
         </ThemeProvider>
         <ServiceWorkerRegister />
       </body>
