@@ -79,8 +79,8 @@ export function HeroBannerCarousel() {
         onTouchStart={pauseAutoplay}
         onPointerDown={pauseAutoplay}
         onScroll={pauseAutoplay}
-        className="flex overflow-x-auto snap-x snap-mandatory gap-3 px-[7%] no-scrollbar"
-        style={{ scrollPaddingLeft: "7%", scrollPaddingRight: "7%" }}
+        className="flex overflow-x-auto snap-x snap-mandatory gap-3 px-[3.5%] no-scrollbar"
+        style={{ scrollPaddingLeft: "3.5%", scrollPaddingRight: "3.5%" }}
       >
         {banners.map((banner, i) => (
           <BannerCard
@@ -141,7 +141,7 @@ function BannerCard({
       ref={refCallback}
       onClick={banner.destinationUrl ? handleClick : undefined}
       role={banner.destinationUrl ? "button" : undefined}
-      className={`snap-center shrink-0 w-[86%] rounded-2xl overflow-hidden flex items-stretch ${
+      className={`snap-center shrink-0 w-[93%] rounded-2xl overflow-hidden flex items-stretch ${
         banner.destinationUrl ? "cursor-pointer active:opacity-90" : ""
       }`}
       style={{ aspectRatio: "2.86 / 1", backgroundColor: `${banner.accentColor}17` }}
