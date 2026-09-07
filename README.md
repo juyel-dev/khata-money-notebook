@@ -67,3 +67,5 @@ khata-money-notebook/
 ```
 
 _Deployed via Vercel — production branch: main._
+
+<!-- redeploy trigger: webhook delivery miss on 512704b -->
