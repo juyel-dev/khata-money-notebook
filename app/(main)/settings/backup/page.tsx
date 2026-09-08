@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -68,6 +69,14 @@ export default function BackupPage() {
       </div>
 
       <div className="px-5 flex flex-col gap-4 mt-2">
+        <div className="flex justify-center">
+          <Image
+            src="/illustrations/backup-hero.svg"
+            alt=""
+            width={200}
+            height={114}
+          />
+        </div>
         <button
           onClick={handleExport}
           className="w-full rounded-full bg-accent text-paper font-semibold py-3.5"

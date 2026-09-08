@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180">
+  <circle cx="118" cy="90" r="72" fill="#E4EFE7"/>
+  <ellipse cx="116" cy="154" rx="58" ry="8" fill="#2F6B4F" opacity="0.12"/>
+
+  <!-- Ledger sheet -->
+  <rect x="60" y="28" width="118" height="120" rx="10" fill="#FFFFFF" stroke="#2F6B4F" stroke-width="6"/>
+  <line x1="84" y1="40" x2="84" y2="138" stroke="#E85D48" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Ruled lines -->
+  <g stroke="#BFD4C8" stroke-width="4" stroke-linecap="round">
+    <line x1="96" y1="56" x2="162" y2="56"/>
+    <line x1="96" y1="74" x2="112" y2="74"/>
+    <line x1="96" y1="92" x2="162" y2="92"/>
+    <line x1="96" y1="110" x2="112" y2="110"/>
+  </g>
+
+  <!-- Gave pill -->
+  <rect x="118" y="65" width="44" height="18" rx="9" fill="#2F6B4F"/>
+  <rect x="137" y="68" width="5" height="12" rx="2.5" fill="#FFFFFF"/>
+  <rect x="133" y="71.5" width="13" height="5" rx="2.5" fill="#FFFFFF"/>
+
+  <!-- Got pill -->
+  <rect x="118" y="101" width="44" height="18" rx="9" fill="#C93B2B"/>
+  <rect x="133" y="107.5" width="13" height="5" rx="2.5" fill="#FFFFFF"/>
+
+  <!-- Pen -->
+  <g transform="rotate(28 197 96)">
+    <rect x="189" y="44" width="15" height="62" rx="7.5" fill="#2F6B4F"/>
+    <rect x="189" y="56" width="15" height="8" fill="#FFFFFF" opacity="0.3"/>
+    <rect x="189" y="94" width="15" height="10" fill="#C99748"/>
+    <polygon points="189,104 204,104 196.5,122" fill="#241F16"/>
+  </g>
+</svg>

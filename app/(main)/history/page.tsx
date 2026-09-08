@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Clock } from "lucide-react";
 import { db } from "@/lib/db/schema";
 import { getAllTransactions } from "@/lib/db/transactions";
 import { TransactionRow } from "@/components/transaction/TransactionRow";
@@ -89,7 +88,7 @@ export default function HistoryPage() {
       )}
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Clock} title={t("history.empty")} body={t("history.emptyBody")} />
+        <EmptyState illustration="/illustrations/empty-history.svg" title={t("history.empty")} body={t("history.emptyBody")} />
       ) : (
         grouped.map((group) => (
           <div key={group.label} className="mb-2">

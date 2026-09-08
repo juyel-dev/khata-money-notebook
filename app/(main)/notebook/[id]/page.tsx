@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronLeft, MoreVertical, Users, Pin, PinOff } from "lucide-react";
+import { ChevronLeft, MoreVertical, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { db } from "@/lib/db/schema";
 import { getPeopleWithTotals } from "@/lib/db/people";
@@ -92,7 +92,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
         )}
 
         {people && people.length === 0 ? (
-          <EmptyState icon={Users} title={t("notebook.emptyTitle")} body={t("notebook.emptyBody")} />
+          <EmptyState illustration="/illustrations/empty-entries.svg" title={t("notebook.emptyTitle")} body={t("notebook.emptyBody")} />
         ) : (
           people?.map((p) => <PersonRow key={p.id} notebookId={id} person={p} totals={p.totals} />)
         )}

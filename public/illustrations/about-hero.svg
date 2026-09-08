@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 180">
+  <ellipse cx="140" cy="160" rx="100" ry="10" fill="#2F6B4F" opacity="0.12"/>
+
+  <!-- Shop building -->
+  <rect x="70" y="92" width="140" height="64" rx="6" fill="#FFFFFF" stroke="#2F6B4F" stroke-width="6"/>
+
+  <!-- Awning -->
+  <polygon points="58,92 222,92 206,60 74,60" fill="#2F6B4F"/>
+  <g fill="#FFFFFF">
+    <polygon points="90,60 102,60 99,92 87,92"/>
+    <polygon points="122,60 134,60 131,92 119,92"/>
+    <polygon points="154,60 166,60 163,92 151,92"/>
+    <polygon points="186,60 198,60 195,92 183,92"/>
+  </g>
+
+  <!-- Coin sign on awning -->
+  <circle cx="140" cy="46" r="14" fill="#F3D08C" stroke="#C99748" stroke-width="4"/>
+  <rect x="138" y="39" width="4" height="14" rx="2" fill="#B87822"/>
+  <rect x="133" y="44" width="14" height="4" rx="2" fill="#B87822"/>
+
+  <!-- Door -->
+  <rect x="126" y="118" width="28" height="38" rx="4" fill="#2F6B4F"/>
+  <circle cx="148" cy="138" r="2.5" fill="#F3D08C"/>
+
+  <!-- Windows -->
+  <rect x="84" y="112" width="28" height="26" rx="4" fill="#E4EFE7" stroke="#2F6B4F" stroke-width="4"/>
+  <line x1="98" y1="112" x2="98" y2="138" stroke="#2F6B4F" stroke-width="2.5"/>
+  <rect x="168" y="112" width="28" height="26" rx="4" fill="#E4EFE7" stroke="#2F6B4F" stroke-width="4"/>
+  <line x1="182" y1="112" x2="182" y2="138" stroke="#2F6B4F" stroke-width="2.5"/>
+
+  <!-- Coin stack -->
+  <ellipse cx="46" cy="148" rx="15" ry="6" fill="#F3D08C" stroke="#C99748" stroke-width="4"/>
+  <ellipse cx="46" cy="140" rx="15" ry="6" fill="#F3D08C" stroke="#C99748" stroke-width="4"/>
+</svg>

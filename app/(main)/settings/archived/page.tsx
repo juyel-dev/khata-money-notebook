@@ -7,7 +7,6 @@ import { db } from "@/lib/db/schema";
 import { archiveNotebook, deleteNotebookPermanently } from "@/lib/db/notebooks";
 import { useI18n } from "@/lib/i18n";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { Archive } from "lucide-react";
 
 export default function ArchivedNotebooksPage() {
   const router = useRouter();
@@ -25,7 +24,7 @@ export default function ArchivedNotebooksPage() {
 
       <div className="px-5">
         {archived && archived.length === 0 && (
-          <EmptyState icon={Archive} title={t("menu.archived")} body={t("menu.archivedEmpty")} />
+          <EmptyState illustration="/illustrations/empty-archived.svg" title={t("menu.archived")} body={t("menu.archivedEmpty")} />
         )}
         {archived?.map((nb) => (
           <div key={nb.id} className="flex items-center justify-between py-3 border-b border-rule">

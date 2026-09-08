@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180">
+  <circle cx="120" cy="90" r="70" fill="#E4EFE7"/>
+  <ellipse cx="120" cy="152" rx="62" ry="8" fill="#2F6B4F" opacity="0.12"/>
+
+  <!-- Book peeking out -->
+  <rect x="88" y="32" width="64" height="58" rx="8" fill="#2F6B4F"/>
+  <rect x="96" y="40" width="48" height="42" rx="4" fill="#FFFFFF"/>
+  <g stroke="#9DB8A8" stroke-width="3.5" stroke-linecap="round">
+    <line x1="104" y1="52" x2="136" y2="52"/>
+    <line x1="104" y1="62" x2="136" y2="62"/>
+    <line x1="104" y1="72" x2="128" y2="72"/>
+  </g>
+  <path d="M132 40 L132 60 L137 55 L142 60 L142 40 Z" fill="#E76F51"/>
+
+  <!-- Archive box body -->
+  <rect x="62" y="86" width="116" height="58" rx="10" fill="#F3D08C" stroke="#B87822" stroke-width="5"/>
+  <line x1="120" y1="92" x2="120" y2="144" stroke="#B87822" stroke-width="4"/>
+
+  <!-- Lid -->
+  <rect x="54" y="68" width="132" height="24" rx="10" fill="#2F6B4F"/>
+  <rect x="102" y="75" width="36" height="10" rx="5" fill="#E4EFE7"/>
+</svg>

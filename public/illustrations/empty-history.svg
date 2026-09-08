@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180">
+  <circle cx="110" cy="88" r="70" fill="#E4EFE7"/>
+  <ellipse cx="110" cy="152" rx="60" ry="8" fill="#2F6B4F" opacity="0.12"/>
+
+  <!-- Calendar -->
+  <rect x="50" y="50" width="114" height="94" rx="12" fill="#FFFFFF" stroke="#2F6B4F" stroke-width="6"/>
+  <rect x="76" y="40" width="12" height="24" rx="6" fill="#C99748"/>
+  <rect x="122" y="40" width="12" height="24" rx="6" fill="#C99748"/>
+  <line x1="60" y1="80" x2="154" y2="80" stroke="#2F6B4F" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Date dots -->
+  <g fill="#9DB8A8">
+    <circle cx="78" cy="98" r="4.5"/>
+    <circle cx="104" cy="98" r="4.5"/>
+    <circle cx="130" cy="98" r="4.5"/>
+    <circle cx="78" cy="116" r="4.5"/>
+    <circle cx="104" cy="116" r="4.5"/>
+  </g>
+  <circle cx="130" cy="116" r="6" fill="#2F6B4F"/>
+
+  <!-- Clock badge -->
+  <circle cx="172" cy="122" r="30" fill="#2F6B4F"/>
+  <circle cx="172" cy="122" r="22" fill="#FFFFFF"/>
+  <line x1="172" y1="122" x2="172" y2="108" stroke="#2F6B4F" stroke-width="5" stroke-linecap="round"/>
+  <line x1="172" y1="122" x2="183" y2="127" stroke="#2F6B4F" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="172" cy="122" r="4" fill="#C99748"/>
+</svg>

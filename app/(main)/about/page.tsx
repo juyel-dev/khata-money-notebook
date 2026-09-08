@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Share2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -35,6 +36,14 @@ export default function AboutPage() {
       </div>
 
       <div className="px-5 flex flex-col gap-5">
+        <div className="flex justify-center">
+          <Image
+            src="/illustrations/about-hero.svg"
+            alt=""
+            width={220}
+            height={141}
+          />
+        </div>
         <p className="text-sm text-ink-dim">
           {locale === "bn"
             ? "খাতা একটা সহজ, অফলাইন মানি নোটবুক — কাকে টাকা দিলেন বা কার থেকে নিলেন তার হিসাব রাখার জন্য। কোনো লগইন লাগে না, সব তথ্য আপনার ফোনেই থাকে।"

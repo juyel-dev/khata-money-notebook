@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 160">
+  <circle cx="140" cy="80" r="64" fill="#E4EFE7"/>
+
+  <!-- Cloud -->
+  <circle cx="108" cy="94" r="24" fill="#2F6B4F"/>
+  <circle cx="139" cy="76" r="32" fill="#2F6B4F"/>
+  <circle cx="169" cy="94" r="22" fill="#2F6B4F"/>
+  <rect x="108" y="94" width="83" height="30" rx="15" fill="#2F6B4F"/>
+
+  <!-- Upload arrow -->
+  <line x1="140" y1="106" x2="140" y2="74" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+  <polyline points="124,90 140,72 156,90" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Sparkles -->
+  <circle cx="64" cy="50" r="6" fill="#C99748"/>
+  <circle cx="214" cy="58" r="8" fill="#F3D08C" stroke="#C99748" stroke-width="4"/>
+  <circle cx="218" cy="118" r="5" fill="#C99748"/>
+  <rect x="61" y="112" width="5" height="14" rx="2.5" fill="#C99748"/>
+  <rect x="56.5" y="116.5" width="14" height="5" rx="2.5" fill="#C99748"/>
+</svg>

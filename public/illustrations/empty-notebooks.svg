@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180">
+  <circle cx="118" cy="92" r="72" fill="#E4EFE7"/>
+  <ellipse cx="118" cy="150" rx="62" ry="8" fill="#2F6B4F" opacity="0.12"/>
+
+  <!-- Open ledger pages -->
+  <path d="M118 62 C100 55 82 55 66 59 L66 129 C82 125 100 125 118 132 Z" fill="#FFFFFF" stroke="#2F6B4F" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M118 62 C136 55 154 55 170 59 L170 129 C154 125 136 125 118 132 Z" fill="#FFFFFF" stroke="#2F6B4F" stroke-width="6" stroke-linejoin="round"/>
+  <line x1="118" y1="62" x2="118" y2="132" stroke="#2F6B4F" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Bookmark ribbon -->
+  <path d="M92 56 L92 92 L99 85 L106 92 L106 56 Z" fill="#E76F51"/>
+
+  <!-- Ledger lines, left page -->
+  <g stroke="#9DB8A8" stroke-width="4" stroke-linecap="round">
+    <line x1="78" y1="81" x2="106" y2="77"/>
+    <line x1="78" y1="95" x2="106" y2="91"/>
+    <line x1="78" y1="109" x2="100" y2="105"/>
+  </g>
+  <!-- Ledger lines, right page -->
+  <g stroke="#9DB8A8" stroke-width="4" stroke-linecap="round">
+    <line x1="130" y1="77" x2="158" y2="81"/>
+    <line x1="130" y1="91" x2="158" y2="95"/>
+  </g>
+
+  <!-- Gold coin -->
+  <circle cx="172" cy="126" r="22" fill="#F3D08C" stroke="#C99748" stroke-width="5"/>
+  <circle cx="172" cy="126" r="13" fill="none" stroke="#C99748" stroke-width="3"/>
+  <rect x="169" y="118" width="6" height="16" rx="3" fill="#B87822"/>
+  <rect x="164" y="123" width="16" height="6" rx="3" fill="#B87822"/>
+</svg>

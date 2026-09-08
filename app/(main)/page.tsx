@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BookOpen, Plus, Pin } from "lucide-react";
+import { Plus, Pin } from "lucide-react";
 import { getHomeList } from "@/lib/db/notebooks";
 import { HamburgerMenu } from "@/components/nav/HamburgerMenu";
 import { NotebookCard } from "@/components/notebook/NotebookCard";
@@ -36,7 +36,7 @@ export default function HomePage() {
       <div className="px-5">
         {homeList && isEmpty ? (
           <EmptyState
-            icon={BookOpen}
+            illustration="/illustrations/empty-notebooks.svg"
             title={t("home.emptyTitle")}
             body={t("home.emptyBody")}
             action={
