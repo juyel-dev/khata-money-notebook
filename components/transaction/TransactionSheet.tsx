@@ -10,6 +10,7 @@ import type { TransactionType } from "@/lib/db/schema";
 import { findOrCreatePerson } from "@/lib/db/people";
 import { addTransaction, updateTransaction, deleteTransaction, getTransaction } from "@/lib/db/transactions";
 import { rupeesToPaise, rupeesInputValue, formatMoney, MAX_AMOUNT_RUPEES } from "@/lib/money";
+import { colorHex } from "@/lib/shared/notebookStyle";
 import { showToast } from "@/components/shared/Toast";
 
 // A note is a short annotation, not a second transaction log — this keeps it
@@ -48,6 +49,11 @@ export function TransactionSheet() {
 
   const people = useLiveQuery(
     () => (sheetNotebookId ? db.people.where("notebookId").equals(sheetNotebookId).toArray() : []),
+    [sheetNotebookId]
+  );
+
+  const notebook = useLiveQuery(
+    () => (sheetNotebookId ? db.notebooks.get(sheetNotebookId) : undefined),
     [sheetNotebookId]
   );
 
@@ -170,6 +176,19 @@ export function TransactionSheet() {
             <div className="w-10 h-1.5 bg-rule rounded-full mx-auto mt-3" />
 
             <div className="px-5 pt-4 pb-6 flex flex-col gap-5">
+              {/* Target khata — so it's always clear where this entry goes */}
+              {notebook && (
+                <div className="flex items-center justify-center gap-1.5 -mb-2 min-w-0">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: colorHex(notebook.color) }}
+                  />
+                  <span className="text-xs font-semibold text-ink-dim truncate max-w-[240px]">
+                    {notebook.name}
+                  </span>
+                </div>
+              )}
+
               {/* Type toggle */}
               <div className="flex rounded-full border border-rule p-1">
                 <button
