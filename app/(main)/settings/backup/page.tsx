@@ -61,7 +61,7 @@ export default function BackupPage() {
   return (
     <div>
       <div className="flex items-center gap-2 px-3 pt-4 pb-2">
-        <button onClick={() => router.back()} className="p-2 -ml-1 text-ink">
+        <button onClick={() => router.back()} className="p-2 -ml-1 text-ink rounded-full active:bg-accent-soft active:scale-90 transition-all">
           <ChevronLeft size={22} />
         </button>
         <span className="text-lg font-bold text-ink">{t("backup.title")}</span>

@@ -30,7 +30,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
   return (
     <div>
       <div className="flex items-center justify-between px-3 pt-4 pb-1 relative">
-        <button onClick={() => router.push("/")} className="p-2 text-ink">
+        <button onClick={() => router.push("/")} className="p-2 text-ink rounded-full active:bg-accent-soft active:scale-90 transition-all">
           <ChevronLeft size={22} />
         </button>
         <span className="text-base font-semibold text-ink truncate flex items-center gap-1.5">

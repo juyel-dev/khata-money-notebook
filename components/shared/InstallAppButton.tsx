@@ -13,7 +13,7 @@ export function InstallAppButton({ className = "" }: { className?: string }) {
   return (
     <button
       onClick={promptInstall}
-      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-full bg-accent text-paper text-sm font-semibold ${className}`}
+      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-full bg-accent text-paper text-sm font-semibold active:scale-95 active:opacity-90 transition-all ${className}`}
     >
       <Download size={16} />
       {t("menu.installApp")}

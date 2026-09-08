@@ -2,7 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ShieldCheck, Sun, Moon, Monitor } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  Sun,
+  Moon,
+  Monitor,
+  Languages,
+  SunMoon,
+  DatabaseBackup,
+  Archive,
+  HelpCircle,
+  Share2,
+} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { shareApp } from "@/lib/shareApp";
@@ -15,6 +28,9 @@ function SectionCard({ children }: { children: React.ReactNode }) {
   );
 }
 
+const rowClass =
+  "px-4 py-3.5 flex items-center justify-between gap-3 active:bg-accent-soft transition-colors";
+
 export default function SettingsPage() {
   const router = useRouter();
   const { t, locale, setLocale } = useI18n();
@@ -23,7 +39,10 @@ export default function SettingsPage() {
   return (
     <div>
       <div className="flex items-center gap-2 px-3 pt-4 pb-2">
-        <button onClick={() => router.back()} className="p-2 -ml-1 text-ink">
+        <button
+          onClick={() => router.back()}
+          className="p-2 -ml-1 text-ink rounded-full active:bg-accent-soft active:scale-90 transition-all"
+        >
           <ChevronLeft size={22} />
         </button>
         <span className="text-lg font-bold text-ink">{t("settings.title")}</span>
@@ -35,9 +54,12 @@ export default function SettingsPage() {
             {t("settings.preferences")}
           </div>
           <SectionCard>
-            <div className="px-4 py-3.5 flex items-center justify-between">
-              <span className="text-sm text-ink">{t("settings.language")}</span>
-              <div className="flex gap-2">
+            <div className={rowClass}>
+              <span className="flex items-center gap-3 text-sm text-ink">
+                <Languages size={18} className="text-ink-dim shrink-0" />
+                {t("settings.language")}
+              </span>
+              <div className="flex gap-2 shrink-0">
                 <button
                   onClick={() => setLocale("en")}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
@@ -56,9 +78,12 @@ export default function SettingsPage() {
                 </button>
               </div>
             </div>
-            <div className="px-4 py-3.5 flex items-center justify-between gap-2">
-              <span className="text-sm text-ink shrink-0">{t("settings.theme")}</span>
-              <div className="flex gap-1.5">
+            <div className={rowClass}>
+              <span className="flex items-center gap-3 text-sm text-ink shrink-0">
+                <SunMoon size={18} className="text-ink-dim shrink-0" />
+                {t("settings.theme")}
+              </span>
+              <div className="flex gap-1.5 shrink-0">
                 {(
                   [
                     { key: "light" as const, label: t("settings.light"), Icon: Sun },
@@ -87,18 +112,24 @@ export default function SettingsPage() {
             {t("settings.data")}
           </div>
           <SectionCard>
-            <Link href="/settings/backup" className="px-4 py-3.5 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-ink">{t("menu.backup")}</div>
-                <div className="text-xs text-ink-dim mt-0.5">{t("settings.backupDesc")}</div>
-              </div>
+            <Link href="/settings/backup" className={rowClass}>
+              <span className="flex items-center gap-3 min-w-0">
+                <DatabaseBackup size={18} className="text-ink-dim shrink-0" />
+                <span className="min-w-0">
+                  <div className="text-sm font-semibold text-ink">{t("menu.backup")}</div>
+                  <div className="text-xs text-ink-dim mt-0.5">{t("settings.backupDesc")}</div>
+                </span>
+              </span>
               <ChevronRight size={18} className="text-ink-dim shrink-0" />
             </Link>
-            <Link href="/settings/archived" className="px-4 py-3.5 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-ink">{t("menu.archived")}</div>
-                <div className="text-xs text-ink-dim mt-0.5">{t("settings.archivedDesc")}</div>
-              </div>
+            <Link href="/settings/archived" className={rowClass}>
+              <span className="flex items-center gap-3 min-w-0">
+                <Archive size={18} className="text-ink-dim shrink-0" />
+                <span className="min-w-0">
+                  <div className="text-sm font-semibold text-ink">{t("menu.archived")}</div>
+                  <div className="text-xs text-ink-dim mt-0.5">{t("settings.archivedDesc")}</div>
+                </span>
+              </span>
               <ChevronRight size={18} className="text-ink-dim shrink-0" />
             </Link>
           </SectionCard>
@@ -109,15 +140,18 @@ export default function SettingsPage() {
             {t("settings.aboutSection")}
           </div>
           <SectionCard>
-            <Link href="/about" className="px-4 py-3.5 flex items-center justify-between">
-              <span className="text-sm font-semibold text-ink">{t("settings.aboutHelp")}</span>
+            <Link href="/about" className={rowClass}>
+              <span className="flex items-center gap-3 text-sm font-semibold text-ink">
+                <HelpCircle size={18} className="text-ink-dim shrink-0" />
+                {t("settings.aboutHelp")}
+              </span>
               <ChevronRight size={18} className="text-ink-dim" />
             </Link>
-            <button
-              onClick={() => shareApp(t("common.linkCopied"))}
-              className="w-full px-4 py-3.5 flex items-center justify-between text-left"
-            >
-              <span className="text-sm font-semibold text-ink">{t("menu.shareApp")}</span>
+            <button onClick={() => shareApp(t("common.linkCopied"))} className={`w-full text-left ${rowClass}`}>
+              <span className="flex items-center gap-3 text-sm font-semibold text-ink">
+                <Share2 size={18} className="text-ink-dim shrink-0" />
+                {t("menu.shareApp")}
+              </span>
               <ChevronRight size={18} className="text-ink-dim" />
             </button>
           </SectionCard>

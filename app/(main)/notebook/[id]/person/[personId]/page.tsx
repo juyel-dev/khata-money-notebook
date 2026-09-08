@@ -38,7 +38,7 @@ export default function PersonDetailPage({
   return (
     <div>
       <div className="flex items-center gap-2 px-3 pt-4 pb-1">
-        <button onClick={() => router.back()} className="p-2 text-ink">
+        <button onClick={() => router.back()} className="p-2 text-ink rounded-full active:bg-accent-soft active:scale-90 transition-all">
           <ChevronLeft size={22} />
         </button>
         <span className="text-base font-semibold text-ink truncate">{person.name}</span>
