@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   title: "Khata — Simple Money Notebook",
   description: "A simple offline money notebook for daily gave/took cash tracking.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

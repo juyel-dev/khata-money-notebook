@@ -21,6 +21,17 @@
     "footerTagline": "১০০% অফলাইন ও ব্যক্তিগত",
     "installApp": "অ্যাপ ইনস্টল করুন"
   },
+  "install": {
+    "installApp": "অ্যাপ ইনস্টল করুন",
+    "installAppShort": "ইনস্টল",
+    "installAppDesc": "সম্পূর্ণ অফলাইন ব্যবহার ও হোম স্ক্রিন থেকে দ্রুত খোলার জন্য আপনার ফোনে খাতা ইনস্টল করুন।",
+    "appInstalled": "ইনস্টল হয়েছে",
+    "installGuideTitle": "খাতা অ্যাপ ইনস্টল করুন",
+    "installGuideIOSStep1": "১. Safari-র নিচে Share বোতামে চাপ দিন",
+    "installGuideIOSStep2": "২. নিচে স্ক্রল করে \"Add to Home Screen\"-এ চাপ দিন",
+    "installGuideAndroid": "খাতা হোম স্ক্রিনে যোগ করতে নিচে \"ইনস্টল\"-এ চাপ দিন।",
+    "installGuideAndroidTip": "Chrome / Edge-এ: ৩ ডট মেনুতে ক্লিক করুন → \"Install Khata\" বা \"Add to Home Screen\"।"
+  },
   "home": {
     "yourNotebooks": "আপনার খাতাসমূহ",
     "newNotebook": "নতুন খাতা",

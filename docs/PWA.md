@@ -36,8 +36,9 @@ Per ARCHITECTURE.md, there is no server-side data dependency in v1 — all reads
 
 ## Install prompt
 
-- No aggressive custom "Install our app!" banner/modal on first visit — respect the browser's native install affordance (Add to Home Screen), surfaced via a simple, low-pressure row in Settings/About ("Install Khata on your phone" with a short one-line explanation) for users who missed the native prompt.
-- On iOS Safari (no native beforeinstallprompt event), the About/Help screen includes brief plain-language instructions for the Share → Add to Home Screen flow, since this is genuinely non-obvious and the target user will not know it.
+- No aggressive custom "Install our app!" banner/modal on first visit. Install lives in two quiet spots: a compact pill in the home header and a full-width button in the hamburger drawer (`components/pwa/PWAInstallButton.tsx`, state via `lib/useInstallPrompt.tsx`). Both hide automatically once the app runs in standalone mode.
+- Clicking Install triggers the browser's native `beforeinstallprompt` flow and shows a brief "Installed" confirmation on accept.
+- On iOS Safari (no native beforeinstallprompt event), the button opens a bottom-sheet guide with plain-language Share → Add to Home Screen steps (EN + BN via the `install` i18n namespace), since this flow is genuinely non-obvious for the target user.
 
 ## Data persistence safety
 

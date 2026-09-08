@@ -21,12 +21,12 @@ export default function HomePage() {
 
   return (
     <div>
-      <div className="px-5 pt-4 flex items-center gap-3 mb-3">
-        <HamburgerMenu />
-        <AppLogoLockup />
-      </div>
-      <div className="px-5 mb-1">
-        <InstallAppButton />
+      <div className="px-5 pt-4 flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <HamburgerMenu />
+          <AppLogoLockup />
+        </div>
+        <InstallAppButton variant="header" />
       </div>
 
       {/* Full-bleed so the carousel's peek effect reaches the screen edges,

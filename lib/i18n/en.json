@@ -21,6 +21,17 @@
     "footerTagline": "100% Offline & Private",
     "installApp": "Install App"
   },
+  "install": {
+    "installApp": "Install App",
+    "installAppShort": "Install",
+    "installAppDesc": "Install Khata on your phone or PC for full offline access and fast home screen launch.",
+    "appInstalled": "Installed",
+    "installGuideTitle": "Install Khata App",
+    "installGuideIOSStep1": "1. Tap the Share button at the bottom of Safari",
+    "installGuideIOSStep2": "2. Scroll down and tap \"Add to Home Screen\"",
+    "installGuideAndroid": "Tap \"Install\" below to add Khata to your home screen.",
+    "installGuideAndroidTip": "In Chrome / Edge: Click the 3 dots menu → \"Install Khata\" or \"Add to Home Screen\"."
+  },
   "home": {
     "yourNotebooks": "Your notebooks",
     "newNotebook": "New notebook",

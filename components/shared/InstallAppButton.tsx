@@ -1,22 +1,16 @@
 "use client";
 
-import { Download } from "lucide-react";
-import { useInstallPrompt } from "@/lib/useInstallPrompt";
-import { useI18n } from "@/lib/i18n";
+import { PWAInstallButton } from "@/components/pwa/PWAInstallButton";
 
-export function InstallAppButton({ className = "" }: { className?: string }) {
-  const { canInstall, promptInstall } = useInstallPrompt();
-  const { t } = useI18n();
-
-  if (!canInstall) return null;
-
-  return (
-    <button
-      onClick={promptInstall}
-      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-full bg-accent text-paper text-sm font-semibold active:scale-95 active:opacity-90 transition-all ${className}`}
-    >
-      <Download size={16} />
-      {t("menu.installApp")}
-    </button>
-  );
+// Backward-compatible wrapper — existing call sites keep working.
+// Home header-e variant="header" (compact pill), hamburger drawer-e
+// default variant="drawer" (full-width) use kore.
+export function InstallAppButton({
+  className = "",
+  variant = "drawer",
+}: {
+  className?: string;
+  variant?: "header" | "drawer";
+}) {
+  return <PWAInstallButton variant={variant} className={className} />;
 }
