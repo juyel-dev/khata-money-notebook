@@ -16,6 +16,8 @@ export interface Banner {
   subtitleBn: string;
   /** Local image path (right-side card art). Omit to use `icon` instead. */
   imageUrl?: string;
+  /** Local white line-art path, rendered on the ad-style gradient card. */
+  art?: string;
   /** Lucide icon name, used when there's no photo/illustration for this banner. */
   icon?: "Users" | "DatabaseBackup" | "Pin" | "WifiOff";
   accentColor: string; // hex, matches the notebook color palette
@@ -43,7 +45,10 @@ export const BANNERS: Banner[] = [
     titleBn: "গুছিয়ে রাখুন",
     subtitle: "Group your notebooks — shop, family, personal — all in one place.",
     subtitleBn: "দোকান, পরিবার, ব্যক্তিগত — সব খাতা গ্রুপ করে রাখুন এক জায়গায়।",
+    art: "/banners/art-groups.svg",
     icon: "Users",
+    sponsorLabel: "Khata Tips",
+    sponsorLabelBn: "খাতা টিপস",
     accentColor: "#2F5E8F",
   },
   {
@@ -52,7 +57,10 @@ export const BANNERS: Banner[] = [
     titleBn: "ডেটা হারাবেন না",
     subtitle: "Export a backup anytime from Settings — takes two seconds.",
     subtitleBn: "Settings থেকে যেকোনো সময় ব্যাকআপ নিয়ে রাখুন — মাত্র দুই সেকেন্ড।",
+    art: "/banners/art-backup.svg",
     icon: "DatabaseBackup",
+    sponsorLabel: "Khata Tips",
+    sponsorLabelBn: "খাতা টিপস",
     accentColor: "#C9942F",
   },
   {
@@ -61,7 +69,10 @@ export const BANNERS: Banner[] = [
     titleBn: "প্রিয় খাতা পিন করুন",
     subtitle: "Keep your most-used notebook right at the top.",
     subtitleBn: "সবচেয়ে বেশি ব্যবহার করা খাতাটা রাখুন একদম উপরে।",
+    art: "/banners/art-pin.svg",
     icon: "Pin",
+    sponsorLabel: "Khata Tips",
+    sponsorLabelBn: "খাতা টিপস",
     accentColor: "#B4491F",
   },
   {
@@ -70,7 +81,10 @@ export const BANNERS: Banner[] = [
     titleBn: "ইন্টারনেট ছাড়াই চলে",
     subtitle: "No signal? No problem — Khata works fully offline.",
     subtitleBn: "নেটওয়ার্ক না থাকলেও সমস্যা নেই — খাতা সম্পূর্ণ অফলাইনে কাজ করে।",
+    art: "/banners/art-offline.svg",
     icon: "WifiOff",
+    sponsorLabel: "Khata Tips",
+    sponsorLabelBn: "খাতা টিপস",
     accentColor: "#2F8F82",
   },
 ];

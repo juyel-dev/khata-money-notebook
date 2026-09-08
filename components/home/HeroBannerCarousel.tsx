@@ -136,31 +136,34 @@ function BannerCard({
     }
   };
 
-  return (
-    <div
-      ref={refCallback}
-      onClick={banner.destinationUrl ? handleClick : undefined}
-      role={banner.destinationUrl ? "button" : undefined}
-      className={`snap-center shrink-0 w-[93%] rounded-2xl overflow-hidden flex items-stretch ${
-        banner.destinationUrl ? "cursor-pointer active:opacity-90" : ""
-      }`}
-      style={{ aspectRatio: "2.86 / 1", backgroundColor: `${banner.accentColor}17` }}
-    >
-      <div className="flex-1 min-w-0 flex flex-col justify-center pl-4 pr-2 py-2.5">
-        {sponsorLabel && (
-          <span
-            className="text-[10px] font-semibold uppercase tracking-wide mb-1 w-fit"
-            style={{ color: banner.accentColor }}
-          >
-            {sponsorLabel}
-          </span>
-        )}
-        <div className="text-sm font-bold text-ink leading-snug line-clamp-2">{title}</div>
-        <div className="text-xs text-ink-dim leading-snug line-clamp-2 mt-0.5">{subtitle}</div>
-      </div>
+  const clickable = banner.destinationUrl
+    ? "cursor-pointer active:opacity-90"
+    : "";
 
-      <div className="shrink-0 w-[112px] flex items-center justify-center overflow-hidden">
-        {banner.imageUrl ? (
+  // Photo banners (e.g. the maker's own banner) keep the legacy light look.
+  if (banner.imageUrl) {
+    return (
+      <div
+        ref={refCallback}
+        onClick={banner.destinationUrl ? handleClick : undefined}
+        role={banner.destinationUrl ? "button" : undefined}
+        className={`snap-center shrink-0 w-[93%] rounded-2xl overflow-hidden flex items-stretch ${clickable}`}
+        style={{ aspectRatio: "2.86 / 1", backgroundColor: `${banner.accentColor}17` }}
+      >
+        <div className="flex-1 min-w-0 flex flex-col justify-center pl-4 pr-2 py-2.5">
+          {sponsorLabel && (
+            <span
+              className="text-[10px] font-semibold uppercase tracking-wide mb-1 w-fit"
+              style={{ color: banner.accentColor }}
+            >
+              {sponsorLabel}
+            </span>
+          )}
+          <div className="text-sm font-bold text-ink leading-snug line-clamp-2">{title}</div>
+          <div className="text-xs text-ink-dim leading-snug line-clamp-2 mt-0.5">{subtitle}</div>
+        </div>
+
+        <div className="shrink-0 w-[112px] flex items-center justify-center overflow-hidden">
           <Image
             src={banner.imageUrl}
             alt=""
@@ -169,15 +172,67 @@ function BannerCard({
             className="w-full h-full object-contain object-bottom"
             priority={false}
           />
+        </div>
+      </div>
+    );
+  }
+
+  // Tip banners — ad-style gradient card with line-art.
+  const gradientTo = shade(banner.accentColor, -48);
+
+  return (
+    <div
+      ref={refCallback}
+      onClick={banner.destinationUrl ? handleClick : undefined}
+      role={banner.destinationUrl ? "button" : undefined}
+      className={`snap-center shrink-0 w-[93%] rounded-2xl overflow-hidden relative flex items-stretch shadow-md ${clickable}`}
+      style={{
+        aspectRatio: "2.86 / 1",
+        background: `linear-gradient(115deg, ${banner.accentColor} 0%, ${gradientTo} 100%)`,
+      }}
+    >
+      {/* Decorative glow circles */}
+      <div aria-hidden className="pointer-events-none absolute -right-10 -top-16 w-44 h-44 rounded-full bg-white/10" />
+      <div aria-hidden className="pointer-events-none absolute right-24 -bottom-20 w-36 h-36 rounded-full bg-white/10" />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 w-24 h-24 rounded-full bg-white/5" />
+
+      <div className="relative flex-1 min-w-0 flex flex-col justify-center pl-4 pr-2 py-2.5">
+        {sponsorLabel && (
+          <span className="text-[10px] font-bold uppercase tracking-widest mb-1.5 w-fit px-2 py-0.5 rounded-full bg-white/20 text-white">
+            {sponsorLabel}
+          </span>
+        )}
+        <div className="text-[15px] font-extrabold text-white leading-snug line-clamp-2 drop-shadow-sm">{title}</div>
+        <div className="text-xs text-white/85 leading-snug line-clamp-2 mt-1">{subtitle}</div>
+      </div>
+
+      <div className="relative shrink-0 w-[112px] flex items-center justify-center overflow-hidden">
+        {banner.art ? (
+          <Image
+            src={banner.art}
+            alt=""
+            width={96}
+            height={96}
+            className="w-24 h-24 object-contain drop-shadow-lg"
+            priority={false}
+          />
         ) : Icon ? (
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: `${banner.accentColor}22`, color: banner.accentColor }}
-          >
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center bg-white/20 text-white">
             <Icon size={34} strokeWidth={1.75} />
           </div>
         ) : null}
       </div>
     </div>
   );
+}
+
+/** Darken a #rrggbb hex color by `amt` (0-255) for gradient end-stops. */
+function shade(hex: string, amt: number): string {
+  const n = hex.replace("#", "");
+  const full = n.length === 3 ? n.split("").map((c) => c + c).join("") : n;
+  const num = parseInt(full, 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 255) + amt));
+  const b = Math.min(255, Math.max(0, (num & 255) + amt));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
