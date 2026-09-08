@@ -198,7 +198,7 @@ function BannerCard({
 
       <div className="relative flex-1 min-w-0 flex flex-col justify-center pl-4 pr-2 py-2.5">
         {sponsorLabel && (
-          <span className="text-[10px] font-bold uppercase tracking-widest mb-1.5 w-fit px-2 py-0.5 rounded-full bg-white/20 text-white">
+          <span className={`text-[10px] font-bold uppercase mb-1.5 w-fit px-2 py-0.5 rounded-full bg-white/20 text-white ${locale === "bn" ? "" : "tracking-widest"}`}>
             {sponsorLabel}
           </span>
         )}
