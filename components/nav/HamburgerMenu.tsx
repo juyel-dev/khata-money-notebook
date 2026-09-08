@@ -45,7 +45,7 @@ export function HamburgerMenu() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 260 }}
-              className="fixed inset-y-0 left-0 z-50 w-72 bg-paper pt-safe shadow-xl flex flex-col"
+              className="fixed inset-y-0 left-0 z-50 w-72 bg-paper-card pt-safe shadow-xl flex flex-col"
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-rule">
                 <AppLogoLockup size="sm" />

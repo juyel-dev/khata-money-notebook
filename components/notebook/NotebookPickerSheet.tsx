@@ -35,7 +35,7 @@ export function NotebookPickerSheet() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 inset-x-0 z-50 max-w-md mx-auto bg-paper rounded-t-3xl shadow-2xl max-h-[80vh] overflow-y-auto"
+            className="fixed bottom-0 inset-x-0 z-50 max-w-md mx-auto bg-paper-card rounded-t-3xl shadow-2xl max-h-[80vh] overflow-y-auto"
           >
             <div className="w-10 h-1.5 bg-rule rounded-full mx-auto mt-3" />
             <div className="px-5 pt-4 pb-2">

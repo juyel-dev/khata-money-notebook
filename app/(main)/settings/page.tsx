@@ -9,7 +9,7 @@ import { shareApp } from "@/lib/shareApp";
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-rule overflow-hidden divide-y divide-rule">
+    <div className="rounded-2xl border border-rule bg-paper-card overflow-hidden divide-y divide-rule shadow-sm">
       {children}
     </div>
   );

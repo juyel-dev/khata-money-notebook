@@ -38,7 +38,7 @@ export function PersonRow({
   return (
     <Link
       href={`/notebook/${notebookId}/person/${person.id}`}
-      className="flex items-center gap-3 py-3 border-b border-rule active:opacity-70"
+      className="flex items-center gap-3 p-3.5 mb-2.5 bg-paper-card border border-rule rounded-2xl shadow-sm active:opacity-80"
     >
       <span
         className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-[#241F16] shrink-0"

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
+import { Pin } from "lucide-react";
 import type { Notebook } from "@/lib/db/schema";
 import { getNotebookBalance } from "@/lib/db/notebooks";
 import { db } from "@/lib/db/schema";
@@ -25,16 +26,19 @@ export function NotebookCard({ notebook }: { notebook: Notebook }) {
   return (
     <Link
       href={`/notebook/${notebook.id}`}
-      className="flex items-center gap-3 py-3 border-b border-rule active:opacity-70"
+      className="flex items-center gap-3 p-3.5 mb-2.5 bg-paper-card border border-rule rounded-2xl shadow-sm active:opacity-80"
     >
       <span
-        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${hex}22`, color: hex }}
+        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-white"
+        style={{ backgroundColor: hex }}
       >
-        <Icon size={20} />
+        <Icon size={19} />
       </span>
       <div className="flex-1 min-w-0">
-        <div className="text-h2 font-semibold text-ink truncate">{notebook.name}</div>
+        <div className="text-h2 font-semibold text-ink truncate flex items-center gap-1.5">
+          {notebook.pinned && <Pin size={12} className="text-accent shrink-0" fill="currentColor" />}
+          <span className="truncate">{notebook.name}</span>
+        </div>
         <div className="text-xs text-ink-dim">
           {peopleCount ?? 0} {peopleCount === 1 ? t("home.person") : t("home.people")}
         </div>

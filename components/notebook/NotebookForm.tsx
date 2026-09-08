@@ -118,7 +118,7 @@ export function NotebookForm({ existing }: { existing?: Notebook }) {
           className="w-full rounded-xl border border-rule bg-transparent px-4 py-3 text-base text-ink outline-none focus:border-accent"
         />
         {groupFocused && (
-          <div className="absolute z-10 mt-1 w-full bg-paper border border-rule rounded-xl shadow-lg overflow-hidden">
+          <div className="absolute z-10 mt-1 w-full bg-paper-card border border-rule rounded-xl shadow-lg overflow-hidden">
             {groupQuery.trim() && (
               <button
                 onMouseDown={() => setGroupQuery("")}

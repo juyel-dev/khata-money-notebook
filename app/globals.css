@@ -2,6 +2,7 @@
 
 :root {
   --color-paper: #FBF7EF;
+  --color-paper-card: #FFFFFF;
   --color-paper-dark: #14140F;
   --color-ink: #241F16;
   --color-ink-dim: #6B6455;
@@ -24,6 +25,7 @@
 
 @theme inline {
   --color-paper: var(--color-paper);
+  --color-paper-card: var(--color-paper-card);
   --color-ink: var(--color-ink);
   --color-ink-dim: var(--color-ink-dim);
   --color-rule: var(--color-rule);
@@ -42,19 +44,25 @@
 }
 
 .dark {
-  --color-paper: #1E1E16;
+  --color-paper: #14140F;
+  --color-paper-card: #1C1B16;
   --background: var(--color-paper);
-  --foreground: #F2EFE6;
-  --color-rule: #2A2A22;
-  --color-ink-dim: #A39C8A;
-  --color-ink: #F2EFE6;
+  --foreground: #F3EFE6;
+  --color-rule: #2E2B23;
+  --color-ink-dim: #A8A08E;
+  --color-ink: #F3EFE6;
 
-  /* Soft tint tokens are solid pastel hex in light mode — on a dark
-     background those same values would look like bright washed-out
-     patches, so darker/desaturated variants are used instead. */
-  --color-accent-soft: #1B3327;
-  --color-owe-you-soft: #3A2419;
-  --color-you-owe-soft: #1B3327;
+  /* Semantic colors get brighter/more saturated variants in dark mode —
+     the light-mode hex values read as muted against a dark background.
+     Soft tint tokens also get darker variants (they're solid pastel hex
+     in light mode; reusing them here would look like washed-out patches). */
+  --color-accent: #3E8563;
+  --color-accent-soft: #1E3427;
+  --color-owe-you: #D45E30;
+  --color-owe-you-soft: #381D13;
+  --color-you-owe: #3E8563;
+  --color-you-owe-soft: #1E3427;
+  --color-danger: #C04335;
 }
 
 body {

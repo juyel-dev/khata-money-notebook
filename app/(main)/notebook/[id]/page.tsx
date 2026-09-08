@@ -49,7 +49,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                className="absolute right-3 top-12 z-40 bg-paper border border-rule rounded-xl shadow-lg overflow-hidden w-52"
+                className="absolute right-3 top-12 z-40 bg-paper-card border border-rule rounded-xl shadow-lg overflow-hidden w-52"
               >
                 <button
                   onClick={() => {

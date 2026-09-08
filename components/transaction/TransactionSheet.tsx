@@ -165,7 +165,7 @@ export function TransactionSheet() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 inset-x-0 z-50 max-w-md mx-auto bg-paper rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="fixed bottom-0 inset-x-0 z-50 max-w-md mx-auto bg-paper-card rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
           >
             <div className="w-10 h-1.5 bg-rule rounded-full mx-auto mt-3" />
 
@@ -226,7 +226,7 @@ export function TransactionSheet() {
                   className="w-full rounded-xl border border-rule px-4 py-3 text-base text-ink outline-none focus:border-accent"
                 />
                 {personFocused && personQuery.trim() && (
-                  <div className="absolute z-10 mt-1 w-full bg-paper border border-rule rounded-xl shadow-lg overflow-hidden">
+                  <div className="absolute z-10 mt-1 w-full bg-paper-card border border-rule rounded-xl shadow-lg overflow-hidden">
                     {filteredPeople.map((p) => (
                       <button
                         key={p.id}
