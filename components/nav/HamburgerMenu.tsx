@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Globe, Archive, Settings, HelpCircle, DatabaseBackup, Share2, Cloud } from "lucide-react";
+import { Menu, X, Languages, Archive, Settings, HelpCircle, DatabaseBackup, Share2, Cloud } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { AnimatePresence, motion } from "framer-motion";
 import { shareApp } from "@/lib/shareApp";
@@ -80,28 +80,31 @@ export function HamburgerMenu() {
                   <InstallAppButton />
                 </div>
 
-                <div className="px-5 py-4 border-b border-rule mt-4">
-                  <div className="flex items-center gap-2 text-sm text-ink-dim mb-2">
-                    <Globe size={16} />
-                    {t("menu.language")}
+                {/* 1. Language Toggle — Khata-style single-row segmented control */}
+                <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl bg-rule/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 text-sm font-medium text-ink">
+                    <Languages size={16} className="text-accent" />
+                    <span>{t("menu.language")}</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center bg-paper-card p-0.5 rounded-lg border border-rule text-xs font-semibold">
                     <button
+                      type="button"
                       onClick={() => setLocale("en")}
-                      className={`flex-1 py-2 rounded-full text-sm font-medium border ${
+                      className={`px-2.5 py-1 rounded-md transition-all ${
                         locale === "en"
-                          ? "bg-accent text-paper border-accent"
-                          : "border-rule text-ink"
+                          ? "bg-accent text-paper"
+                          : "text-ink-dim hover:text-ink"
                       }`}
                     >
                       English
                     </button>
                     <button
+                      type="button"
                       onClick={() => setLocale("bn")}
-                      className={`flex-1 py-2 rounded-full text-sm font-medium border ${
+                      className={`px-2.5 py-1 rounded-md transition-all ${
                         locale === "bn"
-                          ? "bg-accent text-paper border-accent"
-                          : "border-rule text-ink"
+                          ? "bg-accent text-paper"
+                          : "text-ink-dim hover:text-ink"
                       }`}
                     >
                       বাংলা
