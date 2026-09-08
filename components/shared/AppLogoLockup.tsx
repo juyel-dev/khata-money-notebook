@@ -11,7 +11,7 @@ export function AppLogoLockup({ size = "md" }: { size?: "sm" | "md" }) {
   return (
     <div className="flex items-center gap-2.5 min-w-0">
       <Image
-        src="/icons/icon.svg"
+        src="/icons/khata-logo.svg"
         alt="Khata logo"
         width={iconPx}
         height={iconPx}

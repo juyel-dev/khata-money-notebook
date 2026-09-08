@@ -16,8 +16,8 @@
 // - Everything else (icons, manifest) uses stale-while-revalidate: fast
 //   from cache, refreshed in the background for next time.
 
-const CACHE_NAME = "khata-shell-v4";
-const APP_SHELL = ["/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+const CACHE_NAME = "khata-shell-v5";
+const APP_SHELL = ["/manifest.webmanifest", "/icons/khata-icon-192.png", "/icons/khata-icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
