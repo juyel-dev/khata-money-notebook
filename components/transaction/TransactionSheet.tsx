@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useUIStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
@@ -17,6 +17,12 @@ import { showToast } from "@/components/shared/Toast";
 // that way and, just as importantly, keeps it a bounded string so it can
 // never grow long enough to overflow the row it's displayed in elsewhere.
 const NOTE_MAX_LENGTH = 200;
+
+// Top edge of the Gave/Got card — a smooth downward notch cradles the
+// khata pill (flat variant when no notebook is set).
+const NOTCH_TOP_PATH =
+  "M0 24 L0 9 Q0 3 6 3 L16 3 C24 3 26 15 34 17 L66 17 C74 15 76 3 84 3 L94 3 Q100 3 100 9 L100 24";
+const FLAT_TOP_PATH = "M0 24 L0 9 Q0 3 6 3 L94 3 Q100 3 100 9 L100 24";
 
 function toLocalInputValue(ts: number): string {
   const d = new Date(ts);
@@ -46,6 +52,17 @@ export function TransactionSheet() {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [personFocused, setPersonFocused] = useState(false);
+  const dragControls = useDragControls();
+
+  // Lock the page behind the sheet — no scroll or pull-to-refresh leaks out.
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [sheetOpen]);
 
   const people = useLiveQuery(
     () => (sheetNotebookId ? db.people.where("notebookId").equals(sheetNotebookId).toArray() : []),
@@ -163,7 +180,7 @@ export function TransactionSheet() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ink/40 z-40"
+            className="fixed inset-0 bg-ink/40 z-40 touch-none"
             onClick={closeSheet}
           />
           <motion.div
@@ -171,42 +188,79 @@ export function TransactionSheet() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 inset-x-0 z-50 max-w-md mx-auto bg-paper-card rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
+            drag="y"
+            dragListener={false}
+            dragControls={dragControls}
+            dragConstraints={{ top: 0 }}
+            dragElastic={{ top: 0, bottom: 0.6 }}
+            dragSnapToOrigin
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 110 || info.velocity.y > 550) closeSheet();
+            }}
+            style={{ touchAction: "pan-y" }}
+            className="fixed bottom-0 inset-x-0 z-50 max-w-md mx-auto bg-paper-card rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto overscroll-none"
           >
-            <div className="w-10 h-1.5 bg-rule rounded-full mx-auto mt-3" />
+            {/* Grabber — the only region that starts a dismiss drag */}
+            <div
+              className="pt-3 pb-1 cursor-grab active:cursor-grabbing touch-none"
+              onPointerDown={(e) => dragControls.start(e)}
+            >
+              <div className="w-10 h-1.5 bg-rule rounded-full mx-auto" />
+            </div>
 
-            <div className="px-5 pt-4 pb-6 flex flex-col gap-5">
-              {/* Target khata — so it's always clear where this entry goes */}
-              {notebook && (
-                <div className="flex items-center justify-center gap-1.5 -mb-2 min-w-0">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: colorHex(notebook.color) }}
+            <div className="px-5 pt-1 pb-6 flex flex-col gap-5">
+              {/* Gave/Got card — top border dips into a smooth notch that
+                  cradles the khata pill, half above the line, half inside */}
+              <div className="relative">
+                <svg
+                  className="block w-full h-6 text-rule"
+                  viewBox="0 0 100 24"
+                  preserveAspectRatio="none"
+                  fill="none"
+                  aria-hidden
+                >
+                  <path
+                    d={notebook ? NOTCH_TOP_PATH : FLAT_TOP_PATH}
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                    strokeLinecap="round"
                   />
-                  <span className="text-xs font-semibold text-ink-dim truncate max-w-[240px]">
-                    {notebook.name}
-                  </span>
+                </svg>
+                {notebook && (
+                  <div className="absolute left-1/2 top-[17px] -translate-x-1/2 -translate-y-1/2 z-10 max-w-[150px]">
+                    <div className="flex items-center gap-1.5 rounded-full border border-rule bg-paper-card shadow-md pl-2.5 pr-3 py-1 whitespace-nowrap">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: colorHex(notebook.color) }}
+                      />
+                      <span className="text-xs font-semibold text-ink truncate">
+                        {notebook.name}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div className="border border-t-0 border-rule rounded-b-2xl px-3 pt-4 pb-3">
+                  {/* Type toggle */}
+                  <div className="flex rounded-full border border-rule p-1">
+                    <button
+                      onClick={() => setType("gave")}
+                      className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-colors ${
+                        type === "gave" ? "bg-owe-you text-paper" : "text-ink-dim"
+                      }`}
+                    >
+                      {t("notebook.gave")}
+                    </button>
+                    <button
+                      onClick={() => setType("got")}
+                      className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-colors ${
+                        type === "got" ? "bg-accent text-paper" : "text-ink-dim"
+                      }`}
+                    >
+                      {t("notebook.got")}
+                    </button>
+                  </div>
                 </div>
-              )}
-
-              {/* Type toggle */}
-              <div className="flex rounded-full border border-rule p-1">
-                <button
-                  onClick={() => setType("gave")}
-                  className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-colors ${
-                    type === "gave" ? "bg-owe-you text-paper" : "text-ink-dim"
-                  }`}
-                >
-                  {t("notebook.gave")}
-                </button>
-                <button
-                  onClick={() => setType("got")}
-                  className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-colors ${
-                    type === "got" ? "bg-accent text-paper" : "text-ink-dim"
-                  }`}
-                >
-                  {t("notebook.got")}
-                </button>
               </div>
 
               {/* Amount */}
