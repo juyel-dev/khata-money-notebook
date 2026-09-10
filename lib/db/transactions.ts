@@ -1,6 +1,46 @@
 import { v4 as uuid } from "uuid";
 import { db, type Transaction, type TransactionType } from "./schema";
 
+function assertValidAmount(amount: number): void {
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    throw new Error("Transaction amount must be a positive safe integer (paise)");
+  }
+}
+
+function assertValidOccurredAt(occurredAt: number): void {
+  if (!Number.isFinite(occurredAt)) {
+    throw new Error("Transaction date must be a finite timestamp");
+  }
+}
+
+function assertValidType(type: TransactionType): void {
+  if (type !== "gave" && type !== "got") {
+    throw new Error("Transaction type is invalid");
+  }
+}
+
+async function assertPersonBelongsToNotebook(
+  notebookId: string,
+  personId: string
+): Promise<void> {
+  const [notebook, person] = await Promise.all([
+    db.notebooks.get(notebookId),
+    db.people.get(personId),
+  ]);
+
+  if (!notebook) {
+    throw new Error("Notebook does not exist");
+  }
+
+  if (!person) {
+    throw new Error("Person does not exist");
+  }
+
+  if (person.notebookId !== notebookId) {
+    throw new Error("Person does not belong to notebook");
+  }
+}
+
 export async function addTransaction(input: {
   notebookId: string;
   personId: string;
@@ -9,6 +49,11 @@ export async function addTransaction(input: {
   note?: string;
   occurredAt: number;
 }): Promise<Transaction> {
+  assertValidAmount(input.amount);
+  assertValidOccurredAt(input.occurredAt);
+  assertValidType(input.type);
+  await assertPersonBelongsToNotebook(input.notebookId, input.personId);
+
   const txn: Transaction = {
     id: uuid(),
     notebookId: input.notebookId,
@@ -26,8 +71,34 @@ export async function addTransaction(input: {
 export async function updateTransaction(
   id: string,
   changes: Partial<Pick<Transaction, "type" | "amount" | "note" | "occurredAt" | "personId">>
-) {
-  await db.transactions.update(id, changes);
+): Promise<void> {
+  const current = await db.transactions.get(id);
+  if (!current) {
+    throw new Error("Transaction does not exist");
+  }
+
+  const nextType = changes.type ?? current.type;
+  const nextAmount = changes.amount ?? current.amount;
+  const nextOccurredAt = changes.occurredAt ?? current.occurredAt;
+  const nextPersonId = changes.personId ?? current.personId;
+
+  assertValidType(nextType);
+  assertValidAmount(nextAmount);
+  assertValidOccurredAt(nextOccurredAt);
+
+  if (changes.personId !== undefined && changes.personId !== current.personId) {
+    await assertPersonBelongsToNotebook(current.notebookId, nextPersonId);
+  }
+
+  const normalized: typeof changes = {
+    ...changes,
+    ...(changes.type !== undefined ? { type: nextType } : {}),
+    ...(changes.amount !== undefined ? { amount: nextAmount } : {}),
+    ...(changes.occurredAt !== undefined ? { occurredAt: nextOccurredAt } : {}),
+    ...(changes.note !== undefined ? { note: changes.note?.trim() || undefined } : {}),
+  };
+
+  await db.transactions.update(id, normalized);
 }
 
 export async function deleteTransaction(id: string) {
