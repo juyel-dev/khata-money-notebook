@@ -66,10 +66,11 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-// Money is integer paise everywhere (see lib/money.ts) — fractional or
-// negative amounts in a file mean corruption, not a rounding choice.
+// Money is integer paise everywhere (see lib/money.ts). Values also need to
+// stay within JS's exact-integer range or arithmetic can silently corrupt a
+// restored ledger even though the input is technically an integer.
 function isPaise(value: unknown): value is number {
-  return isFiniteNumber(value) && Number.isInteger(value) && value >= 0;
+  return isFiniteNumber(value) && Number.isSafeInteger(value) && value >= 0;
 }
 
 function fail(message: string): never {
