@@ -9,23 +9,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { HamburgerMenu } from "@/components/nav/HamburgerMenu";
 import { useI18n } from "@/lib/i18n";
 import { colorHex } from "@/lib/shared/notebookStyle";
-
-function dayLabel(ts: number, t: (k: string) => string, locale: string): string {
-  const d = new Date(ts);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-  const sameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  if (sameDay(d, today)) return t("history.today");
-  if (sameDay(d, yesterday)) return t("history.yesterday");
-  return d.toLocaleDateString(locale === "bn" ? "bn-BD" : "en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    numberingSystem: "latn",
-  });
-}
+import { dayLabel, groupByDay } from "@/lib/shared/grouping";
 
 export default function HistoryPage() {
   const { t, locale } = useI18n();
@@ -43,14 +27,7 @@ export default function HistoryPage() {
   }, [allTxns, filterNotebookId]);
 
   const grouped = useMemo(() => {
-    const groups: { label: string; items: typeof filtered }[] = [];
-    for (const txn of filtered) {
-      const label = dayLabel(txn.occurredAt, t, locale);
-      const last = groups[groups.length - 1];
-      if (last && last.label === label) last.items.push(txn);
-      else groups.push({ label, items: [txn] });
-    }
-    return groups;
+    return groupByDay(filtered, (ts) => dayLabel(ts, t, locale));
   }, [filtered, t, locale]);
 
   return (

@@ -1,5 +1,5 @@
 import { v4 as uuid } from "uuid";
-import { db, type Person } from "./schema";
+import { db, type Person, type Transaction } from "./schema";
 
 export async function findOrCreatePerson(notebookId: string, name: string): Promise<Person> {
   const trimmed = name.trim();
@@ -36,6 +36,51 @@ export interface PersonTotals {
   totalTaken: number; // paise
   net: number; // paise, positive = they owe you, negative = you owe them
   lastTransactionAt: number | null;
+}
+
+export interface IndividualEntry {
+  person: Person;
+  /** Number of transactions this person has in the khata. */
+  count: number;
+  totals: PersonTotals;
+}
+
+// Derives the Individuals view from transactions — transactions are the
+// source of truth, so a person appears here if and only if they have at
+// least one transaction. Pure single-pass over already-fetched arrays:
+// no per-person queries (no N+1).
+export function deriveIndividuals(
+  transactions: Transaction[],
+  people: Person[]
+): IndividualEntry[] {
+  const personById = new Map(people.map((p) => [p.id, p]));
+  const acc = new Map<string, { count: number; given: number; taken: number; last: number | null }>();
+  for (const txn of transactions) {
+    if (!personById.has(txn.personId)) continue;
+    const entry = acc.get(txn.personId) ?? { count: 0, given: 0, taken: 0, last: null };
+    entry.count += 1;
+    if (txn.type === "gave") entry.given += txn.amount;
+    else entry.taken += txn.amount;
+    entry.last = entry.last == null ? txn.occurredAt : Math.max(entry.last, txn.occurredAt);
+    acc.set(txn.personId, entry);
+  }
+  const result: IndividualEntry[] = [];
+  for (const [personId, entry] of acc) {
+    const person = personById.get(personId);
+    if (!person) continue;
+    result.push({
+      person,
+      count: entry.count,
+      totals: {
+        totalGiven: entry.given,
+        totalTaken: entry.taken,
+        net: entry.given - entry.taken,
+        lastTransactionAt: entry.last,
+      },
+    });
+  }
+  // Most recent activity first — same convention as people lists elsewhere.
+  return result.sort((a, b) => (b.totals.lastTransactionAt ?? 0) - (a.totals.lastTransactionAt ?? 0));
 }
 
 export async function getPersonTotals(personId: string): Promise<PersonTotals> {

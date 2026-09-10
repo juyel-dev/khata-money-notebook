@@ -1,29 +1,49 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft, MoreVertical, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { db } from "@/lib/db/schema";
-import { getPeopleWithTotals } from "@/lib/db/people";
+import { deriveIndividuals } from "@/lib/db/people";
+import { getNotebookTransactions } from "@/lib/db/transactions";
 import { BalanceHeader } from "@/components/notebook/BalanceHeader";
 import { PersonRow } from "@/components/person/PersonRow";
+import { TransactionRow } from "@/components/transaction/TransactionRow";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { dayLabel, groupByDay } from "@/lib/shared/grouping";
 import { useI18n } from "@/lib/i18n";
 import { useUIStore } from "@/lib/store";
 import { archiveNotebook, setNotebookPinned } from "@/lib/db/notebooks";
 
+type DetailTab = "transactions" | "individuals";
+
 export default function NotebookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const openAddSheet = useUIStore((s) => s.openAddSheet);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Transactions is the default tab — the khata opens on its ledger.
+  const [tab, setTab] = useState<DetailTab>("transactions");
 
   const notebook = useLiveQuery(() => db.notebooks.get(id), [id]);
-  const people = useLiveQuery(() => getPeopleWithTotals(id), [id]);
+  // Exactly two collection reads for both tabs — people resolve through a
+  // Map, individuals derive from the same arrays. No per-row queries.
+  const txns = useLiveQuery(() => getNotebookTransactions(id), [id]);
+  const people = useLiveQuery(() => db.people.where("notebookId").equals(id).toArray(), [id]);
+
+  const peopleMap = useMemo(() => new Map((people ?? []).map((p) => [p.id, p])), [people]);
+  const grouped = useMemo(
+    () => groupByDay(txns ?? [], (ts) => dayLabel(ts, t, locale)),
+    [txns, t, locale]
+  );
+  const individuals = useMemo(
+    () => deriveIndividuals(txns ?? [], people ?? []),
+    [txns, people]
+  );
 
   if (!notebook) return null;
 
@@ -84,17 +104,76 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
 
       <BalanceHeader notebook={notebook} />
 
-      <div className="px-5">
-        {people && people.length > 0 && (
-          <div className="text-xs font-semibold uppercase tracking-wide text-ink-dim mb-1 mt-2">
-            {t("notebook.peopleSection")}
-          </div>
-        )}
+      {/* Tab bar — part of the header hierarchy, compact by design */}
+      <div
+        role="tablist"
+        aria-label={t("notebook.tabsLabel")}
+        className="mx-5 mt-1 mb-3 flex rounded-full border border-rule bg-paper-card p-1"
+      >
+        {(["transactions", "individuals"] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            id={`khata-tab-${key}`}
+            aria-selected={tab === key}
+            aria-controls={`khata-panel-${key}`}
+            onClick={() => setTab(key)}
+            className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+              tab === key ? "bg-accent text-paper shadow-sm" : "text-ink-dim"
+            }`}
+          >
+            {key === "transactions" ? t("notebook.tabsTransactions") : t("notebook.tabsIndividuals")}
+          </button>
+        ))}
+      </div>
 
-        {people && people.length === 0 ? (
-          <EmptyState illustration="/illustrations/empty-entries.svg" title={t("notebook.emptyTitle")} body={t("notebook.emptyBody")} />
+      <div
+        role="tabpanel"
+        id={`khata-panel-${tab}`}
+        aria-labelledby={`khata-tab-${tab}`}
+        className="px-5"
+      >
+        {tab === "transactions" ? (
+          !txns ? null : txns.length === 0 ? (
+            <EmptyState
+              illustration="/illustrations/empty-entries.svg"
+              title={t("notebook.emptyTransactionsTitle")}
+              body={t("notebook.emptyTransactionsBody")}
+            />
+          ) : (
+            grouped.map((group) => (
+              <div key={group.label} className="mb-2">
+                <div className="sticky top-0 bg-paper text-xs font-semibold uppercase tracking-wide text-ink-dim py-2">
+                  {group.label}
+                </div>
+                {group.items.map((txn) => (
+                  <TransactionRow
+                    key={txn.id}
+                    txn={txn}
+                    primaryLabel={peopleMap.get(txn.personId)?.name ?? ""}
+                    actionLabel={txn.type === "gave" ? t("notebook.gave") : t("notebook.got")}
+                  />
+                ))}
+              </div>
+            ))
+          )
+        ) : !txns ? null : individuals.length === 0 ? (
+          <EmptyState
+            illustration="/illustrations/empty-entries.svg"
+            title={t("notebook.emptyIndividualsTitle")}
+            body={t("notebook.emptyIndividualsBody")}
+          />
         ) : (
-          people?.map((p) => <PersonRow key={p.id} notebookId={id} person={p} totals={p.totals} />)
+          individuals.map((entry) => (
+            <PersonRow
+              key={entry.person.id}
+              notebookId={id}
+              person={entry.person}
+              totals={entry.totals}
+              txnCount={entry.count}
+            />
+          ))
         )}
       </div>
 

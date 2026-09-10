@@ -11,10 +11,13 @@ export function PersonRow({
   notebookId,
   person,
   totals,
+  txnCount,
 }: {
   notebookId: string;
   person: Person;
   totals: PersonTotals;
+  /** Optional transaction count (Individuals tab) shown ahead of the summary */
+  txnCount?: number;
 }) {
   const { t, locale } = useI18n();
   const bg = avatarColorFor(person.name);
@@ -48,7 +51,17 @@ export function PersonRow({
       </span>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-ink truncate">{person.name}</div>
-        {lastLine && <div className="text-xs text-ink-dim">{t("notebook.last")} · {lastLine}</div>}
+        {(txnCount != null || lastLine) && (
+          <div className="text-xs text-ink-dim truncate">
+            {txnCount != null
+              ? t(txnCount === 1 ? "notebook.txnCountOne" : "notebook.txnCount", {
+                  count: txnCount,
+                })
+              : null}
+            {txnCount != null && lastLine ? " · " : null}
+            {lastLine ? `${t("notebook.last")} · ${lastLine}` : null}
+          </div>
+        )}
       </div>
       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${badge.cls}`}>
         {badge.label}

@@ -10,12 +10,15 @@ export function TransactionRow({
   txn,
   primaryLabel,
   notebookLabel,
+  actionLabel,
 }: {
   txn: Transaction;
   /** Person name (notebook-wide views) or note (person-detail view) shown as the primary line */
   primaryLabel: string;
   /** Optional notebook name/color dot shown for combined History view */
   notebookLabel?: React.ReactNode;
+  /** Optional action word (দিলাম/নিলাম) shown ahead of the date line */
+  actionLabel?: string;
 }) {
   const { locale } = useI18n();
   const openEditSheet = useUIStore((s) => s.openEditSheet);
@@ -44,6 +47,7 @@ export function TransactionRow({
       <div className="flex-1 min-w-0">
         <div className="font-medium text-ink line-clamp-2 break-words">{primaryLabel}</div>
         <div className="text-xs text-ink-dim flex items-center gap-1.5">
+          {actionLabel && <span className="font-medium">{actionLabel} ·</span>}
           {notebookLabel}
           {dateStr}
         </div>
