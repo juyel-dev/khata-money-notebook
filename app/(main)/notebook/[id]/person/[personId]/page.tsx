@@ -37,14 +37,7 @@ export default function PersonDetailPage({
         <span className="text-base font-semibold text-ink truncate">{person.name}</span>
       </div>
 
-      <div className="px-5 pt-3 pb-4">
-        <div className="text-sm font-semibold text-ink">{person.name}</div>
-        <div className="text-xs text-ink-dim mt-1">
-          {t("notebook.tabsIndividuals")}
-        </div>
-      </div>
-
-      <div className="px-5">
+      <div className="px-5 pt-3">
         {transactions?.map((txn) => (
           <TransactionRow
             key={txn.id}
