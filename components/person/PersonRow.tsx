@@ -23,15 +23,19 @@ export function PersonRow({
   const bg = avatarColorFor(person.name);
   const initial = person.name.trim().charAt(0).toUpperCase();
 
+  const badge =
+    totals.net > 0
+      ? { label: `${t("notebook.owesYou")} ${formatMoney(totals.net)}`, cls: "bg-owe-you-soft text-owe-you" }
+      : totals.net < 0
+      ? { label: `${t("notebook.youOwe")} ${formatMoney(-totals.net)}`, cls: "bg-you-owe-soft text-you-owe" }
+      : { label: t("notebook.settled"), cls: "bg-transparent text-neutral-settled" };
+
   const lastLine = totals.lastTransactionAt
-    ? new Date(totals.lastTransactionAt).toLocaleDateString(
-        locale === "bn" ? "bn-BD" : "en-IN",
-        {
-          day: "numeric",
-          month: "short",
-          numberingSystem: "latn",
-        }
-      )
+    ? new Date(totals.lastTransactionAt).toLocaleDateString(locale === "bn" ? "bn-BD" : "en-IN", {
+        day: "numeric",
+        month: "short",
+        numberingSystem: "latn",
+      })
     : "";
 
   return (
@@ -45,10 +49,8 @@ export function PersonRow({
       >
         {initial}
       </span>
-
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-ink truncate">{person.name}</div>
-
         {(txnCount != null || lastLine) && (
           <div className="text-xs text-ink-dim truncate">
             {txnCount != null
@@ -61,20 +63,9 @@ export function PersonRow({
           </div>
         )}
       </div>
-
-      <div className="shrink-0 flex flex-col items-end gap-1 text-[11px] font-semibold tabular-nums">
-        {totals.totalGiven > 0 && (
-          <span className="rounded-full bg-owe-you-soft text-owe-you px-2.5 py-1 whitespace-nowrap">
-            {t("person.totalGiven")} {formatMoney(totals.totalGiven)}
-          </span>
-        )}
-
-        {totals.totalTaken > 0 && (
-          <span className="rounded-full bg-you-owe-soft text-you-owe px-2.5 py-1 whitespace-nowrap">
-            {t("person.totalTaken")} {formatMoney(totals.totalTaken)}
-          </span>
-        )}
-      </div>
+      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${badge.cls}`}>
+        {badge.label}
+      </span>
     </Link>
   );
 }
