@@ -58,3 +58,23 @@ export function rupeesInputValue(paise: number): string {
   const rupees = paiseToRupees(clampPaise(paise));
   return Number.isInteger(rupees) ? String(rupees) : rupees.toFixed(2);
 }
+
+export type AmountError = "empty" | "zero" | "invalid" | "too-large";
+
+// Pure amount validation for the transaction sheet — same rules as the
+// persisted model (integer paise, MAX ceiling), but reporting *why* input
+// is rejected so the UI can show a friendly message per case.
+export function validateAmountInput(
+  text: string
+): { ok: true; paise: number } | { ok: false; error: AmountError } {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return { ok: false, error: "empty" };
+  // Digits with at most 2 decimals — anything else (letters, extra dots,
+  // more precision than paise can hold) is malformed, not roundable.
+  if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) return { ok: false, error: "invalid" };
+  const rupees = Number(trimmed);
+  if (!Number.isFinite(rupees)) return { ok: false, error: "invalid" };
+  if (rupees === 0) return { ok: false, error: "zero" };
+  if (rupees > MAX_AMOUNT_RUPEES) return { ok: false, error: "too-large" };
+  return { ok: true, paise: rupeesToPaise(rupees) };
+}

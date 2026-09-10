@@ -76,6 +76,7 @@
     "noGroup": "কোনো গ্রুপ নেই"
   },
   "sheet": {
+    "type": "লেনদেনের ধরন",
     "amount": "টাকার পরিমাণ",
     "person": "ব্যক্তি",
     "personPlaceholder": "নাম খুঁজুন বা যোগ করুন",
@@ -91,7 +92,11 @@
     "from": "নেওয়া হলো",
     "whichNotebook": "কোন খাতা?",
     "createNotebookFirst": "প্রথমে একটি খাতা তৈরি করুন",
-    "noteMax": "নোট সর্বোচ্চ {max} অক্ষর পর্যন্ত হতে পারে"
+    "noteMax": "নোট সর্বোচ্চ {max} অক্ষর পর্যন্ত হতে পারে",
+    "errAmountEmpty": "টাকার পরিমাণ লিখুন",
+    "errAmountZero": "টাকার পরিমাণ শূন্যের বেশি হতে হবে",
+    "errAmountInvalid": "সঠিক পরিমাণ লিখুন (যেমন ২৫০)",
+    "errAmountTooLarge": "পরিমাণ অনেক বেশি (সর্বোচ্চ {max})"
   },
   "person": {
     "totalGiven": "মোট দিয়েছি",

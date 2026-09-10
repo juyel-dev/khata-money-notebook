@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
+import { Check } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useUIStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
@@ -9,7 +10,8 @@ import { db } from "@/lib/db/schema";
 import type { TransactionType } from "@/lib/db/schema";
 import { findOrCreatePerson } from "@/lib/db/people";
 import { addTransaction, updateTransaction, deleteTransaction, getTransaction, restoreTransaction } from "@/lib/db/transactions";
-import { rupeesToPaise, rupeesInputValue, formatMoney, MAX_AMOUNT_RUPEES } from "@/lib/money";
+import { rupeesInputValue, formatMoney, MAX_AMOUNT_RUPEES, validateAmountInput, type AmountError } from "@/lib/money";
+import { createMutationGuard } from "@/lib/mutationGuard";
 import { colorHex } from "@/lib/shared/notebookStyle";
 import { showToast } from "@/components/shared/Toast";
 
@@ -17,6 +19,13 @@ import { showToast } from "@/components/shared/Toast";
 // that way and, just as importantly, keeps it a bounded string so it can
 // never grow long enough to overflow the row it's displayed in elsewhere.
 const NOTE_MAX_LENGTH = 200;
+
+const AMOUNT_ERROR_KEY: Record<AmountError, string> = {
+  empty: "sheet.errAmountEmpty",
+  zero: "sheet.errAmountZero",
+  invalid: "sheet.errAmountInvalid",
+  "too-large": "sheet.errAmountTooLarge",
+};
 
 // Top edge of the Gave/Got card — a smooth downward notch cradles the
 // khata pill (flat variant when no notebook is set).
@@ -52,6 +61,10 @@ export function TransactionSheet() {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [personFocused, setPersonFocused] = useState(false);
+  const [amountTouched, setAmountTouched] = useState(false);
+  // Ref-style single-flight guard — state alone can't stop two rapid taps
+  // from both firing before the re-render lands (see lib/mutationGuard.ts).
+  const guardRef = useRef(createMutationGuard());
   const dragControls = useDragControls();
 
   // Lock the page behind the sheet — no scroll or pull-to-refresh leaks out.
@@ -78,6 +91,7 @@ export function TransactionSheet() {
   useEffect(() => {
     if (!sheetOpen) return;
     (async () => {
+      setAmountTouched(false);
       if (sheetMode === "edit" && sheetTransactionId) {
         const txn = await getTransaction(sheetTransactionId);
         if (txn) {
@@ -115,47 +129,51 @@ export function TransactionSheet() {
 
   const exactMatch = filteredPeople.find((p) => p.name.toLowerCase() === personQuery.trim().toLowerCase());
 
-  const amountPaise = rupeesToPaise(Number(amount || 0));
-  const canSave = amountPaise > 0 && personQuery.trim().length > 0 && !saving;
+  const amountCheck = validateAmountInput(amount);
+  const showAmountError = amountTouched && !amountCheck.ok;
+  const canSave = amountCheck.ok && personQuery.trim().length > 0 && !saving;
 
-  const handleSave = async () => {
-    if (!canSave || !sheetNotebookId) return;
-    setSaving(true);
-    try {
-      let personId = selectedPersonId;
-      if (!personId || !exactMatch) {
-        const person = await findOrCreatePerson(sheetNotebookId, personQuery.trim());
-        personId = person.id;
+  const handleSave = () => {
+    if (!amountCheck.ok || personQuery.trim().length === 0 || !sheetNotebookId) return;
+    const paise = amountCheck.paise;
+    void guardRef.current.run(async () => {
+      setSaving(true);
+      try {
+        let personId = selectedPersonId;
+        if (!personId || !exactMatch) {
+          const person = await findOrCreatePerson(sheetNotebookId, personQuery.trim());
+          personId = person.id;
+        }
+        const occurredAtMs = new Date(occurredAt).getTime();
+
+        if (sheetMode === "edit" && sheetTransactionId) {
+          await updateTransaction(sheetTransactionId, {
+            type,
+            amount: paise,
+            note,
+            occurredAt: occurredAtMs,
+            personId,
+          });
+        } else {
+          await addTransaction({
+            notebookId: sheetNotebookId,
+            personId,
+            type,
+            amount: paise,
+            note,
+            occurredAt: occurredAtMs,
+          });
+        }
+
+        const direction = type === "gave" ? t("sheet.to") : t("sheet.from");
+        showToast(
+          t("sheet.savedToast", { amount: formatMoney(paise), direction, person: personQuery.trim() })
+        );
+        closeSheet();
+      } finally {
+        setSaving(false);
       }
-      const occurredAtMs = new Date(occurredAt).getTime();
-
-      if (sheetMode === "edit" && sheetTransactionId) {
-        await updateTransaction(sheetTransactionId, {
-          type,
-          amount: amountPaise,
-          note,
-          occurredAt: occurredAtMs,
-          personId,
-        });
-      } else {
-        await addTransaction({
-          notebookId: sheetNotebookId,
-          personId,
-          type,
-          amount: amountPaise,
-          note,
-          occurredAt: occurredAtMs,
-        });
-      }
-
-      const direction = type === "gave" ? t("sheet.to") : t("sheet.from");
-      showToast(
-        t("sheet.savedToast", { amount: formatMoney(amountPaise), direction, person: personQuery.trim() })
-      );
-      closeSheet();
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const handleDelete = async () => {
@@ -241,22 +259,35 @@ export function TransactionSheet() {
                   </div>
                 )}
                 <div className="border border-t-0 border-rule rounded-b-2xl px-3 pt-4 pb-3">
-                  {/* Type toggle */}
-                  <div className="flex rounded-full border border-rule p-1">
+                  {/* Type toggle — radio semantics + check mark so the
+                      selection never depends on color alone */}
+                  <div
+                    role="radiogroup"
+                    aria-label={t("sheet.type")}
+                    className="flex rounded-full border border-rule p-1"
+                  >
                     <button
+                      type="button"
+                      role="radio"
+                      aria-checked={type === "gave"}
                       onClick={() => setType("gave")}
-                      className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-colors ${
+                      className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                         type === "gave" ? "bg-owe-you text-paper" : "text-ink-dim"
                       }`}
                     >
+                      {type === "gave" && <Check size={16} strokeWidth={3} />}
                       {t("notebook.gave")}
                     </button>
                     <button
+                      type="button"
+                      role="radio"
+                      aria-checked={type === "got"}
                       onClick={() => setType("got")}
-                      className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-colors ${
+                      className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                         type === "got" ? "bg-accent text-paper" : "text-ink-dim"
                       }`}
                     >
+                      {type === "got" && <Check size={16} strokeWidth={3} />}
                       {t("notebook.got")}
                     </button>
                   </div>
@@ -265,23 +296,30 @@ export function TransactionSheet() {
 
               {/* Amount */}
               <div>
-                <label className="block text-xs font-medium text-ink-dim mb-1">{t("sheet.amount")}</label>
+                <label htmlFor="sheet-amount" className="block text-xs font-medium text-ink-dim mb-1">{t("sheet.amount")}</label>
                 <div className="flex items-center border-b-2 border-rule focus-within:border-accent pb-1">
                   <span className="text-3xl font-bold text-ink-dim mr-1">₹</span>
                   <input
+                    id="sheet-amount"
                     autoFocus={sheetMode === "add"}
                     inputMode="decimal"
                     maxLength={12}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                    onBlur={() => {
-                      const n = Number(amount || 0);
-                      if (n > MAX_AMOUNT_RUPEES) setAmount(String(MAX_AMOUNT_RUPEES));
-                    }}
+                    onBlur={() => setAmountTouched(true)}
+                    aria-invalid={showAmountError}
+                    aria-describedby={showAmountError ? "sheet-amount-error" : undefined}
                     placeholder="0"
                     className="w-full bg-transparent text-3xl font-bold text-ink outline-none tabular-nums"
                   />
                 </div>
+                {showAmountError && (
+                  <p id="sheet-amount-error" role="alert" className="text-xs text-danger font-medium mt-1.5">
+                    {t(AMOUNT_ERROR_KEY[amountCheck.error], {
+                      max: formatMoney(MAX_AMOUNT_RUPEES * 100),
+                    })}
+                  </p>
+                )}
               </div>
 
               {/* Person */}
@@ -356,7 +394,7 @@ export function TransactionSheet() {
               <button
                 disabled={!canSave}
                 onClick={handleSave}
-                className="w-full rounded-full bg-accent text-paper font-semibold py-3.5 disabled:opacity-40 mt-1"
+                className="w-full rounded-full bg-accent text-paper font-semibold py-3.5 disabled:opacity-40 mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper-card"
               >
                 {sheetMode === "edit" ? t("sheet.update") : t("sheet.save")}
               </button>

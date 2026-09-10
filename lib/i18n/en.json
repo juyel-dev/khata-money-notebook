@@ -76,6 +76,7 @@
     "noGroup": "No group"
   },
   "sheet": {
+    "type": "Transaction type",
     "amount": "Amount",
     "person": "Person",
     "personPlaceholder": "Search or add a name",
@@ -91,7 +92,11 @@
     "from": "from",
     "whichNotebook": "Which notebook?",
     "createNotebookFirst": "Create a notebook first",
-    "noteMax": "Note can be up to {max} characters"
+    "noteMax": "Note can be up to {max} characters",
+    "errAmountEmpty": "Enter an amount",
+    "errAmountZero": "Amount must be more than zero",
+    "errAmountInvalid": "Enter a valid amount (e.g. 250)",
+    "errAmountTooLarge": "Amount is too large (max {max})"
   },
   "person": {
     "totalGiven": "Total given",
