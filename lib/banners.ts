@@ -85,35 +85,31 @@ export const BANNERS: Banner[] = [
     titleBn: "আপনার হিসাব, আপনার খাতা।",
 
     subtitle:
-      "Track দেনা-পাওনা, manage notebooks and stay organized — simple, fast and offline.",
+      "Keep transactions, notebooks and everyday money records organized — simple, fast and offline.",
     subtitleBn:
-      "দেনা-পাওনা, খাতা আর দৈনন্দিন হিসাব — সবকিছু সহজে, দ্রুত এবং অফলাইনে রাখুন।",
+      "লেনদেন, খাতা আর দৈনন্দিন হিসাব — সবকিছু সহজে, দ্রুত এবং অফলাইনে গুছিয়ে রাখুন।",
 
     icon: "Smartphone",
 
     accentColor: "#075B42",
 
-    destinationUrl: "/",
+    destinationUrl: "/about",
 
     sponsorLabel: "Khata",
     sponsorLabelBn: "খাতা",
 
-    cta: "Start using Khata",
-    ctaBn: "খাতা ব্যবহার করুন",
+    cta: "Learn about Khata",
+    ctaBn: "খাতা সম্পর্কে",
   },
 
   /*
    * ============================================================
    * 03 — AFFILIATE / PARTNER SLOT
    *
-   * This is deliberately subtle:
-   * - "Partner Pick" instead of loud "ADVERTISEMENT"
-   * - commerce-inspired accent
-   * - CTA (appears automatically once destinationUrl is set)
-   *
-   * TODO: paste the real affiliate link into destinationUrl below.
-   * Until then the card is intentionally non-clickable with no CTA,
-   * so no dead/placeholder link ever ships to users.
+   * The UI intentionally stays quiet until a real destination is
+   * configured. This prevents a dead/placeholder ad from shipping.
+   * When admin-managed banners arrive, destinationUrl + CTA can be
+   * populated remotely without changing the card design.
    * ============================================================
    */
   {
@@ -133,9 +129,6 @@ export const BANNERS: Banner[] = [
 
     sponsorLabel: "Partner Pick",
     sponsorLabelBn: "পার্টনার পিক",
-
-    cta: "Explore pick",
-    ctaBn: "দেখুন",
   },
 
   /*

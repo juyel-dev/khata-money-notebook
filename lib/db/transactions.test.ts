@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateAmountInput } from "../money";
 import { createMutationGuard } from "../mutationGuard";
 import { db } from "./schema";
-import { addTransaction, updateTransaction } from "./transactions";
+import { addTransaction, getNotebookTransactions, getPersonTransactions, updateTransaction } from "./transactions";
 
 async function clearAll(): Promise<void> {
   await db.transaction(
@@ -120,5 +120,60 @@ describe("addTransaction / updateTransaction", () => {
     expect(updated?.type).toBe("got");
     expect(updated?.amount).toBe(2000);
     expect(await db.transactions.count()).toBe(1);
+  });
+
+  it("orders equal timestamps deterministically by creation time", async () => {
+    const nowSpy = vi.spyOn(Date, "now");
+    try {
+      nowSpy.mockReturnValueOnce(1001).mockReturnValueOnce(1002);
+
+      const first = await addTransaction({
+        notebookId: "n1",
+        personId: "p1",
+        type: "gave",
+        amount: 100,
+        occurredAt: 5000,
+      });
+      const second = await addTransaction({
+        notebookId: "n1",
+        personId: "p1",
+        type: "gave",
+        amount: 200,
+        occurredAt: 5000,
+      });
+
+      const txns = await getPersonTransactions("p1");
+      expect(txns.map((t) => t.id)).toEqual([second.id, first.id]);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("orders different timestamps newest first", async () => {
+    await addTransaction({
+      notebookId: "n1",
+      personId: "p1",
+      type: "gave",
+      amount: 100,
+      occurredAt: 100,
+    });
+    const newest = await addTransaction({
+      notebookId: "n1",
+      personId: "p2",
+      type: "got",
+      amount: 200,
+      occurredAt: 300,
+    });
+    await addTransaction({
+      notebookId: "n1",
+      personId: "p1",
+      type: "got",
+      amount: 300,
+      occurredAt: 200,
+    });
+
+    const txns = await getNotebookTransactions("n1");
+    expect(txns[0].id).toBe(newest.id);
+    expect(txns.map((t) => t.occurredAt)).toEqual([300, 200, 100]);
   });
 });
