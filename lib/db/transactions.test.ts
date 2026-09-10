@@ -123,28 +123,30 @@ describe("addTransaction / updateTransaction", () => {
   });
 
   it("orders equal timestamps deterministically by creation time", async () => {
-    vi.spyOn(Date, "now")
-      .mockReturnValueOnce(1001)
-      .mockReturnValueOnce(1002)
-      .mockRestore();
+    const nowSpy = vi.spyOn(Date, "now");
+    try {
+      nowSpy.mockReturnValueOnce(1001).mockReturnValueOnce(1002);
 
-    const first = await addTransaction({
-      notebookId: "n1",
-      personId: "p1",
-      type: "gave",
-      amount: 100,
-      occurredAt: 5000,
-    });
-    const second = await addTransaction({
-      notebookId: "n1",
-      personId: "p1",
-      type: "gave",
-      amount: 200,
-      occurredAt: 5000,
-    });
+      const first = await addTransaction({
+        notebookId: "n1",
+        personId: "p1",
+        type: "gave",
+        amount: 100,
+        occurredAt: 5000,
+      });
+      const second = await addTransaction({
+        notebookId: "n1",
+        personId: "p1",
+        type: "gave",
+        amount: 200,
+        occurredAt: 5000,
+      });
 
-    const txns = await getPersonTransactions("p1");
-    expect(txns.map((t) => t.id)).toEqual([second.id, first.id]);
+      const txns = await getPersonTransactions("p1");
+      expect(txns.map((t) => t.id)).toEqual([second.id, first.id]);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it("orders different timestamps newest first", async () => {
