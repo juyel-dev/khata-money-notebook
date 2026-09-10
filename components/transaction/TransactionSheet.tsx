@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { db } from "@/lib/db/schema";
 import type { TransactionType } from "@/lib/db/schema";
 import { findOrCreatePerson } from "@/lib/db/people";
-import { addTransaction, updateTransaction, deleteTransaction, getTransaction } from "@/lib/db/transactions";
+import { addTransaction, updateTransaction, deleteTransaction, getTransaction, restoreTransaction } from "@/lib/db/transactions";
 import { rupeesToPaise, rupeesInputValue, formatMoney, MAX_AMOUNT_RUPEES } from "@/lib/money";
 import { colorHex } from "@/lib/shared/notebookStyle";
 import { showToast } from "@/components/shared/Toast";
@@ -166,9 +166,9 @@ export function TransactionSheet() {
     closeSheet();
     showToast(t("common.deleted"), {
       actionLabel: t("common.undo"),
-      onAction: () => {
-        if (snapshot) addTransaction(snapshot);
-      },
+        onAction: () => {
+          if (snapshot) restoreTransaction(snapshot);
+        },
     });
   };
 

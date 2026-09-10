@@ -2,61 +2,90 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { db } from "@/lib/db/schema";
 import { showToast } from "@/components/shared/Toast";
-import { useState } from "react";
+import {
+  BackupError,
+  exportBackup,
+  parseBackupFile,
+  restoreBackup,
+  type BackupErrorCode,
+} from "@/lib/db/backup";
+
+const LAST_BACKUP_KEY = "khata:lastBackup";
+
+const ERROR_MESSAGE_KEY: Record<BackupErrorCode, string> = {
+  "invalid-json": "backup.errInvalidJson",
+  "invalid-format": "backup.errInvalidFormat",
+  "unsupported-version": "backup.errUnsupportedVersion",
+  "invalid-data": "backup.errInvalidData",
+};
 
 export default function BackupPage() {
   const router = useRouter();
   const { t } = useI18n();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [lastBackup, setLastBackup] = useState<string | null>(
-    typeof window !== "undefined" ? localStorage.getItem("khata:lastBackup") : null
+    typeof window !== "undefined" ? localStorage.getItem(LAST_BACKUP_KEY) : null
   );
 
   const handleExport = async () => {
-    const [notebooks, people, transactions] = await Promise.all([
-      db.notebooks.toArray(),
-      db.people.toArray(),
-      db.transactions.toArray(),
-    ]);
-    const payload = { version: 1, exportedAt: Date.now(), notebooks, people, transactions };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `khata-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    const now = new Date().toLocaleString();
-    localStorage.setItem("khata:lastBackup", now);
-    setLastBackup(now);
-    showToast(t("backup.exported"));
+    try {
+      const backup = await exportBackup();
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `khata-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      // Written only after a successful export — never on failure.
+      const now = new Date().toLocaleString();
+      localStorage.setItem(LAST_BACKUP_KEY, now);
+      setLastBackup(now);
+      showToast(t("backup.exported"));
+    } catch (err) {
+      console.error("Backup export failed:", err);
+      showToast(t("backup.exportFailed"));
+    }
   };
 
-  const handleImport = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/json";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      try {
-        const data = JSON.parse(text);
-        if (!confirm(t("backup.importWarning"))) return;
-        await db.transaction("rw", db.notebooks, db.people, db.transactions, async () => {
-          if (Array.isArray(data.notebooks)) await db.notebooks.bulkPut(data.notebooks);
-          if (Array.isArray(data.people)) await db.people.bulkPut(data.people);
-          if (Array.isArray(data.transactions)) await db.transactions.bulkPut(data.transactions);
-        });
-        showToast(t("backup.imported"));
-      } catch {
-        showToast(t("backup.invalid"));
-      }
-    };
-    input.click();
+  const handleImportFile = async (file: File) => {
+    let text: string;
+    try {
+      text = await file.text();
+    } catch (err) {
+      console.error("Backup file read failed:", err);
+      showToast(t("backup.errInvalidJson"));
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = parseBackupFile(text);
+    } catch (err) {
+      // Friendly, categorized message — never raw stacks.
+      console.warn("Backup rejected:", err);
+      const key =
+        err instanceof BackupError ? ERROR_MESSAGE_KEY[err.code] : "backup.errInvalidData";
+      showToast(t(key));
+      return;
+    }
+
+    // Strong, explicit replace warning — restore wipes current data.
+    if (!confirm(t("backup.replaceWarning"))) return;
+
+    try {
+      await restoreBackup(parsed);
+      showToast(t("backup.restored"));
+    } catch (err) {
+      // Dexie rolls the whole swap back on failure, so reaching here
+      // means the on-device data is still exactly as it was.
+      console.error("Backup restore failed:", err);
+      showToast(t("backup.errRestoreFailed"));
+    }
   };
 
   return (
@@ -88,12 +117,24 @@ export default function BackupPage() {
         </div>
 
         <button
-          onClick={handleImport}
+          onClick={() => fileRef.current?.click()}
           className="w-full rounded-full border-2 border-accent text-accent font-semibold py-3.5 mt-2"
         >
           {t("backup.import")}
         </button>
-        <p className="text-xs text-ink-dim text-center">{t("backup.importWarning")}</p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            // Reset so picking the same file twice still fires onChange.
+            e.target.value = "";
+            if (file) void handleImportFile(file);
+          }}
+        />
+        <p className="text-xs text-ink-dim text-center">{t("backup.replaceWarning")}</p>
       </div>
     </div>
   );

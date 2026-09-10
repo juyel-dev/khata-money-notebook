@@ -34,6 +34,13 @@ export async function deleteTransaction(id: string) {
   await db.transactions.delete(id);
 }
 
+// ID-preserving write for undoing a delete — unlike addTransaction (which
+// always mints a fresh id), this restores the exact same row, so balances,
+// history order, and any id-based references stay identical.
+export async function restoreTransaction(txn: Transaction): Promise<void> {
+  await db.transactions.put({ ...txn });
+}
+
 export async function getTransaction(id: string) {
   return db.transactions.get(id);
 }
