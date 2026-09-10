@@ -139,6 +139,12 @@ describe("validateBackup", () => {
     expect(codeOf(() => validateBackup(b))).toBe("invalid-data");
   });
 
+  it("8c. unsafe integer amount fails", () => {
+    const b = validBackup();
+    b.data.transactions[0].amount = Number.MAX_SAFE_INTEGER + 1;
+    expect(codeOf(() => validateBackup(b))).toBe("invalid-data");
+  });
+
   it("9a. duplicate person IDs fail", () => {
     const b = validBackup();
     b.data.people = [b.data.people[0], { ...b.data.people[0] }];
