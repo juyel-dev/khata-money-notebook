@@ -45,17 +45,27 @@ export async function getTransaction(id: string) {
   return db.transactions.get(id);
 }
 
+// Newest first with deterministic tie-breaking. occurredAt is the user's
+// chosen transaction time; createdAt and id make equal timestamps stable.
+function newestFirst(a: Transaction, b: Transaction): number {
+  return (
+    b.occurredAt - a.occurredAt ||
+    b.createdAt - a.createdAt ||
+    b.id.localeCompare(a.id)
+  );
+}
+
 export async function getPersonTransactions(personId: string): Promise<Transaction[]> {
   const txns = await db.transactions.where("personId").equals(personId).toArray();
-  return txns.sort((a, b) => b.occurredAt - a.occurredAt);
+  return txns.sort(newestFirst);
 }
 
 export async function getNotebookTransactions(notebookId: string): Promise<Transaction[]> {
   const txns = await db.transactions.where("notebookId").equals(notebookId).toArray();
-  return txns.sort((a, b) => b.occurredAt - a.occurredAt);
+  return txns.sort(newestFirst);
 }
 
 export async function getAllTransactions(): Promise<Transaction[]> {
   const txns = await db.transactions.toArray();
-  return txns.sort((a, b) => b.occurredAt - a.occurredAt);
+  return txns.sort(newestFirst);
 }
