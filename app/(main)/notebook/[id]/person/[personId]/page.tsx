@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft } from "lucide-react";
 import { db } from "@/lib/db/schema";
-import { getPersonTotals } from "@/lib/db/people";
 import { getPersonTransactions } from "@/lib/db/transactions";
 import { TransactionRow } from "@/components/transaction/TransactionRow";
-import { formatMoney } from "@/lib/money";
 import { useI18n } from "@/lib/i18n";
 import { useUIStore } from "@/lib/store";
 
@@ -23,42 +21,36 @@ export default function PersonDetailPage({
   const openAddSheet = useUIStore((s) => s.openAddSheet);
 
   const person = useLiveQuery(() => db.people.get(personId), [personId]);
-  const totals = useLiveQuery(() => getPersonTotals(personId), [personId]);
   const transactions = useLiveQuery(() => getPersonTransactions(personId), [personId]);
 
-  if (!person || !totals) return null;
-
-  const badge =
-    totals.net > 0
-      ? { label: `${t("notebook.owesYou")} ${formatMoney(totals.net)}`, cls: "text-owe-you" }
-      : totals.net < 0
-      ? { label: `${t("notebook.youOwe")} ${formatMoney(-totals.net)}`, cls: "text-you-owe" }
-      : { label: t("notebook.settled"), cls: "text-neutral-settled" };
+  if (!person) return null;
 
   return (
     <div>
       <div className="flex items-center gap-2 px-3 pt-4 pb-1">
-        <button onClick={() => router.back()} className="p-2 text-ink rounded-full active:bg-accent-soft active:scale-90 transition-all">
+        <button
+          onClick={() => router.back()}
+          className="p-2 text-ink rounded-full active:bg-accent-soft active:scale-90 transition-all"
+        >
           <ChevronLeft size={22} />
         </button>
         <span className="text-base font-semibold text-ink truncate">{person.name}</span>
       </div>
 
-      <div className="px-6 pt-3 pb-5 text-center">
-        <div className={`text-3xl font-bold tabular-nums ${badge.cls}`}>{badge.label}</div>
-        <div className="flex justify-center gap-6 mt-3 text-xs text-ink-dim">
-          <span>
-            {t("person.totalGiven")}: <span className="tabular-nums font-medium text-ink">{formatMoney(totals.totalGiven)}</span>
-          </span>
-          <span>
-            {t("person.totalTaken")}: <span className="tabular-nums font-medium text-ink">{formatMoney(totals.totalTaken)}</span>
-          </span>
+      <div className="px-5 pt-3 pb-4">
+        <div className="text-sm font-semibold text-ink">{person.name}</div>
+        <div className="text-xs text-ink-dim mt-1">
+          {t("notebook.tabsIndividuals")}
         </div>
       </div>
 
       <div className="px-5">
         {transactions?.map((txn) => (
-          <TransactionRow key={txn.id} txn={txn} primaryLabel={txn.note || (txn.type === "gave" ? t("notebook.gave") : t("notebook.got"))} />
+          <TransactionRow
+            key={txn.id}
+            txn={txn}
+            primaryLabel={txn.note || person.name}
+          />
         ))}
       </div>
 
