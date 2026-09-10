@@ -79,24 +79,43 @@ export interface HomeListResult {
 
 // Most-recently-active notebooks first: activity means either a metadata
 // edit (updatedAt) or its most recent transaction, whichever is later.
-async function sortByRecency(notebooks: Notebook[]): Promise<Notebook[]> {
-  const withTs = await Promise.all(
-    notebooks.map(async (n) => ({
-      notebook: n,
-      ts: Math.max(n.updatedAt, (await getLastActivityAt(n.id)) ?? 0),
-    }))
-  );
-  withTs.sort((a, b) => b.ts - a.ts);
+// Transaction activity is aggregated in one read to avoid N+1 queries.
+function sortByRecency(
+  notebooks: Notebook[],
+  lastActivityByNotebook: Map<string, number>
+): Notebook[] {
+  const withTs = notebooks.map((notebook) => ({
+    notebook,
+    ts: Math.max(notebook.updatedAt, lastActivityByNotebook.get(notebook.id) ?? 0),
+  }));
+
+  withTs.sort((a, b) => {
+    return (
+      b.ts - a.ts ||
+      b.notebook.createdAt - a.notebook.createdAt ||
+      b.notebook.id.localeCompare(a.notebook.id)
+    );
+  });
+
   return withTs.map((w) => w.notebook);
 }
 
 export async function getHomeList(): Promise<HomeListResult> {
-  const [notebooks, groups] = await Promise.all([
+  const [notebooks, groups, transactions] = await Promise.all([
     db.notebooks.filter((n) => !n.archived).toArray(),
     db.groups.toArray(),
+    db.transactions.toArray(),
   ]);
 
-  const sorted = await sortByRecency(notebooks);
+  const lastActivityByNotebook = new Map<string, number>();
+  for (const txn of transactions) {
+    const current = lastActivityByNotebook.get(txn.notebookId) ?? 0;
+    if (txn.occurredAt > current) {
+      lastActivityByNotebook.set(txn.notebookId, txn.occurredAt);
+    }
+  }
+
+  const sorted = sortByRecency(notebooks, lastActivityByNotebook);
   const pinned = sorted.filter((n) => n.pinned);
   const rest = sorted.filter((n) => !n.pinned);
 
