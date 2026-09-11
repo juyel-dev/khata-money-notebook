@@ -12,8 +12,8 @@ export class SyncQueueDB extends Dexie {
       syncMutations: "id, entity, entityId, operation, changedAt, status, attempts",
     });
     this.version(2).stores({
-      syncMutations: "id, entity, entityId, operation, changedAt, status, attempts, version.deviceId",
-      syncTombstones: "id, entity, entityId, deletedAt, version.changedAt",
+      syncMutations: "id, entity, entityId, operation, changedAt, status, attempts",
+      syncTombstones: "id, entity, entityId, deletedAt",
       syncMeta: "key",
     });
   }
