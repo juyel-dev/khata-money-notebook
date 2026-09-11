@@ -27,14 +27,16 @@ export default function PersonDetailPage({
 
   return (
     <div>
-      <div className="flex items-center gap-2 px-3 pt-4 pb-1">
+      <div className="flex items-center gap-2 border-b border-rule/60 px-3 pt-3.5 pb-3">
         <button
           onClick={() => router.back()}
-          className="p-2 text-ink rounded-full active:bg-accent-soft active:scale-90 transition-all"
+          className="rounded-full p-2 text-ink transition-colors active:scale-90 active:bg-accent-soft"
         >
           <ChevronLeft size={22} />
         </button>
-        <span className="text-base font-semibold text-ink truncate">{person.name}</span>
+        <span className="min-w-0 truncate text-[17px] font-semibold leading-6 text-ink">
+          {person.name}
+        </span>
       </div>
 
       <div className="px-5 pt-3">
@@ -51,13 +53,13 @@ export default function PersonDetailPage({
         <div className="flex gap-3">
           <button
             onClick={() => openAddSheet({ notebookId: id, type: "gave", personId })}
-            className="flex-1 rounded-full border-2 border-owe-you text-owe-you font-semibold py-3.5 bg-paper shadow-md"
+            className="flex-1 rounded-full border-2 border-owe-you bg-paper py-3.5 font-semibold text-owe-you shadow-md transition-transform active:scale-[0.99]"
           >
             {t("notebook.gave")}
           </button>
           <button
             onClick={() => openAddSheet({ notebookId: id, type: "got", personId })}
-            className="flex-1 rounded-full bg-accent text-paper font-semibold py-3.5 shadow-md"
+            className="flex-1 rounded-full bg-accent py-3.5 font-semibold text-paper shadow-md transition-transform active:scale-[0.99]"
           >
             {t("notebook.got")}
           </button>

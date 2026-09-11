@@ -6,7 +6,7 @@
 // component behavior, verified in manual QA (see TASK 03 report).
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { db, type Person, type Transaction } from "./schema";
+import { db, type Notebook, type Person, type Transaction } from "./schema";
 import { deriveIndividuals } from "./people";
 import {
   addTransaction,
@@ -34,6 +34,21 @@ async function clearAll(): Promise<void> {
   );
 }
 
+function notebook(id: string): Notebook {
+  return {
+    id,
+    name: "Test Khata",
+    openingBalance: 0,
+    createdAt: 1000,
+    updatedAt: 1000,
+    archived: false,
+    color: "green",
+    icon: "book",
+    pinned: false,
+    groupId: null,
+  };
+}
+
 function person(id: string, name: string): Person {
   return { id, notebookId: "n1", name, createdAt: 1000 };
 }
@@ -49,7 +64,8 @@ function txn(
 }
 
 // QA-scenario-shaped fixture: Rahim x2 (gave+got), Karim x1, Shuvo x1.
-function seedFixture(): { people: Person[]; txns: Transaction[] } {
+function seedFixture(): { notebook: Notebook; people: Person[]; txns: Transaction[] } {
+  const notebookRow = notebook("n1");
   const people = [person("p-rahim", "Rahim"), person("p-karim", "Karim"), person("p-shuvo", "Shuvo")];
   const txns = [
     txn("t1", "p-rahim", "gave", 50000, 3000),
@@ -57,13 +73,14 @@ function seedFixture(): { people: Person[]; txns: Transaction[] } {
     txn("t3", "p-rahim", "got", 10000, 1500),
     txn("t4", "p-shuvo", "gave", 5000, 1000),
   ];
-  return { people, txns };
+  return { notebook: notebookRow, people, txns };
 }
 
 describe("notebook transactions query", () => {
   beforeEach(async () => {
     await clearAll();
-    const { people, txns } = seedFixture();
+    const { notebook, people, txns } = seedFixture();
+    await db.notebooks.add(notebook);
     await db.people.bulkAdd(people);
     await db.transactions.bulkAdd(txns);
     // A transaction from another khata must never leak in.
@@ -150,6 +167,8 @@ describe("deriveIndividuals", () => {
 
   it("8+9+10. counts follow adds and deletes", async () => {
     await clearAll();
+    const fixture = seedFixture();
+    await db.notebooks.add(fixture.notebook);
     await db.people.bulkAdd(people);
     await db.transactions.bulkAdd(txns);
     const read = async () => {

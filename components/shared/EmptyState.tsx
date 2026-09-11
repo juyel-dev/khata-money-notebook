@@ -15,7 +15,7 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center text-center px-8 py-12 gap-3 bg-paper-card border border-rule rounded-2xl shadow-sm">
+    <div className="flex flex-col items-center text-center px-7 py-10 gap-3 border-y border-rule/70">
       {illustration ? (
         <Image
           src={illustration}
@@ -25,12 +25,12 @@ export function EmptyState({
           className="mb-1"
         />
       ) : Icon ? (
-        <div className="w-16 h-16 rounded-full bg-accent-soft flex items-center justify-center text-accent mb-1">
-          <Icon size={28} strokeWidth={1.75} />
+        <div className="w-14 h-14 rounded-full bg-accent-soft flex items-center justify-center text-accent mb-1">
+          <Icon size={26} strokeWidth={1.75} />
         </div>
       ) : null}
-      <h2 className="text-lg font-bold text-ink">{title}</h2>
-      <p className="text-sm text-ink-dim max-w-xs">{body}</p>
+      <h2 className="text-[17px] font-bold leading-6 text-ink">{title}</h2>
+      <p className="text-[13px] leading-5 text-ink-dim max-w-xs">{body}</p>
       {action}
     </div>
   );

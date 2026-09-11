@@ -22,7 +22,7 @@ import { shareApp } from "@/lib/shareApp";
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-rule bg-paper-card overflow-hidden divide-y divide-rule shadow-sm">
+    <div className="overflow-hidden rounded-[18px] border border-rule bg-paper-card divide-y divide-rule/80">
       {children}
     </div>
   );
@@ -41,28 +41,28 @@ export default function SettingsPage() {
       <div className="flex items-center gap-2 px-3 pt-4 pb-2">
         <button
           onClick={() => router.back()}
-          className="p-2 -ml-1 text-ink rounded-full active:bg-accent-soft active:scale-90 transition-all"
+          className="-ml-1 rounded-full p-2 text-ink transition-colors active:scale-90 active:bg-accent-soft"
         >
           <ChevronLeft size={22} />
         </button>
-        <span className="text-lg font-bold text-ink">{t("settings.title")}</span>
+        <span className="text-[18px] font-bold leading-6 text-ink">{t("settings.title")}</span>
       </div>
 
-      <div className="px-5 pb-8 flex flex-col gap-6">
+      <div className="flex flex-col gap-6 px-5 pb-8">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-ink-dim mb-1.5">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-dim">
             {t("settings.preferences")}
           </div>
           <SectionCard>
             <div className={rowClass}>
               <span className="flex items-center gap-3 text-sm text-ink">
-                <Languages size={18} className="text-ink-dim shrink-0" />
+                <Languages size={18} className="shrink-0 text-ink-dim" />
                 {t("settings.language")}
               </span>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-1.5 shrink-0">
                 <button
                   onClick={() => setLocale("en")}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                     locale === "en" ? "bg-accent text-paper border-accent" : "border-rule text-ink-dim"
                   }`}
                 >
@@ -70,7 +70,7 @@ export default function SettingsPage() {
                 </button>
                 <button
                   onClick={() => setLocale("bn")}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                     locale === "bn" ? "bg-accent text-paper border-accent" : "border-rule text-ink-dim"
                   }`}
                 >
@@ -79,11 +79,11 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className={rowClass}>
-              <span className="flex items-center gap-3 text-sm text-ink shrink-0">
-                <SunMoon size={18} className="text-ink-dim shrink-0" />
+              <span className="flex shrink-0 items-center gap-3 text-sm text-ink">
+                <SunMoon size={18} className="shrink-0 text-ink-dim" />
                 {t("settings.theme")}
               </span>
-              <div className="flex gap-1.5 shrink-0">
+              <div className="flex gap-1 shrink-0">
                 {(
                   [
                     { key: "light" as const, label: t("settings.light"), Icon: Sun },
@@ -94,8 +94,8 @@ export default function SettingsPage() {
                   <button
                     key={key}
                     onClick={() => setTheme(key)}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border ${
-                      theme === key ? "bg-accent text-paper border-accent" : "border-rule text-ink-dim"
+                    className={`flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      theme === key ? "border-accent bg-accent text-paper" : "border-rule text-ink-dim"
                     }`}
                   >
                     <Icon size={13} />
@@ -108,48 +108,51 @@ export default function SettingsPage() {
         </div>
 
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-ink-dim mb-1.5">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-dim">
             {t("settings.data")}
           </div>
           <SectionCard>
             <Link href="/settings/backup" className={rowClass}>
-              <span className="flex items-center gap-3 min-w-0">
-                <DatabaseBackup size={18} className="text-ink-dim shrink-0" />
+              <span className="flex min-w-0 items-center gap-3">
+                <DatabaseBackup size={18} className="shrink-0 text-ink-dim" />
                 <span className="min-w-0">
                   <div className="text-sm font-semibold text-ink">{t("menu.backup")}</div>
-                  <div className="text-xs text-ink-dim mt-0.5">{t("settings.backupDesc")}</div>
+                  <div className="mt-0.5 text-xs text-ink-dim">{t("settings.backupDesc")}</div>
                 </span>
               </span>
-              <ChevronRight size={18} className="text-ink-dim shrink-0" />
+              <ChevronRight size={18} className="shrink-0 text-ink-dim" />
             </Link>
             <Link href="/settings/archived" className={rowClass}>
-              <span className="flex items-center gap-3 min-w-0">
-                <Archive size={18} className="text-ink-dim shrink-0" />
+              <span className="flex min-w-0 items-center gap-3">
+                <Archive size={18} className="shrink-0 text-ink-dim" />
                 <span className="min-w-0">
                   <div className="text-sm font-semibold text-ink">{t("menu.archived")}</div>
-                  <div className="text-xs text-ink-dim mt-0.5">{t("settings.archivedDesc")}</div>
+                  <div className="mt-0.5 text-xs text-ink-dim">{t("settings.archivedDesc")}</div>
                 </span>
               </span>
-              <ChevronRight size={18} className="text-ink-dim shrink-0" />
+              <ChevronRight size={18} className="shrink-0 text-ink-dim" />
             </Link>
           </SectionCard>
         </div>
 
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-ink-dim mb-1.5">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-dim">
             {t("settings.aboutSection")}
           </div>
           <SectionCard>
             <Link href="/about" className={rowClass}>
               <span className="flex items-center gap-3 text-sm font-semibold text-ink">
-                <HelpCircle size={18} className="text-ink-dim shrink-0" />
+                <HelpCircle size={18} className="shrink-0 text-ink-dim" />
                 {t("settings.aboutHelp")}
               </span>
               <ChevronRight size={18} className="text-ink-dim" />
             </Link>
-            <button onClick={() => shareApp(t("common.linkCopied"))} className={`w-full text-left ${rowClass}`}>
+            <button
+              onClick={() => shareApp(t("common.linkCopied"))}
+              className={`w-full text-left ${rowClass}`}
+            >
               <span className="flex items-center gap-3 text-sm font-semibold text-ink">
-                <Share2 size={18} className="text-ink-dim shrink-0" />
+                <Share2 size={18} className="shrink-0 text-ink-dim" />
                 {t("menu.shareApp")}
               </span>
               <ChevronRight size={18} className="text-ink-dim" />
@@ -157,9 +160,9 @@ export default function SettingsPage() {
           </SectionCard>
         </div>
 
-        <div className="rounded-2xl bg-accent-soft px-4 py-3.5 flex gap-3">
-          <ShieldCheck size={18} className="text-accent shrink-0 mt-0.5" />
-          <p className="text-xs text-ink leading-relaxed">{t("settings.privacyNote")}</p>
+        <div className="flex gap-3 rounded-2xl bg-accent-soft px-4 py-3.5">
+          <ShieldCheck size={18} className="mt-0.5 shrink-0 text-accent" />
+          <p className="text-xs leading-relaxed text-ink">{t("settings.privacyNote")}</p>
         </div>
       </div>
     </div>
