@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import { shareApp } from "@/lib/shareApp";
+import { AccountCard } from "@/components/account/AccountCard";
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
@@ -33,7 +35,9 @@ const rowClass =
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { t, locale, setLocale } = useI18n();
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const { locale, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
 
   return (
@@ -49,6 +53,20 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex flex-col gap-6 px-5 pb-8">
+        <div>
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-dim">
+            {locale === "bn" ? "অ্যাকাউন্ট" : "Account"}
+          </div>
+          <AccountCard />
+          {user && (
+            <div className="mt-2 px-1 text-xs text-ink-dim">
+              {locale === "bn"
+                ? "Google দিয়ে সাইন ইন করা আছে। ক্লাউড সিঙ্ক পরে চালু হবে।"
+                : "Signed in with Google. Cloud sync will be enabled next."}
+            </div>
+          )}
+        </div>
+
         <div>
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-dim">
             {t("settings.preferences")}
