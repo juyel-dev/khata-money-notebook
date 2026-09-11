@@ -15,7 +15,7 @@ export function PersonRow({
   /** Optional transaction count shown in the Individuals tab. */
   txnCount?: number;
 }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const bg = avatarColorFor(person.name);
   const initial = person.name.trim().charAt(0).toUpperCase();
 
