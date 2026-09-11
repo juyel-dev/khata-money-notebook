@@ -1,5 +1,6 @@
 import { syncDb } from "./syncDb";
-import type { SyncEntityPayload, SyncEntityType, SyncMutation, SyncOperation } from "./syncTypes";
+import { getDeviceId, nextLogicalClock } from "./syncIdentity";
+import { createMutationId, type SyncEntityPayload, type SyncEntityType, type SyncMutation, type SyncOperation, type SyncVersion } from "./syncTypes";
 
 export interface EnqueueMutationInput {
   entity: SyncEntityType;
@@ -10,10 +11,16 @@ export interface EnqueueMutationInput {
 }
 
 export async function enqueueMutation(input: EnqueueMutationInput): Promise<string> {
-  const id = `${input.entity}:${input.entityId}:${input.changedAt}`;
+  const version: SyncVersion = {
+    changedAt: input.changedAt,
+    deviceId: await getDeviceId(),
+    sequence: await nextLogicalClock(),
+  };
+  const id = createMutationId(input.entity, input.entityId, version);
   const mutation: SyncMutation = {
     ...input,
     id,
+    version,
     status: "pending",
     attempts: 0,
   };
@@ -45,7 +52,7 @@ export async function markMutationFailed(id: string, lastError: string): Promise
 }
 
 export async function markMutationPending(id: string): Promise<void> {
-  await syncDb.syncMutations.update(id, { status: "pending" });
+  await syncDb.syncMutations.update(id, { status: "pending", lastError: undefined });
 }
 
 export async function removeMutation(id: string): Promise<void> {

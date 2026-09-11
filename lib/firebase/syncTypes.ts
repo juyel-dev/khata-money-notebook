@@ -14,10 +14,20 @@ export type SyncEntityType = (typeof SYNC_ENTITY_TYPES)[number];
 export type SyncQueueStatus = "pending" | "syncing" | "failed";
 
 /**
- * Durable local mutation envelope. The payload is the exact local entity
- * snapshot needed by the cloud adapter; deletes retain only identity and the
- * mutation timestamp so a removed entity cannot be resurrected by retry logic.
+ * A version is comparable across devices. Wall-clock time provides the
+ * primary order; deviceId and sequence make equal timestamps deterministic.
  */
+export interface SyncVersion {
+  changedAt: number;
+  deviceId: string;
+  sequence: number;
+}
+
+export interface SyncMeta {
+  key: string;
+  value: string;
+}
+
 export interface SyncMutation<TPayload = SyncEntityPayload> {
   id: string;
   entity: SyncEntityType;
@@ -25,17 +35,21 @@ export interface SyncMutation<TPayload = SyncEntityPayload> {
   operation: SyncOperation;
   payload?: TPayload;
   changedAt: number;
+  version: SyncVersion;
   status: SyncQueueStatus;
   attempts: number;
   lastError?: string;
 }
 
-export type SyncEntityPayload =
-  | Notebook
-  | NotebookGroup
-  | Person
-  | Transaction;
+export interface SyncTombstone {
+  id: string;
+  entity: SyncEntityType;
+  entityId: string;
+  version: SyncVersion;
+  deletedAt: number;
+}
 
+export type SyncEntityPayload = Notebook | NotebookGroup | Person | Transaction;
 export type SyncableEntity = SyncEntityPayload;
 
 export function isSyncEntityType(value: string): value is SyncEntityType {
@@ -46,6 +60,17 @@ export function isSyncOperation(value: string): value is SyncOperation {
   return (SYNC_OPERATIONS as readonly string[]).includes(value);
 }
 
-export function createMutationId(entity: SyncEntityType, entityId: string, changedAt: number): string {
-  return `${entity}:${entityId}:${changedAt}`;
+export function createMutationId(
+  entity: SyncEntityType,
+  entityId: string,
+  version: SyncVersion,
+): string {
+  return `${entity}:${entityId}:${version.changedAt}:${version.deviceId}:${version.sequence}`;
+}
+
+export function compareSyncVersions(left: SyncVersion, right: SyncVersion): number {
+  if (left.changedAt !== right.changedAt) return left.changedAt - right.changedAt;
+  const deviceOrder = left.deviceId.localeCompare(right.deviceId);
+  if (deviceOrder !== 0) return deviceOrder;
+  return left.sequence - right.sequence;
 }
