@@ -87,6 +87,11 @@ describe("sync status", () => {
     expect(getRetryDelayMs(20)).toBe(300000);
   });
 
+  it("falls back to the base delay for non-finite or negative attempts", () => {
+    expect(getRetryDelayMs(Number.NaN)).toBe(1000);
+    expect(getRetryDelayMs(-1)).toBe(1000);
+  });
+
   it("persists and publishes the latest status", async () => {
     const received: string[] = [];
     const unsubscribe = subscribeSyncStatus((snapshot) => received.push(snapshot.status));
