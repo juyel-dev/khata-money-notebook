@@ -6,9 +6,9 @@ import { Menu, X, Languages, Archive, Settings, HelpCircle, DatabaseBackup, Shar
 import { useI18n } from "@/lib/i18n";
 import { AnimatePresence, motion } from "framer-motion";
 import { shareApp } from "@/lib/shareApp";
-import { showToast } from "@/components/shared/Toast";
 import { AppLogoLockup } from "@/components/shared/AppLogoLockup";
 import { InstallAppButton } from "@/components/shared/InstallAppButton";
+import { AccountCard } from "@/components/account/AccountCard";
 
 export function HamburgerMenu() {
   const [open, setOpen] = useState(false);
@@ -55,24 +55,12 @@ export function HamburgerMenu() {
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                {/* Cloud Sync — Firebase foundation is now in place; auth, sync,
-                    and the account experience will be enabled in later phases. */}
-                <div className="mx-5 mt-4 rounded-2xl border border-rule p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-ink mb-1">
+                <div className="mx-5 mt-4 rounded-2xl border border-rule overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 pt-4 text-sm font-semibold text-ink">
                     <Cloud size={16} className="text-ink-dim" />
-                    {t("menu.cloudSyncTitle")}
+                    {locale === "bn" ? "ক্লাউড ও অ্যাকাউন্ট" : "Cloud & account"}
                   </div>
-                  <p className="text-xs text-ink-dim leading-relaxed mb-3">{t("menu.cloudSyncDesc")}</p>
-                  <button
-                    disabled
-                    onClick={() => showToast(t("menu.comingSoon"))}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full bg-rule text-ink-dim text-sm font-semibold cursor-not-allowed"
-                  >
-                    {t("menu.signInGoogle")}
-                    <span className="text-[10px] font-bold uppercase tracking-wide bg-paper px-1.5 py-0.5 rounded-full border border-rule">
-                      {t("menu.comingSoon")}
-                    </span>
-                  </button>
+                  <AccountCard compact />
                 </div>
 
                 <div className="mx-5 mt-3">

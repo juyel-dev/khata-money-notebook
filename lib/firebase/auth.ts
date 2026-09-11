@@ -6,23 +6,37 @@ import {
   type Unsubscribe,
   type User,
 } from "firebase/auth";
-import { firebaseAuth } from "./client";
+import { getFirebaseServices } from "./client";
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 
+const FIREBASE_UNCONFIGURED_ERROR = "Firebase is not configured";
+
+function requireAuth() {
+  const services = getFirebaseServices();
+  if (!services) throw new Error(FIREBASE_UNCONFIGURED_ERROR);
+  return services.auth;
+}
+
 export function signInWithGoogle() {
-  return signInWithPopup(firebaseAuth, googleProvider);
+  return signInWithPopup(requireAuth(), googleProvider);
 }
 
 export function signOutUser() {
-  return signOut(firebaseAuth);
+  return signOut(requireAuth());
 }
 
 export function observeAuthState(callback: (user: User | null) => void): Unsubscribe {
-  return onAuthStateChanged(firebaseAuth, callback);
+  const services = getFirebaseServices();
+  if (!services) {
+    callback(null);
+    return () => {};
+  }
+
+  return onAuthStateChanged(services.auth, callback);
 }
 
 export function getCurrentUser(): User | null {
-  return firebaseAuth.currentUser;
+  return getFirebaseServices()?.auth.currentUser ?? null;
 }
