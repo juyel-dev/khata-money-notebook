@@ -55,9 +55,8 @@ export function HamburgerMenu() {
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                {/* Cloud Sync — Phase 3 (Supabase), not built yet. Shown as a
-                    clearly-disabled preview so it sets expectations honestly
-                    rather than being a dead/misleading button. */}
+                {/* Cloud Sync — Firebase foundation is now in place; auth, sync,
+                    and the account experience will be enabled in later phases. */}
                 <div className="mx-5 mt-4 rounded-2xl border border-rule p-4">
                   <div className="flex items-center gap-2 text-sm font-semibold text-ink mb-1">
                     <Cloud size={16} className="text-ink-dim" />
