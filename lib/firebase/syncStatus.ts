@@ -58,7 +58,7 @@ export function deriveSyncStatus({
 }
 
 export function getRetryDelayMs(attempts: number): number {
-  const safeAttempts = Math.max(0, Math.floor(attempts));
+  const safeAttempts = Number.isFinite(attempts) ? Math.max(0, Math.floor(attempts)) : 0;
   const base = 1000;
   const max = 5 * 60 * 1000;
   return Math.min(max, base * 2 ** safeAttempts);
