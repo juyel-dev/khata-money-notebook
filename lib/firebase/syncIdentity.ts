@@ -1,9 +1,8 @@
+import type { SyncMeta } from "./syncTypes";
 import { syncDb } from "./syncDb";
 
 const DEVICE_ID_KEY = "deviceId";
 const LOGICAL_CLOCK_KEY = "logicalClock";
-
-type SyncMeta = { key: string; value: string };
 
 function createDeviceId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -12,7 +11,7 @@ function createDeviceId(): string {
 }
 
 export async function getDeviceId(): Promise<string> {
-  const existing = await syncDb.syncMeta.get(DEVICE_ID_KEY);
+  const existing: SyncMeta | undefined = await syncDb.syncMeta.get(DEVICE_ID_KEY);
   if (existing?.value) return existing.value;
   const deviceId = createDeviceId();
   await syncDb.syncMeta.put({ key: DEVICE_ID_KEY, value: deviceId });
