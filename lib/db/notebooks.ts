@@ -1,5 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { db, type Notebook, type NotebookColor, type NotebookIcon, type NotebookGroup } from "./schema";
+import { captureNotebook, captureDelete } from "../firebase/syncCapture";
 
 export async function createNotebook(input: {
   name: string;
@@ -22,6 +23,7 @@ export async function createNotebook(input: {
     groupId: input.groupId ?? null,
   };
   await db.notebooks.add(notebook);
+  await captureNotebook(notebook);
   return notebook;
 }
 
@@ -29,23 +31,46 @@ export async function updateNotebook(
   id: string,
   changes: Partial<Pick<Notebook, "name" | "openingBalance" | "color" | "icon" | "groupId">>
 ) {
-  await db.notebooks.update(id, { ...changes, updatedAt: Date.now() });
+  const updatedAt = Date.now();
+  await db.notebooks.update(id, { ...changes, updatedAt });
+  const updated = await db.notebooks.get(id);
+  if (updated) await captureNotebook(updated);
 }
 
 export async function setNotebookPinned(id: string, pinned: boolean) {
-  await db.notebooks.update(id, { pinned, updatedAt: Date.now() });
+  const updatedAt = Date.now();
+  await db.notebooks.update(id, { pinned, updatedAt });
+  const updated = await db.notebooks.get(id);
+  if (updated) await captureNotebook(updated);
 }
 
 export async function archiveNotebook(id: string, archived = true) {
-  await db.notebooks.update(id, { archived, updatedAt: Date.now() });
+  const updatedAt = Date.now();
+  await db.notebooks.update(id, { archived, updatedAt });
+  const updated = await db.notebooks.get(id);
+  if (updated) await captureNotebook(updated);
 }
 
 export async function deleteNotebookPermanently(id: string) {
+  const [notebook, people, transactions] = await Promise.all([
+    db.notebooks.get(id),
+    db.people.where("notebookId").equals(id).toArray(),
+    db.transactions.where("notebookId").equals(id).toArray(),
+  ]);
+  if (!notebook) return;
+
   await db.transaction("rw", db.notebooks, db.people, db.transactions, async () => {
     await db.transactions.where("notebookId").equals(id).delete();
     await db.people.where("notebookId").equals(id).delete();
     await db.notebooks.delete(id);
   });
+
+  const changedAt = Date.now();
+  await Promise.all([
+    ...transactions.map((txn) => captureDelete("transaction", txn.id, changedAt)),
+    ...people.map((person) => captureDelete("person", person.id, changedAt)),
+    captureDelete("notebook", notebook.id, changedAt),
+  ]);
 }
 
 export async function getNotebookBalance(notebookId: string): Promise<number> {

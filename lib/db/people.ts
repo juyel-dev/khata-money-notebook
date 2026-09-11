@@ -1,5 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { db, type Person, type Transaction } from "./schema";
+import { capturePerson, captureDelete } from "../firebase/syncCapture";
 
 export async function findOrCreatePerson(notebookId: string, name: string): Promise<Person> {
   const trimmed = name.trim();
@@ -17,17 +18,23 @@ export async function findOrCreatePerson(notebookId: string, name: string): Prom
     createdAt: Date.now(),
   };
   await db.people.add(person);
+  await capturePerson(person);
   return person;
 }
 
 export async function renamePerson(id: string, name: string) {
   await db.people.update(id, { name: name.trim() });
+  const updated = await db.people.get(id);
+  if (updated) await capturePerson(updated);
 }
 
 export async function deletePersonIfEmpty(id: string): Promise<boolean> {
   const count = await db.transactions.where("personId").equals(id).count();
   if (count > 0) return false;
+  const existing = await db.people.get(id);
+  if (!existing) return false;
   await db.people.delete(id);
+  await captureDelete("person", id);
   return true;
 }
 

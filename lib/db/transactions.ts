@@ -1,5 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { db, type Transaction, type TransactionType } from "./schema";
+import { captureTransaction, captureDelete } from "../firebase/syncCapture";
 
 function assertValidAmount(amount: number): void {
   if (!Number.isSafeInteger(amount) || amount <= 0) {
@@ -65,6 +66,7 @@ export async function addTransaction(input: {
     createdAt: Date.now(),
   };
   await db.transactions.add(txn);
+  await captureTransaction(txn);
   return txn;
 }
 
@@ -99,10 +101,15 @@ export async function updateTransaction(
   };
 
   await db.transactions.update(id, normalized);
+  const updated = await db.transactions.get(id);
+  if (updated) await captureTransaction(updated);
 }
 
 export async function deleteTransaction(id: string) {
+  const existing = await db.transactions.get(id);
+  if (!existing) return;
   await db.transactions.delete(id);
+  await captureDelete("transaction", id);
 }
 
 // ID-preserving write for undoing a delete — unlike addTransaction (which
@@ -110,6 +117,7 @@ export async function deleteTransaction(id: string) {
 // history order, and any id-based references stay identical.
 export async function restoreTransaction(txn: Transaction): Promise<void> {
   await db.transactions.put({ ...txn });
+  await captureTransaction(txn);
 }
 
 export async function getTransaction(id: string) {
