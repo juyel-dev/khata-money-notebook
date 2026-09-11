@@ -170,7 +170,6 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
               key={entry.person.id}
               notebookId={id}
               person={entry.person}
-              totals={entry.totals}
               txnCount={entry.count}
             />
           ))
