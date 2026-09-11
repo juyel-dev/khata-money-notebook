@@ -26,32 +26,37 @@ export function BalanceHeader({ notebook }: { notebook: Notebook }) {
   const lastActivity = useLiveQuery(() => getLastActivityAt(notebook.id), [notebook.id]);
   const hex = colorHex(notebook.color);
 
-  const createdStr = new Date(notebook.createdAt).toLocaleDateString(locale === "bn" ? "bn-BD" : "en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    numberingSystem: "latn",
-  });
+  const createdStr = new Date(notebook.createdAt).toLocaleDateString(
+    locale === "bn" ? "bn-BD" : "en-IN",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      numberingSystem: "latn",
+    }
+  );
 
   return (
     <div
-      className="px-6 pt-6 pb-7 text-center"
-      style={{ background: `linear-gradient(180deg, ${hex}1A 0%, transparent 100%)` }}
+      className="border-y border-rule/50 px-6 pt-5 pb-6 text-center"
+      style={{ background: `linear-gradient(180deg, ${hex}10 0%, transparent 100%)` }}
     >
-      <div className="text-xs uppercase tracking-wide text-ink-dim mb-2">{notebook.name}</div>
+      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-dim">
+        {notebook.name}
+      </div>
       <motion.div
         key={balance}
         initial={{ scale: 0.97, opacity: 0.6 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.25 }}
-        className="text-4xl font-bold tabular-nums text-ink break-all"
+        transition={{ duration: 0.22 }}
+        className="break-all text-4xl font-bold tracking-[-0.025em] text-ink tabular-nums"
       >
         {balance != null ? formatMoney(balance) : "…"}
       </motion.div>
-      <div className="text-xs text-ink-dim mt-2">
+      <div className="mt-2 text-xs text-ink-dim">
         {t("notebook.openingBalance")} {formatMoney(notebook.openingBalance)}
       </div>
-      <div className="text-xs text-ink-dim mt-0.5">
+      <div className="mt-0.5 text-[11px] leading-5 text-ink-dim">
         {t("notebook.createdOn")} {createdStr}
         {lastActivity ? ` · ${t("notebook.updated")} ${relativeTime(lastActivity, locale)}` : ""}
       </div>
