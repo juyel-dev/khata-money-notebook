@@ -24,35 +24,46 @@ export function TransactionRow({
   const openEditSheet = useUIStore((s) => s.openEditSheet);
   const isGave = txn.type === "gave";
 
-  const dateStr = new Date(txn.occurredAt).toLocaleString(locale === "bn" ? "bn-BD" : "en-IN", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    numberingSystem: "latn",
-  });
+  const dateStr = new Date(txn.occurredAt).toLocaleString(
+    locale === "bn" ? "bn-BD" : "en-IN",
+    {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      numberingSystem: "latn",
+    }
+  );
 
   return (
     <button
       onClick={() => openEditSheet({ notebookId: txn.notebookId, transactionId: txn.id })}
-      className="w-full flex items-center gap-3 py-3 border-b border-rule text-left active:opacity-70"
+      className="group w-full flex items-center gap-3 py-3 border-b border-rule/80 text-left transition-colors active:opacity-70"
     >
       <span
-        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${
           isGave ? "bg-owe-you-soft text-owe-you" : "bg-you-owe-soft text-you-owe"
         }`}
       >
-        {isGave ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
+        {isGave ? <ArrowUpRight size={15} strokeWidth={2} /> : <ArrowDownLeft size={15} strokeWidth={2} />}
       </span>
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-ink line-clamp-2 break-words">{primaryLabel}</div>
-        <div className="text-xs text-ink-dim flex items-center gap-1.5">
+
+      <div className="min-w-0 flex-1 py-0.5">
+        <div className="line-clamp-2 break-words text-[15px] font-medium leading-5 text-ink">
+          {primaryLabel}
+        </div>
+        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-4 text-ink-dim">
           {actionLabel && <span className="font-medium">{actionLabel} ·</span>}
           {notebookLabel}
           {dateStr}
         </div>
       </div>
-      <div className={`tabular-nums font-bold ${isGave ? "text-owe-you" : "text-you-owe"}`}>
+
+      <div
+        className={`shrink-0 tabular-nums text-[15px] font-semibold tracking-[-0.01em] ${
+          isGave ? "text-owe-you" : "text-you-owe"
+        }`}
+      >
         {isGave ? "−" : "+"}
         {formatMoney(txn.amount)}
       </div>
