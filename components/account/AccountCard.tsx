@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LogIn, LogOut, UserRound } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { showToast } from "@/components/shared/Toast";
 
 export function AccountCard({ compact = false }: { compact?: boolean }) {
   const { locale, t } = useI18n();
@@ -15,6 +16,8 @@ export function AccountCard({ compact = false }: { compact?: boolean }) {
     setBusy(true);
     try {
       await signIn();
+    } catch {
+      showToast(isBn ? "সাইন ইন করা যায়নি। আবার চেষ্টা করুন।" : "Couldn't sign in. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -24,6 +27,8 @@ export function AccountCard({ compact = false }: { compact?: boolean }) {
     setBusy(true);
     try {
       await signOut();
+    } catch {
+      showToast(isBn ? "সাইন আউট করা যায়নি। আবার চেষ্টা করুন।" : "Couldn't sign out. Please try again.");
     } finally {
       setBusy(false);
     }
