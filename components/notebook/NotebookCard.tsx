@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLiveQuery } from "dexie-react-hooks";
 import { CalendarDays, ChevronRight, Pin } from "lucide-react";
 import type { Notebook } from "@/lib/db/schema";
 import { getNotebookBalance } from "@/lib/db/notebooks";
