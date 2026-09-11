@@ -5,6 +5,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/theme";
 import { InstallPromptProvider } from "@/lib/useInstallPrompt";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { AuthProvider } from "@/lib/firebase/AuthProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -67,7 +68,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} ${notoBengali.variable} antialiased`}>
         <ThemeProvider>
           <I18nProvider>
-            <InstallPromptProvider>{children}</InstallPromptProvider>
+            <InstallPromptProvider>
+              <AuthProvider>{children}</AuthProvider>
+            </InstallPromptProvider>
           </I18nProvider>
         </ThemeProvider>
         <ServiceWorkerRegister />
