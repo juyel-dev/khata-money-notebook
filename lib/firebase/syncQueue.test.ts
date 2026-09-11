@@ -13,6 +13,8 @@ import {
 describe("sync queue", () => {
   beforeEach(async () => {
     await syncDb.syncMutations.clear();
+    await syncDb.syncTombstones.clear();
+    await syncDb.syncMeta.clear();
   });
 
   it("persists a pending mutation and returns oldest first", async () => {
@@ -40,6 +42,8 @@ describe("sync queue", () => {
 
     const pending = await getPendingMutations();
     expect(pending.map((m) => m.entityId)).toEqual(["tx-1", "tx-2"]);
+    expect(pending[0].version.deviceId).toBeTruthy();
+    expect(pending[0].version.sequence).toBeGreaterThan(0);
   });
 
   it("tracks retry metadata and allows a failed mutation back to pending", async () => {
@@ -58,6 +62,7 @@ describe("sync queue", () => {
 
     await markMutationPending(id);
     expect((await syncDb.syncMutations.get(id))?.status).toBe("pending");
+    expect((await syncDb.syncMutations.get(id))?.lastError).toBeUndefined();
   });
 
   it("removes a completed mutation", async () => {
