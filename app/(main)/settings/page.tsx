@@ -35,9 +35,8 @@ const rowClass =
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const { user } = useAuth();
-  const { locale, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
 
   return (
