@@ -59,7 +59,7 @@ vi.mock("./syncTombstones", () => ({
   shouldRejectUpsert: mocks.shouldRejectUpsert,
 }));
 
-import { SyncEngineError, syncOnce } from "./syncEngine";
+import { syncOnce } from "./syncEngine";
 
 describe("sync engine", () => {
   beforeEach(() => {
