@@ -19,7 +19,7 @@ import {
   transactionDocPath,
   userDocPath,
 } from "./firestoreSchema";
-import { compareSyncVersions, type SyncEntityPayload, type SyncEntityType, type SyncMutation, type SyncOperation, type SyncVersion } from "./syncTypes";
+import { compareSyncVersions, isSyncEntityType, isSyncOperation, type SyncEntityPayload, type SyncEntityType, type SyncMutation, type SyncOperation, type SyncVersion } from "./syncTypes";
 
 const JOURNAL_COLLECTION = "_syncMutations";
 const TOMBSTONE_COLLECTION = "_syncTombstones";
@@ -60,14 +60,18 @@ function entityDocPath(uid: string, entity: SyncEntityType, entityId: string): s
   }
 }
 
-function validateVersion(version: SyncVersion): void {
-  if (!Number.isSafeInteger(version.sequence) || version.sequence < 0) {
+function validateVersion(version: unknown): asserts version is SyncVersion {
+  if (!version || typeof version !== "object") {
+    throw new Error("invalid mutation version");
+  }
+  const candidate = version as Partial<SyncVersion>;
+  if (!Number.isSafeInteger(candidate.sequence) || candidate.sequence < 0) {
     throw new RangeError("mutation version sequence must be a non-negative safe integer");
   }
-  if (!Number.isFinite(version.changedAt)) {
+  if (!Number.isFinite(candidate.changedAt)) {
     throw new RangeError("mutation version changedAt must be finite");
   }
-  if (!version.deviceId.trim()) {
+  if (typeof candidate.deviceId !== "string" || !candidate.deviceId.trim()) {
     throw new RangeError("mutation version deviceId is required");
   }
 }
@@ -82,6 +86,34 @@ function tombstonePath(uid: string, entity: SyncEntityType, entityId: string): s
 
 function orderDocPath(uid: string): string {
   return `${userDocPath(uid)}/${META_COLLECTION}/${ORDER_DOC_ID}`;
+}
+
+function validateJournalRow(row: Record<string, unknown>): asserts row is CloudMutationEnvelope {
+  if (
+    typeof row.id !== "string" ||
+    typeof row.entity !== "string" ||
+    !isSyncEntityType(row.entity) ||
+    typeof row.entityId !== "string" ||
+    !row.entityId ||
+    typeof row.operation !== "string" ||
+    !isSyncOperation(row.operation) ||
+    !Number.isSafeInteger(row.receivedOrder) ||
+    row.receivedOrder < 0
+  ) {
+    throw new Error("corrupt Firestore sync journal row");
+  }
+
+  validateVersion(row.version);
+
+  if (row.operation === "upsert") {
+    if (!row.payload || typeof row.payload !== "object") {
+      throw new Error("corrupt Firestore sync journal payload");
+    }
+    const payload = row.payload as { id?: unknown };
+    if (payload.id !== row.entityId) {
+      throw new Error("sync journal entity id does not match payload id");
+    }
+  }
 }
 
 export async function pushMutation(
@@ -180,8 +212,8 @@ export async function readMutationJournal(
   let nextCursor = cursor;
 
   for (const row of snapshot.docs) {
-    const data = row.data() as CloudMutationEnvelope;
-    if (!Number.isSafeInteger(data.receivedOrder)) continue;
+    const data = row.data() as Record<string, unknown>;
+    validateJournalRow(data);
     mutations.push({
       id: data.id,
       entity: data.entity,
@@ -209,8 +241,6 @@ export async function readCloudEntity(
     delete payload.version;
     delete payload.syncUpdatedAt;
     return {
-      // Cloud rows carry transport metadata (version, syncUpdatedAt) that is
-      // not part of the local entity shape; strip it before handing out.
       payload: payload as unknown as SyncEntityPayload,
       version: data.version,
       deleted: false,
