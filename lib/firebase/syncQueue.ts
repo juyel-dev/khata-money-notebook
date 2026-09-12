@@ -1,6 +1,6 @@
 import { syncDb } from "./syncDb";
 import { getDeviceId, nextLogicalClock } from "./syncIdentity";
-import { createMutationId, type SyncEntityPayload, type SyncEntityType, type SyncMutation, type SyncOperation, type SyncVersion } from "./syncTypes";
+import { compareSyncVersions, createMutationId, type SyncEntityPayload, type SyncEntityType, type SyncMutation, type SyncOperation, type SyncVersion } from "./syncTypes";
 
 export interface EnqueueMutationInput {
   entity: SyncEntityType;
@@ -30,11 +30,29 @@ export async function enqueueMutation(input: EnqueueMutationInput): Promise<stri
 }
 
 export async function getPendingMutations(limit = 50): Promise<SyncMutation[]> {
-  return syncDb.syncMutations
+  const mutations = await syncDb.syncMutations
     .where("status")
     .equals("pending")
-    .sortBy("changedAt")
-    .then((mutations) => mutations.slice(0, limit));
+    .toArray();
+
+  return mutations
+    .sort((left, right) => compareSyncVersions(left.version, right.version))
+    .slice(0, limit);
+}
+
+export async function resetStaleSyncingMutations(): Promise<number> {
+  const mutations = await syncDb.syncMutations
+    .where("status")
+    .equals("syncing")
+    .toArray();
+
+  await Promise.all(
+    mutations.map((mutation) =>
+      syncDb.syncMutations.update(mutation.id, { status: "pending" }),
+    ),
+  );
+
+  return mutations.length;
 }
 
 export async function markMutationSyncing(id: string): Promise<void> {
