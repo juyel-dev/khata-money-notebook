@@ -4,13 +4,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { getAccountLink } from "@/lib/firebase/accountLink";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { syncOnce } from "@/lib/firebase/syncEngine";
-import { retryFailedMutations } from "@/lib/firebase/syncQueue";
+import { retryFailedMutations, getPendingMutations } from "@/lib/firebase/syncQueue";
 import { syncDb } from "@/lib/firebase/syncDb";
-import { deriveSyncStatus, lastSyncMetaKey, type SyncStatusSnapshot } from "@/lib/firebase/syncStatus";
+import { deriveSyncStatus, getSyncStatus, setSyncStatus, type SyncStatusSnapshot } from "@/lib/firebase/syncStatus";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 
 interface SyncContextValue {
-  status: SyncStatusSnapshot;
+  status: SyncStatusSnapshot | null;
   syncNow: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -34,14 +34,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [firebaseAvailable, setFirebaseAvailable] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState<number | undefined>();
-  const [queue, setQueue] = useState({ pending: 0, syncing: 0, failed: 0, lastError: undefined as string | undefined });
-  const [linkStatus, setLinkStatus] = useState<"linked" | "other" | "none">("none");
+  const [status, setStatus] = useState<SyncStatusSnapshot | null>(null);
+  const [linkStatus, setLinkStatus] = useState<"linked" | "reconciliation-required" | "linking" | undefined>();
 
   useEffect(() => {
     setOnline(navigator.onLine);
-    setFirebaseAvailable(getFirebaseServices() !== null);
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     window.addEventListener("online", onOnline);
@@ -54,23 +51,39 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     if (!user) {
-      setQueue({ pending: 0, syncing: 0, failed: 0, lastError: undefined });
-      setLastSyncedAt(undefined);
-      setLinkStatus("none");
+      setLinkStatus(undefined);
+      setStatus(null);
       return;
     }
 
-    const [link, nextQueue, meta] = await Promise.all([
+    const [link, queue, persisted] = await Promise.all([
       getAccountLink(),
       readQueueState(),
-      syncDb.syncMeta.get(lastSyncMetaKey(user.uid)),
+      getSyncStatus(),
     ]);
 
-    setLinkStatus(link?.uid === user.uid && link.status === "linked" ? "linked" : link ? "other" : "none");
-    setQueue(nextQueue);
-    const parsedLastSync = Number(meta?.value ?? 0);
-    setLastSyncedAt(Number.isFinite(parsedLastSync) && parsedLastSync > 0 ? parsedLastSync : undefined);
-  }, [user]);
+    const nextLinkStatus = link?.uid === user.uid ? link.status : undefined;
+    setLinkStatus(nextLinkStatus);
+
+    const nextStatus = syncing
+      ? "syncing"
+      : deriveSyncStatus({
+          signedIn: true,
+          online,
+          linkStatus: nextLinkStatus,
+          pendingCount: queue.pending + queue.syncing,
+          failedCount: queue.failed,
+        });
+
+    const snapshot: SyncStatusSnapshot = {
+      key: "syncStatus",
+      status: nextStatus,
+      updatedAt: persisted?.updatedAt ?? Date.now(),
+      ...(persisted?.lastSyncedAt !== undefined ? { lastSyncedAt: persisted.lastSyncedAt } : {}),
+      ...(queue.lastError ? { lastError: queue.lastError } : persisted?.lastError ? { lastError: persisted.lastError } : {}),
+    };
+    setStatus(snapshot);
+  }, [online, syncing, user]);
 
   const syncNow = useCallback(async () => {
     if (!user || !navigator.onLine) return;
@@ -79,16 +92,28 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     const services = getFirebaseServices();
     if (!services) return;
-    setFirebaseAvailable(true);
+
     setSyncing(true);
+    setStatus((current) => ({
+      key: "syncStatus",
+      status: "syncing",
+      updatedAt: Date.now(),
+      ...(current?.lastSyncedAt !== undefined ? { lastSyncedAt: current.lastSyncedAt } : {}),
+    }));
 
     try {
       const failed = await syncDb.syncMutations.where("status").equals("failed").count();
       if (failed > 0) await retryFailedMutations();
       await syncOnce(services.firestore, user.uid);
-      const now = Date.now();
-      await syncDb.syncMeta.put({ key: lastSyncMetaKey(user.uid), value: String(now) });
-      setLastSyncedAt(now);
+      const saved = await setSyncStatus("synced", { lastSyncedAt: Date.now(), lastError: undefined });
+      setStatus(saved);
+    } catch (error) {
+      const saved = await setSyncStatus(
+        "error",
+        { lastError: error instanceof Error ? error.message : String(error) },
+      );
+      setStatus(saved);
+      throw error;
     } finally {
       setSyncing(false);
       await refresh();
@@ -128,20 +153,6 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     const interval = window.setInterval(() => void refresh(), 5_000);
     return () => window.clearInterval(interval);
   }, [refresh, user]);
-
-  const status = useMemo(
-    () => deriveSyncStatus({
-      signedIn: !!user,
-      linked: linkStatus === "linked",
-      online,
-      firebaseAvailable,
-      syncing,
-      queue,
-      lastSyncedAt,
-      lastError: queue.lastError,
-    }),
-    [firebaseAvailable, lastSyncedAt, linkStatus, online, queue, syncing, user],
-  );
 
   const value = useMemo(() => ({ status, syncNow, refresh }), [refresh, status, syncNow]);
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
