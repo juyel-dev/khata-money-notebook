@@ -209,7 +209,9 @@ export async function readCloudEntity(
     delete payload.version;
     delete payload.syncUpdatedAt;
     return {
-      payload: payload as SyncEntityPayload,
+      // Cloud rows carry transport metadata (version, syncUpdatedAt) that is
+      // not part of the local entity shape; strip it before handing out.
+      payload: payload as unknown as SyncEntityPayload,
       version: data.version,
       deleted: false,
     };
