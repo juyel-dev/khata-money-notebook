@@ -10,7 +10,11 @@ Every queued local mutation receives a version:
 changedAt + deviceId + sequence
 ```
 
-`changedAt` is the primary last-write-wins clock. `deviceId` and the per-device logical `sequence` make equal timestamps deterministic. The device ID is generated once and persisted locally; the logical clock is also durable.
+`sequence` is a durable per-device Lamport logical clock and is the authoritative ordering field. `deviceId` provides a deterministic tie-breaker when two devices have the same logical sequence. `changedAt` is retained as the real-world timestamp for audit, display, and the final tie-break only.
+
+A device must call `observeLogicalClock(remoteSequence)` when it accepts or otherwise observes a remote version. This advances its local clock to `max(local, remote) + 1` before the next local mutation is created.
+
+This policy deliberately does **not** use client wall-clock time as the authority for conflict resolution. A device with a slow, fast, or incorrectly configured clock therefore cannot silently make a newer mutation look stale merely because its timestamp is lower.
 
 Mutation IDs include the full version identity, so a later edit of the same entity is never confused with an earlier mutation made in the same millisecond.
 
@@ -18,9 +22,9 @@ Mutation IDs include the full version identity, so a later edit of the same enti
 
 For the same entity, compare versions in this order:
 
-1. newer `changedAt` wins;
-2. on an equal timestamp, lexicographically larger `deviceId` wins;
-3. on an equal device ID, larger `sequence` wins;
+1. larger logical `sequence` wins;
+2. on an equal sequence, lexicographically larger `deviceId` wins;
+3. on an equal device ID and sequence, newer `changedAt` wins;
 4. if the complete version is still identical, delete wins over upsert;
 5. otherwise the larger mutation ID is the final deterministic tie-breaker.
 
@@ -34,8 +38,10 @@ A tombstone stores the entity identity and delete version. Any incoming upsert w
 
 A strictly newer upsert may clear the tombstone and recreate the entity.
 
+Undo/restore is a new local mutation only when it receives a new logical version. Reusing the pre-delete version cannot override the delete tombstone and must not be treated as a cloud-safe restore.
+
 ## Queue interaction
 
-The existing local queue continues to own retry state. Completing a cloud mutation does not remove its version semantics; the future cloud adapter must compare the mutation version before applying a remote change.
+The existing local queue continues to own retry state. Completing a cloud mutation does not remove its version semantics; the future cloud adapter must compare the mutation version before applying a remote change and must advance the local logical clock after observing accepted remote versions.
 
 R5 does not decide first-account reconciliation or cross-device migration policy. Those decisions belong to R6.
