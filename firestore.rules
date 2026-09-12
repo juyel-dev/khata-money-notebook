@@ -37,7 +37,14 @@ service cloud.firestore {
     // Share metadata is bearer-token readable only while active and unexpired.
     // Listing the public share collection is intentionally disabled.
     match /shares/{token} {
-      allow get: if activeShare(token) || shareOwner(token);
+      allow get: if shareOwner(token)
+        || (
+          resource.data.active == true
+          && (
+            resource.data.expiresAt == null
+            || resource.data.expiresAt > request.time.toMillis()
+          )
+        );
       allow list: if false;
       allow create: if isSignedIn()
         && request.resource.data.ownerUid == request.auth.uid
