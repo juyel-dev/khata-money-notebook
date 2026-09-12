@@ -157,6 +157,21 @@ export async function inspectFirstAccountLink(
   };
 }
 
+async function migrateEntity<T extends SyncEntityPayload>(
+  entity: SyncEntityType,
+  localRows: T[],
+  cloudRows: T[],
+  getChangedAt: (payload: T) => number,
+): Promise<void> {
+  const localIds = new Set(localRows.map((row) => row.id));
+  for (const row of cloudRows) {
+    if (!localIds.has(row.id)) await captureDelete(entity, row.id);
+  }
+  for (const row of localRows) {
+    await captureAndRecordUpsert(entity, row, getChangedAt(row));
+  }
+}
+
 async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<void> {
   const [local, cloud] = await Promise.all([
     readLocalDataset(),
@@ -167,33 +182,13 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
   // including tombstones, so an explicit "keep this device" choice is authoritative.
   await observeLogicalClock(maxCloudSequence(cloud));
 
-  const ordered: Array<[SyncEntityType, SyncEntityPayload[]]> = [
-    ["group", local.groups],
-    ["notebook", local.notebooks],
-    ["person", local.people],
-    ["transaction", local.transactions],
-  ];
-
-  for (const [entity, rows] of ordered) {
-    const localIds = new Set(rows.map((row) => row.id));
-    const cloudRows = cloud[COLLECTIONS[entity]] as SyncEntityPayload[];
-    for (const row of cloudRows) {
-      if (!localIds.has(row.id)) await captureDelete(entity, row.id);
-    }
-    for (const row of rows) await captureAndRecordUpsert(entity, row, getMigrationChangedAt(entity, row));
-  }
+  await migrateEntity("group", local.groups, cloud.groups, (group) => group.createdAt);
+  await migrateEntity("notebook", local.notebooks, cloud.notebooks, (notebook) => notebook.updatedAt);
+  await migrateEntity("person", local.people, cloud.people, (person) => person.createdAt);
+  await migrateEntity("transaction", local.transactions, cloud.transactions, (transaction) => transaction.createdAt);
 
   await completeAccountLink(uid);
   await syncOnce(firestore, uid);
-}
-
-function getMigrationChangedAt(entity: SyncEntityType, payload: SyncEntityPayload): number {
-  if (entity === "notebook") {
-    if (typeof payload.updatedAt === "number" && Number.isFinite(payload.updatedAt)) return payload.updatedAt;
-    throw new Error("NOTEBOOK_UPDATED_AT_REQUIRED");
-  }
-  if (typeof payload.createdAt === "number" && Number.isFinite(payload.createdAt)) return payload.createdAt;
-  throw new Error("ENTITY_CREATED_AT_REQUIRED");
 }
 
 async function resetLocalSyncStateForCloudImport(): Promise<void> {
