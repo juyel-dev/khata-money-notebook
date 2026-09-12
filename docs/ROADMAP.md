@@ -60,17 +60,18 @@ The cloud layer is additive and opt-in. Dexie remains the local operational sour
 - Settings sync status
 - Manual retry/recovery
 
-### R13 — First-account linking + reconciliation UX 🚧
+### R13 — First-account linking + reconciliation UX ✅
 - Inspect local and cloud dataset presence
 - Empty/empty direct link
 - Explicit local-vs-cloud reconciliation choice when data exists
 - Version-aware migration and tombstone-safe linking
 
-### R14 — Sharing snapshots
+### R14 — Sharing snapshots 🚧
 - Khata-level or individual read-only share snapshots
 - Google-authenticated owner creates/revokes links
 - Viewer access without login
 - Token-scoped Firestore security rules
+- Private owner share references for active-link management
 
 ### R15 — Sync production hardening
 - Corrupt journal quarantine/recovery policy
