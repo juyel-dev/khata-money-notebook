@@ -4,7 +4,6 @@ import {
   getDoc,
   getDocs,
   setDoc,
-  updateDoc,
   writeBatch,
   type Firestore,
 } from "firebase/firestore";
@@ -41,7 +40,7 @@ export interface CreateShareInput {
 }
 
 const SHARES_COLLECTION = "shares";
-const SHARE_CHILD_COLLECTIONS = ["notebooks", "people", "transactions"] as const;
+type ShareChildCollection = "notebooks" | "people" | "transactions";
 const BATCH_SIZE = 450;
 
 function createShareToken(): string {
@@ -62,7 +61,7 @@ function shareRefDoc(firestore: Firestore, uid: string, token: string) {
 function shareChildCollection(
   firestore: Firestore,
   token: string,
-  collectionName: (typeof SHARE_CHILD_COLLECTIONS)[number],
+  collectionName: ShareChildCollection,
 ) {
   return collection(firestore, SHARES_COLLECTION, token, collectionName);
 }
@@ -70,7 +69,7 @@ function shareChildCollection(
 async function commitChunked<T extends { id: string }>(
   firestore: Firestore,
   token: string,
-  collectionName: (typeof SHARE_CHILD_COLLECTIONS)[number],
+  collectionName: ShareChildCollection,
   rows: T[],
 ): Promise<void> {
   for (let offset = 0; offset < rows.length; offset += BATCH_SIZE) {
