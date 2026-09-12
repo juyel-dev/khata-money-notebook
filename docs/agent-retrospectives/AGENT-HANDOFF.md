@@ -1,1 +1,0 @@
-This file is intentionally omitted from the permanent set. The canonical takeover guidance lives in AI-CONTEXT.md, ENGINEERING-INVARIANTS.md, and agent-retrospectives/PROCESS.md.
