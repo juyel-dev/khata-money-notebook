@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { syncDb } from "./syncDb";
 import {
@@ -18,6 +18,10 @@ describe("sync queue", () => {
     await syncDb.syncMutations.clear();
     await syncDb.syncTombstones.clear();
     await syncDb.syncMeta.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("persists a pending mutation and returns logical-version order", async () => {
@@ -50,7 +54,7 @@ describe("sync queue", () => {
   });
 
   it("tracks retry metadata and allows a failed mutation back to pending", async () => {
-    vi.spyOn(Date, "now").mockReturnValueOnce(1000).mockReturnValueOnce(1000);
+    vi.spyOn(Date, "now").mockReturnValue(1000);
     const id = await enqueueMutation({
       entity: "person",
       entityId: "p1",
@@ -69,7 +73,6 @@ describe("sync queue", () => {
     expect((await syncDb.syncMutations.get(id))?.status).toBe("pending");
     expect((await syncDb.syncMutations.get(id))?.lastError).toBeUndefined();
     expect((await syncDb.syncMutations.get(id))?.nextRetryAt).toBeUndefined();
-    vi.restoreAllMocks();
   });
 
   it("returns only failed mutations whose backoff is due and below the poison cutoff", async () => {
