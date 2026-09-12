@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   pushMutation: vi.fn(),
   resolveConflict: vi.fn(),
   getPendingMutations: vi.fn(),
+  getRetryableFailedMutations: vi.fn(),
   markMutationFailed: vi.fn(),
   markMutationSyncing: vi.fn(),
   removeMutation: vi.fn(),
@@ -41,6 +42,7 @@ vi.mock("./firestoreSync", () => ({
 vi.mock("./syncConflict", () => ({ resolveConflict: mocks.resolveConflict }));
 vi.mock("./syncQueue", () => ({
   getPendingMutations: mocks.getPendingMutations,
+  getRetryableFailedMutations: mocks.getRetryableFailedMutations,
   markMutationFailed: mocks.markMutationFailed,
   markMutationSyncing: mocks.markMutationSyncing,
   removeMutation: mocks.removeMutation,
@@ -68,6 +70,7 @@ describe("sync engine", () => {
     mocks.assertAccountLinkTarget.mockResolvedValue({ status: "linked", uid: "user-1" });
     mocks.resetStaleSyncingMutations.mockResolvedValue(0);
     mocks.getPendingMutations.mockResolvedValue([]);
+    mocks.getRetryableFailedMutations.mockResolvedValue([]);
     mocks.getSyncCursor.mockResolvedValue(0);
     mocks.readMutationJournal.mockResolvedValue({ mutations: [], nextCursor: null });
   });
@@ -128,6 +131,59 @@ describe("sync engine", () => {
     expect(mocks.setSyncCursor).toHaveBeenCalledWith("user-1", 4);
     expect(mocks.observeLogicalClock).toHaveBeenCalledWith(2);
     expect(mocks.table.put).toHaveBeenCalledWith({ ...mutation.payload, id: "tx-remote" });
+  });
+
+  it("retries failed mutations only when their retry window is due", async () => {
+    const retryable = {
+      id: "transaction:tx-retry:1:device-a:1",
+      entity: "transaction" as const,
+      entityId: "tx-retry",
+      operation: "delete" as const,
+      changedAt: 1,
+      version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
+      status: "failed" as const,
+      attempts: 1,
+      nextRetryAt: 10,
+      lastError: "offline",
+    };
+    mocks.getRetryableFailedMutations.mockResolvedValue([retryable]);
+    mocks.pushMutation.mockResolvedValue(undefined);
+
+    await syncOnce({} as never, "user-1");
+
+    expect(mocks.getRetryableFailedMutations).toHaveBeenCalledWith(expect.any(Number), 50);
+    expect(mocks.pushMutation).toHaveBeenCalledWith(expect.anything(), "user-1", retryable);
+    expect(mocks.removeMutation).toHaveBeenCalledWith(retryable.id);
+  });
+
+  it("continues pushing later mutations after one mutation becomes failed", async () => {
+    const poison = {
+      id: "transaction:tx-poison:1:device-a:1",
+      entity: "transaction" as const,
+      entityId: "tx-poison",
+      operation: "delete" as const,
+      changedAt: 1,
+      version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
+      status: "pending" as const,
+      attempts: 0,
+    };
+    const later = {
+      ...poison,
+      id: "transaction:tx-later:2:device-a:2",
+      entityId: "tx-later",
+      version: { changedAt: 2, deviceId: "device-a", sequence: 2 },
+    };
+
+    mocks.getPendingMutations.mockResolvedValue([poison, later]);
+    mocks.pushMutation.mockRejectedValueOnce(new Error("permanent failure")).mockResolvedValueOnce(undefined);
+
+    await expect(syncOnce({} as never, "user-1")).rejects.toThrow("permanent failure");
+
+    expect(mocks.markMutationFailed).toHaveBeenCalledWith(poison.id, "permanent failure");
+    expect(mocks.pushMutation).toHaveBeenNthCalledWith(1, expect.anything(), "user-1", poison);
+    expect(mocks.pushMutation).toHaveBeenNthCalledWith(2, expect.anything(), "user-1", later);
+    expect(mocks.removeMutation).toHaveBeenCalledWith(later.id);
+    expect(mocks.readMutationJournal).toHaveBeenCalled();
   });
 
   it("persists progress when a page contains only quarantined rows", async () => {
