@@ -126,17 +126,24 @@ describe("confirmAccountReconciliation", () => {
         ...cloudNotebook,
         version: { changedAt: 400, deviceId: "cloud-device", sequence: 7 },
       }],
+      tombstones: [{
+        id: "transaction:gone",
+        entity: "transaction",
+        entityId: "transaction-gone",
+        version: { changedAt: 500, deviceId: "cloud-device", sequence: 12 },
+        deletedAt: 500,
+      }],
     });
 
     await confirmAccountReconciliation(firestore, uid, "preserve-local");
 
     const mutations = await syncDb.syncMutations.toArray();
     expect(mutations).toHaveLength(2);
-    expect(mutations.map((mutation) => [mutation.operation, mutation.entityId])).toEqual([
-      ["delete", cloudNotebook.id],
-      ["upsert", baseNotebook.id],
-    ]);
-    expect(mutations.every((mutation) => mutation.version.sequence > 7)).toBe(true);
+    expect(mutations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ operation: "delete", entityId: cloudNotebook.id }),
+      expect.objectContaining({ operation: "upsert", entityId: baseNotebook.id }),
+    ]));
+    expect(mutations.every((mutation) => mutation.version.sequence > 12)).toBe(true);
     expect(await db.notebooks.get(cloudNotebook.id)).toBeUndefined();
     expect(await db.notebooks.get(baseNotebook.id)).toEqual(baseNotebook);
     expect(await getAccountLink()).toMatchObject({ uid, status: "linked" });
