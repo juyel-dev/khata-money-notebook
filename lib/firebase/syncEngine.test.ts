@@ -83,16 +83,41 @@ describe("sync engine", () => {
 
   it("pushes pending mutations, then pulls until an empty page", async () => {
     const mutation = {
-      id: "transaction:tx-1:1:device-a:1", entity: "transaction" as const, entityId: "tx-1", operation: "upsert" as const,
-      payload: { id: "tx-1", notebookId: "nb-1", personId: "p-1", type: "gave" as const, amount: 50000, occurredAt: 1, createdAt: 1 },
-      changedAt: 1, version: { changedAt: 1, deviceId: "device-a", sequence: 1 }, status: "pending" as const, attempts: 0,
+      id: "transaction:tx-1:1:device-a:1",
+      entity: "transaction" as const,
+      entityId: "tx-1",
+      operation: "upsert" as const,
+      payload: {
+        id: "tx-1",
+        notebookId: "nb-1",
+        personId: "p-1",
+        type: "gave" as const,
+        amount: 50000,
+        occurredAt: 1,
+        createdAt: 1,
+      },
+      changedAt: 1,
+      version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
+      status: "pending" as const,
+      attempts: 0,
     };
     mocks.getPendingMutations.mockResolvedValue([mutation]);
     mocks.pushMutation.mockResolvedValue(undefined);
-    mocks.readMutationJournal.mockResolvedValueOnce({
-      mutations: [{ id: "transaction:tx-remote:2:device-b:2", entity: "transaction", entityId: "tx-remote", operation: "upsert", payload: { ...mutation.payload, id: "tx-remote" }, version: { changedAt: 2, deviceId: "device-b", sequence: 2 } }],
-      nextCursor: { receivedOrder: 4 },
-    }).mockResolvedValueOnce({ mutations: [], nextCursor: { receivedOrder: 4 } });
+    mocks.readMutationJournal
+      .mockResolvedValueOnce({
+        mutations: [
+          {
+            id: "transaction:tx-remote:2:device-b:2",
+            entity: "transaction",
+            entityId: "tx-remote",
+            operation: "upsert",
+            payload: { ...mutation.payload, id: "tx-remote" },
+            version: { changedAt: 2, deviceId: "device-b", sequence: 2 },
+          },
+        ],
+        nextCursor: { receivedOrder: 4 },
+      })
+      .mockResolvedValueOnce({ mutations: [], nextCursor: { receivedOrder: 4 } });
     mocks.getEntityVersion.mockResolvedValue(null);
     mocks.resolveConflict.mockReturnValue("incoming");
     mocks.shouldRejectUpsert.mockResolvedValue(false);
@@ -110,8 +135,16 @@ describe("sync engine", () => {
 
   it("retries failed mutations only when their retry window is due", async () => {
     const retryable = {
-      id: "transaction:tx-retry:1:device-a:1", entity: "transaction" as const, entityId: "tx-retry", operation: "delete" as const,
-      changedAt: 1, version: { changedAt: 1, deviceId: "device-a", sequence: 1 }, status: "failed" as const, attempts: 1, nextRetryAt: 10, lastError: "offline",
+      id: "transaction:tx-retry:1:device-a:1",
+      entity: "transaction" as const,
+      entityId: "tx-retry",
+      operation: "delete" as const,
+      changedAt: 1,
+      version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
+      status: "failed" as const,
+      attempts: 1,
+      nextRetryAt: 10,
+      lastError: "offline",
     };
     mocks.getRetryableFailedMutations.mockResolvedValue([retryable]);
     mocks.pushMutation.mockResolvedValue(undefined);
@@ -125,12 +158,26 @@ describe("sync engine", () => {
 
   it("continues pushing later mutations after one mutation becomes failed", async () => {
     const poison = {
-      id: "transaction:tx-poison:1:device-a:1", entity: "transaction" as const, entityId: "tx-poison", operation: "delete" as const,
-      changedAt: 1, version: { changedAt: 1, deviceId: "device-a", sequence: 1 }, status: "pending" as const, attempts: 0,
+      id: "transaction:tx-poison:1:device-a:1",
+      entity: "transaction" as const,
+      entityId: "tx-poison",
+      operation: "delete" as const,
+      changedAt: 1,
+      version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
+      status: "pending" as const,
+      attempts: 0,
     };
-    const later = { ...poison, id: "transaction:tx-later:2:device-a:2", entityId: "tx-later", version: { changedAt: 2, deviceId: "device-a", sequence: 2 } };
+    const later = {
+      ...poison,
+      id: "transaction:tx-later:2:device-a:2",
+      entityId: "tx-later",
+      version: { changedAt: 2, deviceId: "device-a", sequence: 2 },
+    };
+
     mocks.getPendingMutations.mockResolvedValue([poison, later]);
-    mocks.pushMutation.mockRejectedValueOnce(new Error("permanent failure")).mockResolvedValueOnce(undefined);
+    mocks.pushMutation
+      .mockRejectedValueOnce(new Error("permanent failure"))
+      .mockResolvedValueOnce(undefined);
 
     await expect(syncOnce({} as never, "user-1")).rejects.toThrow("permanent failure");
 
@@ -142,8 +189,12 @@ describe("sync engine", () => {
   });
 
   it("persists progress when a page contains only quarantined rows", async () => {
-    mocks.readMutationJournal.mockResolvedValueOnce({ mutations: [], nextCursor: { receivedOrder: 9 } }).mockResolvedValueOnce({ mutations: [], nextCursor: { receivedOrder: 9 } });
+    mocks.readMutationJournal
+      .mockResolvedValueOnce({ mutations: [], nextCursor: { receivedOrder: 9 } })
+      .mockResolvedValueOnce({ mutations: [], nextCursor: { receivedOrder: 9 } });
+
     const result = await syncOnce({} as never, "user-1");
+
     expect(result.pages).toBe(2);
     expect(result.pulled).toBe(0);
     expect(mocks.setSyncCursor).toHaveBeenCalledWith("user-1", 9);
@@ -152,7 +203,11 @@ describe("sync engine", () => {
   });
 
   it("does not use cursor equality as the empty-page stop condition", async () => {
+    mocks.getSyncCursor.mockResolvedValue(0);
+    mocks.readMutationJournal.mockResolvedValue({ mutations: [], nextCursor: null });
+
     const result = await syncOnce({} as never, "user-1");
+
     expect(result.pages).toBe(1);
     expect(mocks.readMutationJournal).toHaveBeenCalledTimes(1);
     expect(mocks.setSyncCursor).not.toHaveBeenCalled();
