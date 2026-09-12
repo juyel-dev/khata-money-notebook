@@ -27,7 +27,7 @@ function setBrowserContext({ userAgent, standalone, displayModeStandalone }: {
     };
   }).window ?? { matchMedia: () => ({ matches: false }) };
 
-  browserWindow.matchMedia = vi.fn(() => ({ matches: displayModeStandalone }));
+  browserWindow.matchMedia = vi.fn(() => ({ matches: displayModeStandalone })) as unknown as typeof window.matchMedia;
   Object.defineProperty(globalThis, "navigator", {
     configurable: true,
     value: { userAgent, standalone },
