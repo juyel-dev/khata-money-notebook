@@ -3,44 +3,84 @@
 Phased so an implementer (human or coding agent) always has a shippable, testable milestone rather than one giant build.
 
 ## Phase 0 — Foundation
-- Next.js 14 + TypeScript + Tailwind project scaffold, deployed to Vercel from an empty shell (confirms the pipeline works before any feature code)
-- Design tokens from DESIGN-SYSTEM.md wired into `tailwind.config`
-- Dexie schema from DATA-MODEL.md, with a small seed/dev-only script for local testing (never shipped to production, never auto-run for real users — see "no fake sample data" in SCREENS.md)
-- Base layout: app shell, bottom nav, hamburger drawer (structure only, screens are stubs)
+- Next.js + TypeScript + Tailwind project scaffold
+- Design tokens, Dexie schema, app shell, PWA foundation
 
-**Done when:** empty app shell is installable as a PWA and deployed on Vercel.
+**Done when:** the app is installable as a PWA and the local foundation is stable.
 
-## Phase 1 — Core ledger (this is the MVP the brother actually uses)
-- Home screen: notebook list, create/edit/archive notebook
-- Notebook detail: balance header, person list, Gave/Got buttons
-- Transaction entry sheet: add + edit + delete (with undo)
-- Person detail screen
-- History screen with notebook filter
-- English only at this stage is acceptable to unblock testing, but Bengali strings should be added before this phase is considered "done" — this app doesn't count as finished for its actual user until Bengali works
+## Phase 1 — Core ledger
+- Home notebook list and notebook management
+- Notebook detail, balance, transactions and individuals
+- Transaction add/edit/delete with undo
+- Person detail and combined History
+- Bengali-first user experience
 
-**Done when:** the target user (the brother) can fully replace his current Notes-app + calculator workflow with this app, in Bengali, offline, on his own phone.
+**Done when:** the target user can replace the Notes-app + calculator workflow with Khata, in Bengali and offline.
 
-## Phase 2 — Backup, polish, i18n completeness
-- JSON export/import (Backup & Restore screen)
+## Phase 2 — Backup, polish, i18n
+- JSON export/import
 - Dark mode
-- Full Bengali translation pass reviewed by a native speaker
-- Home banner component (auto-swipe, tap-to-copy-link) wired to a simple config (even just a hardcoded array in v1 — no CMS needed yet)
-- PWA install-prompt polish (iOS instructions, update-available toast)
-- Empty states, loading skeletons, animation polish per DESIGN-SYSTEM.md motion principles
+- Bengali review/completeness pass
+- Home banner carousel and PWA install/update polish
+- Empty/loading/error states and motion polish
 
-**Done when:** the app feels complete and trustworthy enough that the brother would recommend it to another shop owner (the stated success signal from the original brief).
+**Done when:** the app feels complete and trustworthy for daily use.
 
-## Phase 3 — Optional cloud sync (Supabase)
-Only build this once Phase 1–2 are validated by real daily use. Explicitly optional and additive:
+## Phase 3 — Firebase cloud foundation
+The cloud layer is additive and opt-in. Dexie remains the local operational source of truth.
 
-- Supabase project: `notebooks`, `people`, `transactions` tables mirroring the Dexie schema, with `user_id` ownership
-- Auth: phone-number OTP login (most natural for this user base — avoid email/password for a non-technical audience) via Supabase Auth
-- Sync strategy: local IndexedDB remains source of truth for offline use; a background sync layer pushes/pulls deltas when online, last-write-wins conflict resolution (acceptable for a single-user-per-account ledger — no concurrent-editor scenario in v1)
-- Sync is **opt-in**: users who never create an account keep using the app exactly as in Phase 1–2, fully local, forever
-- This is also the natural point to add multi-device support (same shop's ledger on the owner's phone and, say, a tablet at the counter)
+### R1–R5 — Identity, schema and deterministic conflict foundation
+- Firebase Authentication with Google
+- Firestore user-owned cloud model and security rules
+- Entity-level mutation queue and tombstones
+- Lamport logical ordering and deterministic conflict resolution
+- Clock-skew-safe ordering semantics
 
-**Done when:** a user can opt into an account, and their notebooks appear on a second device, without the local-only experience regressing for anyone who doesn't opt in.
+### R6 — First-account linking architecture
+- Persistent local account-link state
+- Explicit local/cloud reconciliation planner
+- No silent overwrite during first linking
+
+### R7 — Sync UX/reliability foundation
+- Recovery/reset semantics and sync-state foundations
+
+### R8–R10 — Local capture and Firestore transport
+- Mutation capture for local CRUD
+- Logical version metadata
+- Firestore journal transport and cursoring
+
+### R11 — End-to-end sync orchestrator ✅
+- Push local mutations
+- Pull remote journal pages
+- Apply winning remote state without re-capture
+- Persist cursor only after safe page application
+
+### R12 — Automatic sync + status UX ✅
+- Sync on linked-account startup, foreground, online return and interval
+- Settings sync status
+- Manual retry/recovery
+
+### R13 — First-account linking + reconciliation UX 🚧
+- Inspect local and cloud dataset presence
+- Empty/empty direct link
+- Explicit local-vs-cloud reconciliation choice when data exists
+- Version-aware migration and tombstone-safe linking
+
+### R14 — Sharing snapshots
+- Khata-level or individual read-only share snapshots
+- Google-authenticated owner creates/revokes links
+- Viewer access without login
+- Token-scoped Firestore security rules
+
+### R15 — Sync production hardening
+- Corrupt journal quarantine/recovery policy
+- Retry/backoff and poison-mutation handling
+- Firestore `merge:true` field-retention review
+- Production Google OAuth/session verification
+- Operational sync observability and recovery UX
+
+**Cloud phase done when:** a user can opt into Google/Firebase, safely connect existing local data, use the same Khata across devices, and continue using the app fully offline without data loss or silent overwrites.
 
 ## Explicitly not on this roadmap
 
-Anything from the "Explicit non-goals" list in PLANNING.md (charts, budgeting, multi-currency, recurring transactions) stays out unless a future phase is deliberately proposed and scoped with the same rigor as the phases above — not added incrementally because "it'd be easy."
+Anything from the "Explicit non-goals" list in PLANNING.md (charts, budgeting, multi-currency, recurring transactions, collaborative editing/debt-management workflows) stays out unless a future phase is deliberately proposed and scoped with the same rigor as the phases above.
