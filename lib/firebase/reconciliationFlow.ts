@@ -89,11 +89,12 @@ async function readCloudDataset(firestore: Firestore, uid: string): Promise<Clou
   for (const rowSnapshot of tombstoneSnapshot.docs) {
     const row = rowSnapshot.data() as Record<string, unknown>;
     if (
+      typeof row.id === "string" &&
       typeof row.entity === "string" &&
       typeof row.entityId === "string" &&
-      typeof row.id === "string" &&
       isSyncVersion(row.version) &&
-      typeof row.deletedAt === "number" && Number.isFinite(row.deletedAt)
+      typeof row.deletedAt === "number" &&
+      Number.isFinite(row.deletedAt)
     ) {
       tombstones.push(row as unknown as SyncTombstone);
     }
@@ -162,6 +163,8 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
     readCloudDataset(firestore, uid),
   ]);
 
+  // Make every migration mutation causally newer than the entire cloud snapshot,
+  // including tombstones, so an explicit "keep this device" choice is authoritative.
   await observeLogicalClock(maxCloudSequence(cloud));
 
   const ordered: Array<[SyncEntityType, SyncEntityPayload[]]> = [
@@ -178,11 +181,6 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
       if (!localIds.has(row.id)) await captureDelete(entity, row.id);
     }
     for (const row of rows) await captureAndRecordUpsert(entity, row, getMigrationChangedAt(entity, row));
-  }
-
-  for (const tombstone of cloud.tombstones) {
-    const localRows = local[COLLECTIONS[tombstone.entity]] as SyncEntityPayload[];
-    if (!localRows.some((row) => row.id === tombstone.entityId)) await captureAndRecordUpsert(tombstone.entity, localRows[0] as never, tombstone.version.changedAt).catch(() => undefined);
   }
 
   await completeAccountLink(uid);
