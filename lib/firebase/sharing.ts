@@ -82,6 +82,18 @@ async function commitChunked<T extends { id: string }>(
   }
 }
 
+async function setShareActiveState(
+  firestore: Firestore,
+  uid: string,
+  token: string,
+  active: boolean,
+): Promise<void> {
+  const batch = writeBatch(firestore);
+  batch.update(shareDoc(firestore, token), { active });
+  batch.update(shareRefDoc(firestore, uid, token), { active });
+  await batch.commit();
+}
+
 export async function createShareSnapshot(
   firestore: Firestore,
   uid: string,
@@ -139,8 +151,7 @@ export async function createShareSnapshot(
   await commitChunked(firestore, token, "notebooks", [notebook]);
   await commitChunked(firestore, token, "people", people);
   await commitChunked(firestore, token, "transactions", transactions);
-  await updateDoc(shareDoc(firestore, token), { active: true });
-  await updateDoc(shareRefDoc(firestore, uid, token), { active: true });
+  await setShareActiveState(firestore, uid, token, true);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return { token, url: `${origin}/share/${token}` };
@@ -152,8 +163,7 @@ export async function revokeShare(firestore: Firestore, uid: string, token: stri
     throw new Error("ACCOUNT_LINK_REQUIRED");
   }
 
-  await updateDoc(shareDoc(firestore, token), { active: false });
-  await updateDoc(shareRefDoc(firestore, uid, token), { active: false });
+  await setShareActiveState(firestore, uid, token, false);
 }
 
 export async function listActiveShares(
