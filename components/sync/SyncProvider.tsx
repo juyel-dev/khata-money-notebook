@@ -141,7 +141,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [linking, refresh, user]);
 
-  const syncNow = useCallback(async () => {
+  const performSync = useCallback(async (forceRetryFailed: boolean) => {
     if (!user || !navigator.onLine) return;
     const link = await getAccountLink();
     if (!link || link.uid !== user.uid || link.status !== "linked") return;
@@ -158,7 +158,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }));
 
     try {
-      await retryFailedMutations();
+      // Manual "Sync now" is an explicit recovery action; automatic sync honors
+      // each failed mutation's backoff window and poison-mutation cutoff.
+      if (forceRetryFailed) await retryFailedMutations();
       await syncOnce(services.firestore, user.uid);
       const saved = await setSyncStatus("synced", { lastSyncedAt: Date.now(), lastError: undefined });
       setStatus(saved);
@@ -175,6 +177,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refresh, user]);
 
+  const syncNow = useCallback(() => performSync(true), [performSync]);
+  const syncAutomatically = useCallback(() => performSync(false), [performSync]);
+
   useEffect(() => {
     if (authLoading) return;
     // Auth has settled; refresh the local sync metadata snapshot once per effect run.
@@ -186,7 +191,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     if (authLoading || !user || linkStatus !== "linked") return;
 
     const syncIfOnline = () => {
-      if (navigator.onLine) void syncNow().catch(() => undefined);
+      if (navigator.onLine) void syncAutomatically().catch(() => undefined);
       else void refresh();
     };
 
@@ -203,7 +208,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("online", syncIfOnline);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [authLoading, linkStatus, refresh, syncNow, user]);
+  }, [authLoading, linkStatus, refresh, syncAutomatically, user]);
 
   useEffect(() => {
     if (!user) return;
