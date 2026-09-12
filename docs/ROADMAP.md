@@ -74,14 +74,19 @@ The cloud layer is additive and opt-in. Dexie remains the local operational sour
 - Private owner share references for active-link management
 
 ### R15 — Sync production hardening
-#### R15.1 — Corrupt journal quarantine/recovery policy 🚧
+#### R15.1 — Corrupt journal quarantine/recovery policy ✅
 - Durable local quarantine for malformed journal rows
 - Safe cursor advancement when `receivedOrder` is trustworthy
 - Cursor hold when ordering metadata is corrupt
 - Explicit separation of corrupt-data handling from transient transport retry
 
+#### R15.2 — Retry/backoff + poison-mutation handling 🚧
+- Durable exponential retry scheduling
+- Automatic retries only after the backoff window
+- Failed mutation isolation so one poison mutation does not block later mutations
+- Auto-retry cutoff with explicit manual recovery still available
+
 #### Remaining R15 work
-- Retry/backoff and poison-mutation handling
 - Firestore `merge:true` field-retention review
 - Production Google OAuth/session verification
 - Operational sync observability and recovery UX

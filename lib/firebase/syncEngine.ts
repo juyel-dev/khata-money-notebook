@@ -4,6 +4,7 @@ import { readMutationJournal, pushMutation, type RemoteMutation, type SyncCursor
 import { resolveConflict, type SyncCandidate } from "./syncConflict";
 import {
   getPendingMutations,
+  getRetryableFailedMutations,
   markMutationFailed,
   markMutationSyncing,
   removeMutation,
@@ -12,7 +13,7 @@ import {
 import { getSyncCursor, getEntityVersion, setEntityVersion, setSyncCursor } from "./syncState";
 import { observeLogicalClock } from "./syncIdentity";
 import { recordTombstone, clearTombstoneForNewerUpsert, shouldRejectUpsert } from "./syncTombstones";
-import type { SyncEntityPayload, SyncEntityType, SyncVersion } from "./syncTypes";
+import { compareSyncVersions, type SyncEntityPayload, type SyncEntityType, type SyncVersion } from "./syncTypes";
 import type { Firestore } from "firebase/firestore";
 
 const DEFAULT_PUSH_BATCH = 50;
@@ -108,9 +109,16 @@ async function pushPendingMutations(
   firestore: Firestore,
   uid: string,
   batchSize: number,
-): Promise<number> {
-  const mutations = await getPendingMutations(batchSize);
+): Promise<{ pushed: number; firstError: unknown | null }> {
+  const [pending, retryable] = await Promise.all([
+    getPendingMutations(batchSize),
+    getRetryableFailedMutations(Date.now(), batchSize),
+  ]);
+  const mutations = [...pending, ...retryable]
+    .sort((left, right) => compareSyncVersions(left.version, right.version))
+    .slice(0, batchSize);
   let pushed = 0;
+  let firstError: unknown | null = null;
 
   for (const mutation of mutations) {
     await markMutationSyncing(mutation.id);
@@ -123,11 +131,11 @@ async function pushPendingMutations(
         mutation.id,
         error instanceof Error ? error.message : String(error),
       );
-      throw error;
+      if (firstError === null) firstError = error;
     }
   }
 
-  return pushed;
+  return { pushed, firstError };
 }
 
 async function pullJournal(
@@ -190,7 +198,7 @@ async function runSync(
   }
 
   const recoveredSyncing = await resetStaleSyncingMutations();
-  const pushed = await pushPendingMutations(
+  const pushResult = await pushPendingMutations(
     firestore,
     uid,
     options.pushBatchSize ?? DEFAULT_PUSH_BATCH,
@@ -202,8 +210,10 @@ async function runSync(
     options.maxPullPages ?? DEFAULT_MAX_PAGES,
   );
 
+  if (pushResult.firstError !== null) throw pushResult.firstError;
+
   return {
-    pushed,
+    pushed: pushResult.pushed,
     pulled: pulled.pulled,
     skipped: pulled.skipped,
     pages: pulled.pages,

@@ -40,6 +40,7 @@ export interface SyncMutation<TPayload = SyncEntityPayload> {
   status: SyncQueueStatus;
   attempts: number;
   lastError?: string;
+  nextRetryAt?: number;
 }
 
 export interface SyncTombstone {

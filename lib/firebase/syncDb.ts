@@ -23,6 +23,12 @@ export class SyncQueueDB extends Dexie {
       syncMeta: "key",
       syncJournalQuarantine: "id, receivedOrder, quarantinedAt",
     });
+    this.version(4).stores({
+      syncMutations: "id, entity, entityId, operation, changedAt, status, attempts, nextRetryAt",
+      syncTombstones: "id, entity, entityId, deletedAt",
+      syncMeta: "key",
+      syncJournalQuarantine: "id, receivedOrder, quarantinedAt",
+    });
   }
 }
 
