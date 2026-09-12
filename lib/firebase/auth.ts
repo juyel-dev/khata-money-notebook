@@ -2,6 +2,7 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   type Unsubscribe,
   type User,
@@ -19,8 +20,23 @@ function requireAuth() {
   return services.auth;
 }
 
+export function shouldUseRedirectAuth(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+  // Redirect is more reliable than popups for mobile browsers and installed PWAs.
+  return isMobile || isStandalone;
+}
+
 export function signInWithGoogle() {
-  return signInWithPopup(requireAuth(), googleProvider);
+  const auth = requireAuth();
+  return shouldUseRedirectAuth()
+    ? signInWithRedirect(auth, googleProvider)
+    : signInWithPopup(auth, googleProvider);
 }
 
 export function signOutUser() {
