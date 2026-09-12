@@ -1,50 +1,93 @@
 # Planning
 
-## The user
+> Product intent and non-goals. This is a product constraint document, not a list of implementation details.
 
-One real person, not a persona exercise: a non-technical shop owner (cloth/garments business) who currently records daily cash transactions in his phone's Notes app as free text, then opens a calculator app separately to work out totals. He is the bar for every UX decision — if he'd hesitate on a screen, the screen is wrong.
+## User/job
 
-Implication: no jargon, no onboarding tutorial he has to read, no screen with more than one obvious next action, big tap targets, numbers always visible without scrolling.
+Khata is designed around a non-technical small-business user who wants a fast digital notebook for money movement.
 
-## The job to be done
+The core job is:
 
-For each notebook (a business, or a category of money):
-- Know the current balance right now, at a glance
-- Record: gave ₹X to / got ₹X from [person], with date+time and an optional short note
-- See running total per person — how much they owe, or are owed
-- See a simple chronological log of everything
+- open the relevant Khata
+- know its current cash balance
+- record `দিলাম` / `নিলাম`
+- attach the transaction to a person and time
+- optionally add a short note
+- review the chronological ledger
 
-That's it. Everything else is explicitly excluded (see below).
+The app should feel as direct as writing in a paper khata, without requiring a calculator app or a finance dashboard.
 
-## Core entities
+## Product model
 
-- **Notebook** — a ledger (e.g. "Cloth Shop", "Personal Loans", "Family"). Has a name, an opening balance, and a running current balance.
-- **Person** — someone money moves to/from within a notebook. Has a name and (derived) totals: total given, total taken, net balance.
-- **Transaction** — one entry: type (gave/got), amount, person, date+time, optional note. Belongs to one notebook.
+Core entities:
 
-## Explicit non-goals (v1)
+- Notebook
+- NotebookGroup
+- Person
+- Transaction
 
-These were considered and deliberately cut to protect simplicity — do not add them without a real user request:
+`Individuals` is a derived view, not a fourth accounting entity.
 
-- Charts, graphs, spending breakdowns, category tags
-- Budgeting, savings goals, recurring transactions
-- Multi-currency (INR only)
-- Cloud login as a hard requirement (local-first; Supabase sync comes later as *optional*)
-- Complex reports/exports beyond a plain JSON/CSV backup
-- Anything resembling a generic "finance dashboard" — no KPI tiles, no gradients-and-glass SaaS aesthetic
+Cloud account identity is optional for local use. Google/Firebase identity becomes necessary for cloud sync and sharing.
 
-## Design principles (non-negotiable)
+## Non-negotiable UX principles
 
-1. **One primary action per screen.** The home screen's job is "open a notebook." A notebook's job is "see balance + add a transaction."
-2. **Numbers first.** Balance and amounts are the largest, boldest thing on any screen they appear on.
-3. **Two-tap entry.** From a notebook screen: tap Gave/Got → fill amount+person → save. No multi-step wizards.
-4. **Never lose data.** Every write goes straight to IndexedDB; there is no "unsaved draft" state a non-technical user can accidentally discard.
-5. **Notebook aesthetic, not app aesthetic.** Warm paper tones, ledger-style rows, handwritten-adjacent accents — not blue-gradient SaaS, not Material dashboard defaults.
-6. **Bilingual from day one.** English default, Bengali toggle, but *every* screen must be designed assuming Bengali text will run longer.
-7. **Scalable code, minimal product.** The codebase should be structured to grow (Supabase sync, more languages, more notebook types) without the *product surface* growing unless truly needed.
+1. **Ledger first.** The Khata detail page opens on Transactions.
+2. **One obvious next action.** Avoid navigation depth for frequent entry.
+3. **Numbers are primary.** Amounts and balance must be easy to scan.
+4. **Offline first.** Local writes do not wait for network.
+5. **No fake financial complexity.** Do not turn simple transaction facts into debt-management UI.
+6. **Bengali first-class.** Layout and copy must work naturally in Bengali.
+7. **Paper-ledger aesthetic.** Avoid generic fintech/admin-dashboard visual language.
+8. **Engineering can scale; product surface stays small.** Sophistication belongs in reliability, not in extra screens/features.
 
-## Currency & locale
+## Current navigation model
 
-- Currency: Indian Rupee (₹ / INR) only, formatted with Indian digit grouping (e.g. ₹1,23,456).
-- Date/time: localized to device, 12-hour clock with AM/PM by default (editable per-transaction).
-- Languages: English (default), Bengali (বাংলা). Architecture must support adding more later.
+```text
+HOME
+  ↓
+KHATA DETAILS
+  ├── TRANSACTIONS  ← default
+  └── INDIVIDUALS
+        ↓
+      PERSON DETAIL
+```
+
+Share is accessed from a Khata's actions menu and produces a public read-only snapshot.
+
+## Currency
+
+The data layer stores integer paise. The UI uses the shared money formatter at the presentation boundary.
+
+Do not introduce multi-currency without a separate product decision.
+
+## Cloud product boundary
+
+Firebase/Auth/Firestore are additive infrastructure for:
+
+- Google identity
+- durable sync
+- read-only snapshot sharing
+
+They do not turn Khata into a collaborative workspace.
+
+## Explicit non-goals
+
+Do not add without a deliberate new product phase:
+
+- charts or dashboards
+- KPI/finance analytics
+- budgeting or savings goals
+- recurring transactions
+- categories/tags as a new bookkeeping taxonomy
+- multi-currency
+- live collaborative editing
+- viewer accounts
+- debt-management/settlement workflows
+- arbitrary accounting reports
+- server-side database replacing Dexie
+- unnecessary backend services
+
+## Agent interpretation rule
+
+When a feature request appears to conflict with this document, do not “split the difference” silently. Identify the conflict and require an explicit product decision before implementing a new product surface.

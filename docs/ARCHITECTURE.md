@@ -1,83 +1,193 @@
 # Architecture
 
-## Tech stack & rationale
+> Current implementation architecture. For agent onboarding and hard constraints, read `AI-CONTEXT.md` and `ENGINEERING-INVARIANTS.md` first.
 
-| Layer | Choice | Why |
+## Runtime stack
+
+| Layer | Current implementation | Contract |
 |---|---|---|
-| Framework | **Next.js 14 (App Router)** | Best-supported path to a Vercel deploy, file-based routing keeps screen structure obvious, works fully client-rendered for the app shell (this is a local-first app — no server data-fetching needed for core flows) |
-| Language | **TypeScript** | Money app — type safety on amounts/entities is not optional |
-| Styling | **Tailwind CSS** | Fast to keep consistent with a small custom design-token set (see DESIGN-SYSTEM.md); no heavy component-library visual identity to fight against |
-| UI primitives | **shadcn/ui** (unstyled Radix primitives, restyled per DESIGN-SYSTEM.md) | Accessible dialogs/sheets/dropdowns for free (bottom sheets, menus) without importing a whole "SaaS look" |
-| Local database | **Dexie.js** (IndexedDB wrapper) | IndexedDB directly is painful; Dexie gives clean async queries + indexes + reactive `useLiveQuery` hook, ideal for the local-first model in DATA-MODEL.md |
-| State (UI, not persisted) | **Zustand** | Tiny, no boilerplate, used only for ephemeral UI state (active notebook, sheet open/closed) — persisted data always comes from Dexie, never duplicated into a store |
-| i18n | **next-intl** | Clean App Router support, straightforward `en`/`bn` message files, see I18N.md |
-| PWA / service worker | **Serwist** (maintained successor to next-pwa/Workbox) | Offline-first caching, install prompt, background asset caching |
-| Animation | **Framer Motion** | Used sparingly — page transitions, the home banner auto-swipe, the undo toast — never decorative |
-| Deployment | **Vercel** | Matches stated goal; zero-config Next.js hosting |
-| Future sync (Phase 2) | **Supabase** | Postgres + auth + realtime, added later as an *optional* account layer — see ROADMAP.md. Local IndexedDB remains source of truth for offline use even after sync is added. |
+| Framework | Next.js 16 App Router | App Router is the route/UI shell and deployment build surface. |
+| UI | React 19 + TypeScript | Client-first interaction; keep business rules out of presentational components when a domain helper already exists. |
+| Styling | Tailwind CSS v4 + project CSS tokens | Preserve the established paper-ledger visual language. |
+| Local persistence | Dexie 4 / IndexedDB | Operational source for the local ledger; must work offline and signed out. |
+| UI/session state | Zustand | Ephemeral UI state only; do not duplicate persistent ledger data here. |
+| i18n | Hand-rolled `lib/i18n` context/messages | English/Bengali runtime switching without locale routes. |
+| Cloud identity | Firebase Authentication | Google provider; optional for local use. |
+| Cloud persistence/transport | Cloud Firestore | Durable replica, sync journal, account-link and share snapshot boundary. |
+| Motion | Framer Motion | Spatial/confirmation motion only. |
+| Icons | lucide-react | Shared icon vocabulary. |
+| Testing | Vitest | Unit/integration behavior coverage. |
+| Hosting | Vercel | Production deployment and environment configuration. |
 
-## Why fully client-side (no server database in v1)
+Do not copy old documentation that says Next 14, next-intl, Serwist, or Supabase. Those descriptions are obsolete for the current repository.
 
-This is a private ledger app for one person's own money records. There is no v1 requirement for a backend: everything reads/writes IndexedDB directly in the browser. Next.js is used purely as the app framework + build/deploy pipeline, not as a backend. This keeps the app genuinely offline-capable (core promise of the PWA) and avoids building auth/API infra before it's needed.
+## High-level data flow
 
-When Supabase is added (Phase 2), it becomes an **optional, additive sync layer** — the app must keep working fully offline with zero account for users who never opt in.
-
-## Folder structure
-
-```
-khata/
-├── app/
-│   ├── layout.tsx                 # root layout: fonts, PWA meta, i18n provider
-│   ├── (main)/
-│   │   ├── layout.tsx              # app shell: hamburger + bottom nav
-│   │   ├── page.tsx                 # Home — notebook list
-│   │   ├── notebook/[id]/
-│   │   │   ├── page.tsx              # Notebook detail — person list + balance
-│   │   │   ├── person/[personId]/page.tsx   # Person detail — history + net
-│   │   │   └── history/page.tsx      # Full chronological transaction log
-│   │   ├── settings/page.tsx        # Settings — language, backup, about
-│   │   └── notebook/new/page.tsx    # New notebook form
-│   └── manifest.ts                 # PWA manifest
-├── components/
-│   ├── ui/                          # shadcn primitives, restyled
-│   ├── notebook/                    # NotebookCard, NotebookForm, BalanceHeader
-│   ├── transaction/                 # TransactionSheet (add/edit), TransactionRow
-│   ├── person/                      # PersonCard, PersonBalanceBadge
-│   ├── nav/                         # BottomNav, HamburgerMenu, HomeBanner
-│   └── shared/                      # EmptyState, UndoToast, ConfirmDialog
-├── lib/
-│   ├── db/
-│   │   ├── schema.ts                 # Dexie schema (DATA-MODEL.md)
-│   │   ├── notebooks.ts              # CRUD + derived balance queries
-│   │   ├── people.ts
-│   │   └── transactions.ts
-│   ├── money.ts                     # paise <-> rupee formatting helpers (Intl.NumberFormat en-IN)
-│   ├── i18n/                        # next-intl config + en.json, bn.json
-│   └── pwa/                         # Serwist service worker config
-├── public/
-│   ├── icons/                       # PWA icons, app icon set
-│   └── manifest assets
-├── docs/                            # this folder
-└── ...config files (next.config, tailwind.config, tsconfig)
+```text
+User interaction
+   ↓
+React/App Router UI
+   ↓
+lib/db domain helpers / local mutation capture
+   ↓
+Dexie ledger tables
+   ↓
+local sync queue (when cloud-linked)
+   ↓
+Firebase sync engine
+   ↕
+Firestore owner namespace + mutation journal
 ```
 
-## State flow (how a screen gets data)
+Sharing is a separate snapshot flow:
 
-1. Screen component calls a Dexie `useLiveQuery` hook (e.g. `useNotebooks()`, `usePersonTransactions(personId)`).
-2. Dexie queries IndexedDB directly; `useLiveQuery` re-renders automatically on any write — no manual cache invalidation, no Redux-style action dispatching for data.
-3. Derived numbers (balances, per-person net) are computed in `lib/db/*.ts` query functions, colocated with the query, not scattered across components.
-4. Zustand is touched only for things that are *not* persisted data: which bottom sheet is open, which notebook is currently "active" in a session, banner carousel index.
+```text
+linked owner
+  ↓
+sync latest local state
+  ↓
+read local notebook/person/transactions
+  ↓
+inactive /shares/{token}
+  ↓
+write snapshot children
+  ↓
+activate share
+  ↓
+anonymous read-only viewer
+```
 
-This keeps the mental model simple for whoever codes this: **Dexie is the single source of truth for data. Zustand is only for transient UI state.**
+## Local database
 
-## PWA behavior summary (full detail in PWA.md)
+Current `lib/db/schema.ts` contains:
 
-- Installable (manifest + icons), works fully offline after first load.
-- Service worker precaches the app shell; runtime-caches nothing external since there is no external data dependency in v1.
-- No network requests required for any core flow (add/view/edit transactions, view balances).
+```text
+notebooks
+people
+transactions
+groups
+settings
+```
 
-## Non-functional requirements
+Notebook has optional `pinned` and `groupId` fields. Dexie schema version 2 adds indexes for those fields while preserving existing data.
 
-- Cold start to interactive: must feel instant on a mid-range Android phone (this is the real target device, not desktop).
-- All interactive targets ≥ 44×44px (non-technical user, likely on a 5–6" screen, one-handed use in a shop).
-- No layout shift when Bengali text (typically 20–40% longer than English) is active.
+Business data is read from Dexie using feature/domain helpers and reactive queries. A persisted ledger value should not also live as a separately authoritative Zustand value.
+
+## Cloud boundary
+
+Firebase is additive. A missing Firebase configuration must not crash local app startup; `getFirebaseServices()` returns `null` when the expected public config is incomplete or Firebase initialization fails.
+
+The browser configuration is read from:
+
+```text
+NEXT_PUBLIC_FIREBASE_API_KEY
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+NEXT_PUBLIC_FIREBASE_PROJECT_ID
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+NEXT_PUBLIC_FIREBASE_APP_ID
+```
+
+Firebase Admin credentials are not a browser concern.
+
+## Authentication
+
+`lib/firebase/auth.ts` owns Google sign-in/sign-out and auth-state observation.
+
+Current provider behavior:
+
+```text
+ordinary desktop browser → signInWithPopup
+mobile browser           → signInWithRedirect
+installed standalone PWA → signInWithRedirect
+```
+
+Google provider uses `prompt=select_account`.
+
+## Account binding
+
+`lib/firebase/accountLink.ts` stores the local binding to a Firebase UID. The first link is an explicit reconciliation boundary, not merely a login event.
+
+See `ACCOUNT-LINKING.md` for the decision matrix and migration semantics.
+
+## Sync orchestration
+
+`components/sync/SyncProvider.tsx` coordinates:
+
+- account-link state
+- online/offline state
+- queue state
+- persisted sync status
+- first-link reconciliation
+- automatic sync
+- manual sync/retry
+
+Automatic sync runs on linked startup/settled auth, online return, visibility return and a 60-second interval. Manual `Sync now` is also an explicit recovery path.
+
+The implementation details and invariants live in `SYNC-ARCHITECTURE.md`.
+
+## Firestore ownership model
+
+```text
+/users/{uid}/notebooks/{id}
+/users/{uid}/groups/{id}
+/users/{uid}/people/{id}
+/users/{uid}/transactions/{id}
+```
+
+The local entity id is reused as the Firestore document id.
+
+Supporting sync/journal metadata uses helpers in `lib/firebase/firestoreSchema.ts` and transport code in `lib/firebase/firestoreSync.ts`. Never invent cloud paths without reading those helpers first.
+
+## Sharing
+
+Public share snapshots live below `/shares/{token}` with child collections for notebooks, people and transactions.
+
+Share scope is one of:
+
+```text
+khata
+individual
+```
+
+The root record contains owner, scope, notebook, optional person, title, timestamps, active state and schema version.
+
+The root and owner private reference are published inactive first. Snapshot children are written before activation. Viewer reads are blocked after revoke (`active=false`).
+
+See `SHARING.md` and `firestore.rules`.
+
+## UI architecture
+
+Current feature boundaries are grouped by purpose:
+
+```text
+components/account/
+components/home/
+components/nav/
+components/notebook/
+components/person/
+components/share/
+components/sync/
+components/transaction/
+components/shared/
+```
+
+Routes are under `app/(main)` with a separate public `/share/[token]` route.
+
+## PWA
+
+The app is a standalone-installable PWA with local IndexedDB persistence and a service worker. Core ledger reads/writes must remain available with no network. The service worker is part of the app shell, not the data source.
+
+See `PWA.md` for current behavior and verification.
+
+## Testing expectations
+
+When changing code:
+
+1. Find the definition.
+2. Find every caller/export consumer.
+3. Find every test that asserts the affected semantics.
+4. Change tests when behavior intentionally changes.
+5. Re-read the whole diff before opening a PR.
+
+Historical sync work exposed the risk of changing a signature or ordering rule without updating every caller/test. Treat repository-wide search as mandatory for public or cross-module changes.

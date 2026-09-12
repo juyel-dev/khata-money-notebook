@@ -1,96 +1,195 @@
 # Data Model
 
-Local-first. All data lives in IndexedDB (via Dexie.js) on-device. No data leaves the device in v1 — Supabase sync is a later, optional phase (see `ROADMAP.md`).
+> Current local/cloud entity contract. Read `ENGINEERING-INVARIANTS.md` before changing any field or relationship.
+
+## Persistence model
+
+The operational ledger lives in Dexie/IndexedDB. Firebase is an additive cloud replica/sync layer when a user links an account.
+
+Current Dexie database: `khata-db`.
+
+Current schema version: 2.
 
 ## Entities
 
 ### Notebook
-```
+
+```text
 Notebook {
-  id: string (uuid)
-  name: string                    // "Cloth Shop", "Family", etc.
-  openingBalance: number          // in paise (integer) to avoid float errors
-  createdAt: number (epoch ms)
-  updatedAt: number (epoch ms)
-  archived: boolean               // soft-hide, never hard-delete by default
-  color: string                   // one of a fixed accent palette, for visual distinction between notebooks
-  icon: string                    // one of a fixed small icon set (shop, home, wallet, users, etc.)
+  id: string
+  name: string
+  openingBalance: number       // safe integer paise
+  createdAt: number            // epoch ms
+  updatedAt: number            // epoch ms
+  archived: boolean
+  color: NotebookColor
+  icon: NotebookIcon
+  pinned?: boolean              // optional v2 field
+  groupId?: string | null       // optional v2 field
 }
 ```
 
-### Person
-```
-Person {
-  id: string (uuid)
-  notebookId: string              // FK -> Notebook.id
+`NotebookColor` is the fixed union implemented in `lib/db/schema.ts` and `NotebookIcon` is the fixed union implemented there. Do not invent persisted values outside those unions without updating every validator/serializer/test that depends on them.
+
+### NotebookGroup
+
+```text
+NotebookGroup {
+  id: string
   name: string
-  phone?: string                  // optional, for future "share via WhatsApp" feature
   createdAt: number
 }
 ```
-Note: a person is scoped to one notebook, not global. If the same real person appears in two notebooks, they get two Person records. This matches the mental model of "this shop's ledger" vs "family ledger" being separate books — matches user's stated intent, avoids a merge-identity feature no one asked for.
 
-### Transaction
-```
-Transaction {
-  id: string (uuid)
-  notebookId: string              // FK -> Notebook.id
-  personId: string                // FK -> Person.id
-  type: "gave" | "got"            // "gave" = money OUT (I gave to them), "got" = money IN (I got from them)
-  amount: number                  // in paise (integer)
-  note?: string                   // short free text, optional
-  occurredAt: number (epoch ms)   // user-editable date+time of the transaction itself
-  createdAt: number (epoch ms)    // when the record was actually saved (audit only, not shown prominently)
+A notebook may reference one group or remain ungrouped. Group membership is optional.
+
+### Person
+
+```text
+Person {
+  id: string
+  notebookId: string
+  name: string
+  phone?: string
+  createdAt: number
 }
 ```
 
-## Amount storage
+A person belongs to exactly one notebook. The same real-world person may have distinct records in different notebooks.
 
-Store amounts as **integer paise** (₹1 = 100), never floats. Format for display with `Intl.NumberFormat('en-IN')` (Indian digit grouping) at the presentation layer only. This avoids the classic 0.1 + 0.2 floating point bug in a money app.
+### Transaction
 
-## Balance calculation
-
-**Notebook current balance** (derived, not stored — always computed):
+```text
+Transaction {
+  id: string
+  notebookId: string
+  personId: string
+  type: "gave" | "got"
+  amount: number             // safe integer paise, non-negative
+  note?: string
+  occurredAt: number         // epoch ms; transaction event time
+  createdAt: number           // epoch ms; save/audit time
+}
 ```
+
+A transaction's `personId` and `notebookId` must refer to the same notebook.
+
+## Amount contract
+
+Store money as integer paise:
+
+```text
+₹1 = 100 paise
+```
+
+No floating-point currency values are persisted.
+
+Validation must reject non-finite, negative or unsafe integer paise values. Formatting belongs at the presentation boundary.
+
+## Balance contract
+
+Notebook balance is derived, never stored as a second authoritative value:
+
+```text
 currentBalance = openingBalance
   + sum(transactions where type == "got")
   - sum(transactions where type == "gave")
 ```
-Mental model: "got" is money coming into my hand (balance goes up), "gave" is money leaving my hand (balance goes down). This matches how a shopkeeper thinks about their own cash-in-hand, not about the other person's debt.
 
-**Per-person net** (derived):
+The model describes the user's own cash movement. Avoid debt-management language in product copy.
+
+## Individuals
+
+The Individuals view is derived from the notebook's transactions plus its people collection.
+
+There is no separate `Individual` persistence entity.
+
+The current Khata detail page opens on `Transactions`; individuals are a secondary filtered view. This is an information-architecture contract, not merely a UI preference.
+
+## Dexie indexes
+
+Current schema declares:
+
+```text
+notebooks:
+  id, archived, createdAt, updatedAt, pinned, groupId
+
+people:
+  id, notebookId, name
+
+transactions:
+  id, notebookId, personId, occurredAt, type
+
+settings:
+  key
+
+groups:
+  id, name, createdAt
 ```
-totalGiven  = sum(transactions where personId == X and type == "gave")
-totalTaken  = sum(transactions where personId == X and type == "got")
-net         = totalGiven - totalTaken
+
+Before adding an index, check actual query patterns and the Dexie schema version. Avoid speculative indexes.
+
+## Edit/delete semantics
+
+Transactions and people can be edited according to current UI/domain rules. Transaction deletion participates in the sync/tombstone system when cloud-linked.
+
+Notebook archival is the normal hide path. Permanent destructive actions are separate and guarded by current UI behavior.
+
+Undo is a user-level restoration/new mutation concept; it must not reuse an old sync version.
+
+## Backup format
+
+Portable backup is a versioned envelope, not raw table arrays:
+
+```json
+{
+  "format": "khata-backup",
+  "version": 2,
+  "exportedAt": 0,
+  "data": {
+    "notebooks": [],
+    "groups": [],
+    "people": [],
+    "transactions": []
+  }
+}
 ```
-- `net > 0` → they owe me `net` (I gave more than I took from them) → show as "Owes you ₹X" in the accent/red-adjacent tone
-- `net < 0` → I owe them `|net|` → show as "You owe ₹X" in the accent/green-adjacent tone
-- `net == 0` → "Settled"
 
-This "owes you / you owe" framing is what makes the app instantly readable to a non-technical user — it must never be phrased as raw "gave/got totals" without the plain-language net line.
+Current supported backup version: `2`.
 
-## Derived values are computed, not cached
+The backup validator checks:
 
-For v1 scale (a shop owner's daily transactions — hundreds to low thousands of rows per notebook, not millions), balances are computed on read via an indexed Dexie query, not maintained as a running cached counter. This avoids an entire class of bugs (cache drift, double-counting on edit/delete) at negligible performance cost. Revisit only if a notebook exceeds ~10k transactions.
+- envelope format/version
+- collection presence
+- entity ids and required fields
+- timestamps
+- safe integer paise
+- notebook style unions
+- unique ids
+- notebook/group/people/transaction foreign keys
+- transaction/person notebook agreement
 
-## IndexedDB indexes (Dexie schema)
+Nothing should mutate IndexedDB until validation passes.
 
-```js
-db.version(1).stores({
-  notebooks: 'id, archived, createdAt',
-  people:    'id, notebookId, name',
-  transactions: 'id, notebookId, personId, occurredAt, type'
-});
+Restore uses replacement semantics inside one Dexie read/write transaction. It is not a merge operation. Existing data is snapshotted before replacement so the caller can provide recovery/undo behavior.
+
+## Cloud projection
+
+The same local entity ids are reused as Firestore document ids:
+
+```text
+/users/{uid}/notebooks/{notebookId}
+/users/{uid}/groups/{groupId}
+/users/{uid}/people/{personId}
+/users/{uid}/transactions/{transactionId}
 ```
 
-## Edit & delete rules
+Cloud versions, tombstones, journal rows and mutation metadata are sync concerns and are documented in `SYNC-ARCHITECTURE.md`; do not pollute the business entity model with transport state unless there is a deliberate compatibility reason.
 
-- Transactions and people can be edited or deleted (soft-delete with a 5-second "Undo" toast, not a confirm dialog — confirm dialogs are friction for a non-technical daily-use app; undo is safer *and* faster).
-- Notebooks are archived, not deleted, by default. A separate "Delete permanently" action exists in notebook settings behind one extra confirm step, since it's destructive and rare.
+## Schema evolution
 
-## Backup / export
+Optional fields are currently added append-compatibly (example: `pinned`, `groupId`).
 
-- Manual "Export backup" action (from Settings) serializes all notebooks/people/transactions to a single JSON file, offered via the browser's native share/download.
-- Manual "Import backup" reads that JSON back in, with a clear warning if it would overwrite existing data.
-- This is the v1 answer to "what if I lose my phone" — cloud sync (Phase 2, see ROADMAP.md) makes it automatic.
+Because Firestore canonical entity upserts use `merge:true`, **omitting a field does not delete it from an existing cloud document**. Removing/renaming a persisted field therefore requires an explicit migration/write strategy.
+
+Never silently reinterpret an old field name as a new meaning.

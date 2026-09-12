@@ -1,10 +1,21 @@
-# Firebase foundation
+# Firebase Setup
 
-Khata remains local-first. Dexie is the operational local database; Firebase provides the cloud identity and persistence boundary for sync and sharing work.
+> Infrastructure contract for the current Firebase implementation. For production execution see `PRODUCTION-RUNBOOK.md`.
 
-## Required web environment
+## Required services
 
-Create the following environment variables for local development and deployment:
+Create/use the dedicated production Firebase project for Khata and configure only the services currently required:
+
+- Firebase Authentication
+- Google sign-in provider
+- Cloud Firestore
+- Firebase Web App registration
+
+Storage, Cloud Functions, Extensions and other products are not required by the current client architecture.
+
+## Web client environment
+
+The current code reads exactly:
 
 ```text
 NEXT_PUBLIC_FIREBASE_API_KEY=
@@ -15,26 +26,68 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 ```
 
-These values come from the Firebase web app configuration for the Khata Firebase project.
+These values come from the registered Firebase Web App configuration.
 
-## Current scope
+Do not commit environment-specific values to the repository. Do not place Firebase Admin/service-account private credentials in `NEXT_PUBLIC_*` variables.
 
-The Firebase work completed so far establishes:
+## Client initialization
 
-- Firebase App initialization
-- Firebase Authentication client
-- Google provider configuration
-- Cloud Firestore client
-- App-wide auth state observation
-- Sign in / sign out UI using the Google provider
-- A minimal local account/profile presentation from the Firebase Auth user
+`lib/firebase/config.ts` validates that all six public values exist.
 
-This phase still does **not** add cloud data writes, local/cloud synchronization, sharing, or application-data security rules.
+`lib/firebase/client.ts` returns `null` when configuration is incomplete or initialization fails. This fail-soft boundary is intentional: signed-out/local usage must not crash simply because Firebase is unavailable.
 
-## Google Authentication
+## Authentication
 
-Enable the Google sign-in provider in Firebase Authentication before testing the account experience. The authentication service lives in `lib/firebase/auth.ts`, and app-wide state is exposed through `lib/firebase/AuthProvider.tsx`.
+`lib/firebase/auth.ts` owns Google sign-in and uses:
 
-Sign-in is optional for normal local Khata use. A signed-in user is ready for the later cloud sync and sharing phases.
+```text
+prompt=select_account
+```
 
-Never commit real Firebase configuration values that are meant to stay environment-specific. The web API key is not treated as a secret, but Firebase authorization is enforced by Authentication and Firestore security rules in later phases.
+Routing:
+
+```text
+ordinary desktop web     → signInWithPopup
+mobile browser           → signInWithRedirect
+installed standalone PWA → signInWithRedirect
+```
+
+Firebase Authentication must have Google enabled, and the real production web origin must be an authorized domain.
+
+Real-device redirect/cancel behavior remains a human production test because it depends on the actual Google/Firebase project configuration.
+
+## Firestore
+
+Cloud application data is UID-owned under `/users/{uid}/...`.
+
+Read-only public sharing is under `/shares/{token}` and is bearer-token controlled.
+
+The current canonical rules are stored in repository root `firestore.rules`.
+
+Do not replace them with a broadly authenticated rule merely to solve a setup error.
+
+## Production setup order
+
+```text
+Firebase project
+  ↓
+Web app registration
+  ↓
+Google provider
+  ↓
+Authorized production domain
+  ↓
+Firestore database
+  ↓
+Deploy firestore.rules
+  ↓
+Set Vercel env
+  ↓
+Production deploy
+  ↓
+Human auth/sync/share dry-run
+```
+
+## What this file does not certify
+
+A configured Firebase project is not proof that production authentication, account linking, cross-device sync or sharing works end-to-end. Those require real credentials, the real deployed domain and real browser/device execution.

@@ -1,109 +1,170 @@
 # Roadmap
 
-Phased so an implementer (human or coding agent) always has a shippable, testable milestone rather than one giant build.
+> Milestone history and remaining gates. Completed work is historical context; do not treat it as an active implementation task.
 
-## Phase 0 — Foundation
-- Next.js + TypeScript + Tailwind project scaffold
-- Design tokens, Dexie schema, app shell, PWA foundation
+## Phase 0 — Foundation ✅
 
-**Done when:** the app is installable as a PWA and the local foundation is stable.
+- Next.js app shell
+- TypeScript/Tailwind foundation
+- Dexie local database
+- PWA foundation
+- core design language
 
-## Phase 1 — Core ledger
-- Home notebook list and notebook management
-- Notebook detail, balance, transactions and individuals
-- Transaction add/edit/delete with undo
-- Person detail and combined History
-- Bengali-first user experience
+## Phase 1 — Core ledger ✅
 
-**Done when:** the target user can replace the Notes-app + calculator workflow with Khata, in Bengali and offline.
+- multiple notebooks
+- notebook management
+- transaction add/edit/delete
+- person history
+- combined history
+- Bengali-first UI
+- offline local persistence
 
-## Phase 2 — Backup, polish, i18n
-- JSON export/import
-- Dark mode
-- Bengali review/completeness pass
-- Home banner carousel and PWA install/update polish
-- Empty/loading/error states and motion polish
+## Phase 2 — Backup, product polish and navigation ✅
 
-**Done when:** the app feels complete and trustworthy for daily use.
+- versioned JSON backup/restore
+- notebook pin/group support
+- home banner system
+- theme/settings surfaces
+- current Khata transaction-first `Transactions` / `Individuals` information architecture
+- empty/loading/error polish
 
-## Phase 3 — Firebase cloud foundation
-The cloud layer is additive and opt-in. Dexie remains the local operational source of truth.
+Bengali native-speaker review remains a product-quality/human gate where applicable.
 
-### R1–R5 — Identity, schema and deterministic conflict foundation
+## Phase 3 — Firebase cloud foundation ✅ through R15.4A
+
+### R1–R5 — Identity, schema and deterministic sync foundation ✅
+
 - Firebase Authentication with Google
-- Firestore user-owned cloud model and security rules
-- Entity-level mutation queue and tombstones
-- Lamport logical ordering and deterministic conflict resolution
-- Clock-skew-safe ordering semantics
+- Firestore owner namespace and security rules
+- entity-level mutation queue
+- tombstones
+- deterministic logical conflict ordering
+- clock-skew-safe semantics
 
-### R6 — First-account linking architecture
-- Persistent local account-link state
-- Explicit local/cloud reconciliation planner
-- No silent overwrite during first linking
+### R6 — First-account linking architecture ✅
 
-### R7 — Sync UX/reliability foundation
-- Recovery/reset semantics and sync-state foundations
+- persistent account-link state
+- explicit local/cloud reconciliation planner
+- no silent overwrite
 
-### R8–R10 — Local capture and Firestore transport
-- Mutation capture for local CRUD
-- Logical version metadata
-- Firestore journal transport and cursoring
+### R7 — Sync UX/reliability foundation ✅
+
+- status/recovery semantics
+- account-aware sync state
+
+### R8–R10 — Local capture and Firestore transport ✅
+
+- local mutation capture
+- logical version metadata
+- Firestore journal transport/cursoring
 
 ### R11 — End-to-end sync orchestrator ✅
-- Push local mutations
-- Pull remote journal pages
-- Apply winning remote state without re-capture
-- Persist cursor only after safe page application
+
+- push local mutations
+- pull journal pages
+- apply remote winners without re-capture
+- safe cursor advancement
 
 ### R12 — Automatic sync + status UX ✅
-- Sync on linked-account startup, foreground, online return and interval
-- Settings sync status
-- Manual retry/recovery
+
+- startup/foreground/online/interval sync
+- settings status
+- manual recovery
 
 ### R13 — First-account linking + reconciliation UX ✅
-- Inspect local and cloud dataset presence
-- Empty/empty direct link
-- Explicit local-vs-cloud reconciliation choice when data exists
-- Version-aware migration and tombstone-safe linking
+
+- local/cloud presence inspection
+- explicit reconciliation
+- version/tombstone-safe migration
 
 ### R14 — Sharing snapshots ✅
-- Khata-level or individual read-only share snapshots
-- Google-authenticated owner creates/revokes links
-- Viewer access without login
-- Token-scoped Firestore security rules
-- Private owner share references for active-link management
 
-### R15 — Sync production hardening
-#### R15.1 — Corrupt journal quarantine/recovery policy ✅
-- Durable local quarantine for malformed journal rows
-- Safe cursor advancement when `receivedOrder` is trustworthy
-- Cursor hold when ordering metadata is corrupt
-- Explicit separation of corrupt-data handling from transient transport retry
+- Khata/individual read-only snapshots
+- Google-authenticated owner
+- anonymous token viewer
+- revoke
+- private owner share references
 
-#### R15.2 — Retry/backoff + poison-mutation handling ✅
-- Durable exponential retry scheduling
-- Automatic retries only after the backoff window
-- Failed mutation isolation so one poison mutation does not block later mutations
-- Auto-retry cutoff with explicit manual recovery still available
+### R15.1 — Corrupt journal quarantine/recovery ✅
 
-#### R15.3 — Firestore merge semantics + field-retention review ✅
-- Audit canonical entity, journal, order-metadata, and tombstone write semantics
-- Retain `merge:true` only where partial/forward-compatible writes are intentional
-- Document the schema-evolution rule for fields removed or renamed from merged entities
-- Add regression coverage for the intended merge/replacement split
+- durable quarantine for malformed journal rows
+- safe cursor handling around corruption
 
-#### R15.4A — Mobile-safe Google authentication 🚧
-- Use redirect authentication for mobile browsers and installed standalone PWAs
-- Keep popup authentication for normal desktop web
-- Regression coverage for mobile and standalone routing
-- Production-device verification remains a human-operated gate
+### R15.2 — Retry/backoff + poison-mutation handling ✅
 
-#### Remaining R15 work
-- Production Google OAuth/session + share dry-run
-- Operational sync observability and recovery UX
+- durable retry schedule
+- bounded automatic retries
+- failed-mutation isolation
+- manual retry recovery
 
-**Cloud phase done when:** a user can opt into Google/Firebase, safely connect existing local data, use the same Khata across devices, and continue using the app fully offline without data loss or silent overwrites.
+### R15.3 — Firestore merge semantics + field-retention review ✅
 
-## Explicitly not on this roadmap
+- canonical entity merge policy reviewed
+- journal replacement semantics documented
+- schema-evolution rule documented
 
-Anything from the "Explicit non-goals" list in PLANNING.md (charts, budgeting, multi-currency, recurring transactions, collaborative editing/debt-management workflows) stays out unless a future phase is deliberately proposed and scoped with the same rigor as the phases above.
+### R15.4A — Mobile-safe Google authentication ✅
+
+- popup on ordinary desktop web
+- redirect on mobile/standalone PWA
+- regression coverage for routing
+
+## Remaining production gates
+
+### R15.4B / Human production verification — pending
+
+Not a code milestone yet. Requires the real Firebase project, Google account and devices.
+
+Required evidence:
+
+```text
+Google login/session persistence
+account linking + reconciliation
+online/offline sync
+cross-device sync
+whole-Khata sharing
+individual sharing
+anonymous viewer access
+revoke behavior
+mobile + standalone PWA auth
+```
+
+### R15.5 — Operational sync observability/recovery UX — pending
+
+Engineering work to make sync failures, queued mutations, retries, quarantine and recovery more inspectable and actionable in the product.
+
+Start this only after the production human dry-run has supplied real failure/UX observations.
+
+### Final production audit — pending
+
+Whole-repository review covering:
+
+- auth/session behavior
+- Firestore rules and data boundaries
+- sync correctness/recovery
+- sharing security
+- backup/restore safety
+- PWA/offline reliability
+- Bengali/UX correctness
+- deployment/config hygiene
+
+### Release hygiene — pending
+
+- final docs/status alignment
+- environment/config verification
+- dependency/lockfile hygiene when dependencies change
+- branch cleanup
+- final reproducible verification record
+
+## Explicitly out of scope
+
+Unless separately proposed and approved, do not add:
+
+- charts/KPIs
+- budgeting/savings goals
+- multi-currency
+- recurring transactions
+- live collaboration/editing
+- debt-management workflows
+- unrelated Firebase products

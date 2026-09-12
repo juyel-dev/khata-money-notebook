@@ -1,148 +1,215 @@
 # Screens
 
-Every screen, every state. Written so a developer can implement without needing to ask "what happens if...".
-
----
+> Current UI behavior for agents. This describes the implementation target now; old v1 descriptions must not override current code.
 
 ## 1. Home (`/`)
 
-**Purpose:** See all notebooks and their balances at a glance; enter one.
+Purpose: open and manage notebooks.
 
-**Layout (top to bottom):**
-1. Header: app wordmark/logo (small, left) + hamburger menu icon (left of wordmark) — no title text needed, logo is enough
-2. Home banner (auto-swipe carousel, see DESIGN-SYSTEM.md) — only rendered if at least one banner item is configured; otherwise this whole block collapses (no empty placeholder)
-3. Section label: "Your notebooks" (`--text-h2`, dim)
-4. List of Notebook cards (see DESIGN-SYSTEM.md component spec), sorted by most-recently-used
-5. Floating "+ New notebook" as a full-width dashed-border row at the bottom of the list (not a separate FAB — the center bottom-nav Add button is reserved for transactions, not notebooks, to avoid ambiguity)
+Current expectations:
 
-**Empty state (zero notebooks — first launch):**
-- Banner still shows if configured
-- Center of screen: a simple line illustration (open notebook/ledger, flat single-color style matching the accent), heading "Start your first notebook", one line of body text explaining what a notebook is in plain language, single prominent "Create notebook" button
-- No sample/demo data auto-created — an empty first-run confuses no one here, and fake sample rows in a money app are actively bad (risk of a confused user thinking it's real).
+- App header uses the current Khata navigation pattern.
+- Configured home banners may be shown; the banner system is data-driven in `lib/banners.ts`.
+- Notebook cards are the main content.
+- A notebook may be pinned and grouped.
+- New notebook remains a direct action.
 
-**Tap target behavior:**
-- Tap a notebook card → `/notebook/[id]`
-- Long-press a notebook card → inline quick actions (Edit, Archive) via a small popover, not a separate screen
+A blank first-run state must remain simple and must not invent sample financial data.
 
----
+## 2. New / Edit Notebook
 
-## 2. New / Edit Notebook (`/notebook/new`, `/notebook/[id]/edit`)
+Routes:
 
-**Purpose:** Minimal form, single screen, no wizard steps.
+```text
+/notebook/new
+/notebook/[id]/edit
+```
 
-**Fields, in order:**
-1. Notebook name (text input, autofocused, required)
-2. Opening balance (numeric input, ₹ prefix, defaults to 0, optional — most users will start at 0 and let it build from transactions)
-3. Color (row of ~8 fixed swatches, tap to select, one pre-selected by default)
-4. Icon (row of ~8 fixed icons — shop, home, wallet, users, cart, briefcase, piggy bank, generic book — tap to select)
+Notebook form edits the persisted notebook fields supported by the current model: name, opening balance, color, icon, and the existing optional organization fields as applicable to the current UI.
 
-**Actions:** single full-width "Save notebook" pill button, sticky at bottom. Cancel = back navigation (no unsaved-changes warning needed — form is short enough that re-entry is trivial).
+Do not infer new fields from old docs; inspect the form and domain helper before changing it.
 
-**Edit mode differences:** same layout, pre-filled, plus a "Archive this notebook" text link (not a button — de-emphasized, destructive-adjacent) below the Save button.
+## 3. Khata Detail (`/notebook/[id]`)
 
----
+This is the central ledger screen.
 
-## 3. Notebook Detail (`/notebook/[id]`)
+Header:
 
-**Purpose:** The core screen. Balance + who owes what + fast entry.
+- back to Home
+- Khata name
+- pinned indicator when applicable
+- kebab actions
+- Share entry
+- Edit/archive/pin actions according to current UI
 
-**Layout (top to bottom):**
-1. Header: back arrow, notebook name (center or left), overflow menu icon (⋮) top-right → Edit / Archive / Delete
-2. **Balance header band** (see DESIGN-SYSTEM.md): current balance, large, center. Small caption beneath: "Opening balance ₹X · Updated [relative time]"
-3. Section label: "People" with a small search/filter icon if the person list exceeds ~8 (inline search, not a separate screen)
-4. List of Person rows (see DESIGN-SYSTEM.md), sorted by most recent transaction first
-5. Sticky bottom area (above bottom nav): the two large **Gave / Got** pill buttons, side by side
+Balance header shows the derived notebook balance.
 
-**Empty state (notebook created, zero people/transactions yet):**
-- Balance header still shows (equals opening balance)
-- Where the person list would be: short line "No entries yet — tap Gave or Got below to add your first one" pointing visually toward the buttons beneath
-- Gave/Got buttons still fully present and functional (this is the entry point, must never be hidden behind an empty state)
+### Tabs
 
-**Tap target behavior:**
-- Tap a person row → `/notebook/[id]/person/[pid]`
-- Tap Gave or Got → opens Transaction Entry Sheet (see section 6) with that type pre-selected and (if opened from a person row's quick-add, not applicable here) no person pre-filled — person is chosen inside the sheet
+The page contains two tabs:
 
----
+```text
+Transactions  ← DEFAULT
+Individuals
+```
 
-## 4. Person Detail (`/notebook/[id]/person/[pid]`)
+The transaction tab is the default because the ledger itself is the source-of-truth view.
 
-**Purpose:** Full history with one person, and their net standing.
+### Transactions tab
 
-**Layout (top to bottom):**
-1. Header: back arrow, person's name, overflow menu (Edit name, Delete person — only enabled if they have zero transactions, otherwise disabled with a short explanatory tooltip/toast)
-2. Net balance band (smaller version of the notebook balance header): "Owes you ₹X" / "You owe ₹X" / "Settled", plus two smaller stat lines beneath: "Total given: ₹X" and "Total taken: ₹X"
-3. Chronological list of Transaction rows (newest first) for this person only, each showing type icon, note (if any), date+time, amount
-4. Sticky bottom: same Gave/Got buttons as notebook detail, but here the person is pre-filled in the resulting sheet (since context is already this person)
+- Shows all transactions in the notebook.
+- Groups rows by day.
+- Newest-first ordering is the normal scan order.
+- Each row resolves the person's name from the notebook people map.
+- Empty state explains that the first transaction can be added below.
 
-**Empty state:** cannot exist as a standalone empty state — a person only exists in the data model once they have at least one transaction (see NAVIGATION.md: people are added inline during transaction entry, not via a separate "add person" flow).
+### Individuals tab
 
-**Transaction row interactions:** tap a row → opens Transaction Entry Sheet pre-filled in edit mode; swipe left → reveals Delete (with the 5s undo toast, no confirm dialog, per DATA-MODEL.md).
+- Derived from the notebook's transaction data and people data.
+- Shows people who participate in transactions.
+- Person cards are not a second accounting source.
+- Do not turn these cards into debt-summary tiles or add `মোট দিলাম` / `মোট নিলাম` totals as a new primary pattern.
 
----
+### Entry actions
+
+Fixed bottom actions:
+
+```text
+দিলাম / Gave
+নিলাম / Got
+```
+
+They open the transaction entry sheet. The selected type is pre-filled from the button.
+
+## 4. Person Detail (`/notebook/[id]/person/[personId]`)
+
+Purpose: inspect one person's transaction history.
+
+The page is a filtered history view for that person. It must not become the default Khata view or a new debt-management dashboard.
+
+Transaction rows remain editable/deletable through the existing transaction flow.
+
+Any summary shown must follow the current implementation; do not reintroduce old `Owes you / You owe / Settled` copy merely because it appears in historical documentation.
 
 ## 5. History (`/history`)
 
-**Purpose:** Everything, everywhere, chronologically — for when the user remembers "when" before they remember "which notebook" or "who."
+Purpose: cross-notebook chronological transaction history.
 
-**Layout:**
-1. Header: "History" title, filter icon top-right
-2. Filter row (collapsed by default, expands on tap): notebook multi-select chips, date range, type (gave/got/both)
-3. Chronological list of Transaction rows across all (non-archived) notebooks, each row additionally showing a small notebook-color dot + notebook name and person name (since context isn't implicit here like it is in Person Detail)
-4. Grouped by day with sticky date headers ("Today", "Yesterday", then actual dates) — critical for scanability in a long list
+The page aggregates transactions across notebooks and provides the current filtering/scan experience implemented in the repository.
 
-**Empty state:** "No transactions yet" with a short line pointing users back to a notebook via the bottom nav Home item.
+Do not infer filters or routes from older screen specs; inspect `app/(main)/history/page.tsx` before extending the screen.
 
----
+## 6. Transaction Entry Sheet
 
-## 6. Transaction Entry Sheet (bottom sheet, invoked from multiple places — not a route)
+This remains a bottom sheet, not a route.
 
-**Purpose:** The single highest-frequency screen in the app. Must be fast.
+The sheet is shared by add/edit flows.
 
-**Fields, in order, in one continuous sheet (no multi-step/wizard):**
-1. **Type toggle** at top: Gave / Got segmented control, pre-selected based on entry point (or defaults to "Got" if opened from the neutral center Add nav button, since receiving is marginally more common in most small-cash businesses — confirm with user, easy to flip default)
-2. **Amount** — large numeric field, ₹ prefix, numeric keyboard auto-opens, autofocused
-3. **Person** — searchable combobox of existing people in this notebook; typing a name not in the list shows an inline "Add '[name]' as new person" option directly in the results, no separate screen/modal
-4. **Date & time** — defaults to "now", shown as a single tappable row ("Today, 4:32 PM") that opens the native date/time picker on tap
-5. **Note** — single-line text input, optional, placeholder text like "What was this for? (optional)"
+Core fields:
 
-**Primary action:** full-width "Save" pill button, sticky at the bottom of the sheet, disabled until Amount + Person are both filled.
+- type (`gave` or `got`)
+- amount
+- person
+- date/time
+- optional note
 
-**On save:** sheet closes with a downward slide, balance header (wherever visible beneath it) does the brief pulse animation from DESIGN-SYSTEM.md, and a small non-blocking toast confirms ("Saved — ₹500 to Rahim").
+Person selection is part of the transaction flow; people are not a separate global-management screen.
 
-**Edit mode:** identical layout, pre-filled, "Save" becomes "Update", plus a "Delete" text link at the bottom (triggers the 5s-undo delete flow, sheet closes immediately on tap).
+Save/update writes to Dexie first. When cloud-linked, the corresponding mutation is captured for sync.
 
----
+The sheet must remain fast, touch-friendly and usable offline.
 
 ## 7. Settings (`/settings`)
 
-Plain list of rows, grouped:
+Settings is the app-wide control surface.
 
-**Preferences**
-- Language (English / বাংলা)
-- Theme (Light / Dark / System)
+Current areas include language/theme/data/archived content and the account + cloud sync experience added by the Firebase phases.
 
-**Data**
-- Backup & Restore →
-- Archived Notebooks →
-
-**About**
-- About Khata
-- Share this app
-- Help
-
-No account/login section in v1 (see PLANNING.md non-goals) — this section is added in Phase 2 per ROADMAP.md, appearing here as a new "Account & Sync" group, not replacing anything.
-
----
+When changing Settings, inspect the current page and connected components rather than restoring the old Phase-1 “no account” structure.
 
 ## 8. Backup & Restore (`/settings/backup`)
 
-- "Export backup" — single button, triggers JSON file generation + native share/download sheet, with a small "Last backup: [date]" line if one has been done before (tracked locally)
-- "Import backup" — single button, opens native file picker, on selecting a valid file shows a plain-language warning ("This will add data from the backup file. Existing data won't be deleted.") before confirming — explicit here because it's the one genuinely risky action in the whole app around data integrity
+Current backup format:
 
----
+```text
+khata-backup / version 2
+```
 
-## Global patterns used across screens
+Export includes notebooks, groups, people and transactions.
 
-- **Loading state:** skeleton rows (matching the shape of Notebook/Person/Transaction rows), never a spinner-only blank screen — this is a local-first app so loads should be near-instant, but skeletons prevent flash-of-empty on slower devices.
-- **Toasts:** used for confirmations (saved, deleted+undo, link copied), never for errors that need action — those get inline messaging instead.
-- **Currency formatting:** every amount, everywhere, via the shared `lib/money.ts` formatter — no ad-hoc `₹${amount}` string concatenation anywhere in screen code.
+Import is validated before mutation. Restore uses replacement semantics inside one Dexie transaction.
+
+Do not describe backup as cloud sync. It remains a portable user-controlled file.
+
+## 9. Archived Notebooks (`/settings/archived`)
+
+Purpose: recover or permanently remove archived notebooks according to the current destructive-action flow.
+
+Archival is not a sync deletion shortcut; cloud-linked deletes/archives follow the corresponding domain mutation semantics.
+
+## 10. About (`/about`)
+
+Static app information and app-sharing surfaces. Keep copy aligned with the current product vocabulary.
+
+## 11. Public Share (`/share/[token]`)
+
+Public, read-only snapshot viewer.
+
+Viewer does not need to sign in.
+
+The page reads a single bearer-token share and renders only its snapshot payload. It must never fall back to private `/users/{uid}` data.
+
+The viewer should gracefully treat these cases as inaccessible:
+
+- missing share
+- inactive share
+- expired share
+- malformed snapshot
+- invalid individual snapshot boundary
+
+## 12. Account / cloud sync UI
+
+Account is not a replacement for local use.
+
+The current flow is:
+
+```text
+signed out local use
+        ↓
+Google sign-in
+        ↓
+Set up cloud sync
+        ↓
+first-link inspection
+        ↓
+link-only OR explicit reconciliation
+        ↓
+linked + normal sync
+```
+
+When linked, Settings exposes sync state and manual recovery/sync actions.
+
+A cloud failure must not erase or disable the user's local ledger.
+
+## Global UI rules
+
+- Persisted data comes from Dexie/cloud domain code, not ad-hoc component state.
+- Amount formatting uses the shared money formatter.
+- Bengali copy is a first-class layout constraint.
+- Do not add debt-management wording.
+- Do not introduce dashboard/KPI cards.
+- Error states should help the user recover rather than only show a generic toast.
+- Destructive operations require the current established guard/undo pattern.
+
+## Agent rule
+
+Before changing a screen, inspect:
+
+```text
+route/page.tsx
+relevant feature components
+relevant lib/db or lib/firebase helpers
+associated tests
+```
+
+Then update the focused docs if the intended screen contract has actually changed.

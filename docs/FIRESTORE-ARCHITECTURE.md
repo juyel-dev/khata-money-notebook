@@ -1,39 +1,123 @@
-# Firebase + Firestore foundation
+# Firestore Architecture
 
-Khata remains local-first. Dexie stays the operational local database; Firebase is the durable cloud boundary for the future sync engine and read-only sharing.
+> Current Firestore data, transport and authorization model.
 
-## Firestore ownership model
+## Purpose
 
-Application data is namespaced below the authenticated Google account UID:
+Firestore is the durable cloud boundary for Firebase identity, synchronization and read-only share snapshots.
+
+It is not the local operational database. Dexie remains the app's offline/local data layer.
+
+## Owner namespace
+
+Canonical ledger entities are stored under the Firebase UID:
 
 ```text
-users/{uid}
 users/{uid}/notebooks/{notebookId}
 users/{uid}/groups/{groupId}
 users/{uid}/people/{personId}
 users/{uid}/transactions/{transactionId}
 ```
 
-The local Dexie entity IDs are reused as Firestore document IDs. This keeps identity stable across local/cloud reconciliation and avoids a second mapping table.
+Local ids are reused as Firestore document ids so reconciliation does not require a second identity-mapping table.
 
-The cloud document shapes intentionally track the local entities in `lib/db/schema.ts`:
-
-- `Notebook` → `CloudNotebook`
-- `NotebookGroup` → `CloudNotebookGroup`
-- `Person` → `CloudPerson`
-- `Transaction` → `CloudTransaction`
-- `CloudUserProfile` holds Firebase account metadata needed by later account/sync work.
-
-`lib/firebase/firestoreSchema.ts` contains types and path helpers only. R3 does not perform Firestore reads/writes and does not change local data behavior.
+Supporting sync metadata/journal/tombstone paths are defined by the current Firestore schema/transport helpers. Before adding a path, read `lib/firebase/firestoreSchema.ts` and `lib/firebase/firestoreSync.ts`.
 
 ## Security boundary
 
-`firestore.rules` currently allows read/write only when the authenticated Firebase UID matches the `{uid}` namespace. Unauthenticated users cannot access application cloud data.
+`firestore.rules` is UID-owner based for private data.
 
-This is deliberately an owner-only foundation. Public snapshot tokens, viewer access, revoke semantics, and any share-specific rules are introduced later in the sharing phases rather than weakening the owner boundary now.
+Anonymous users cannot read `/users/{uid}/...`.
 
-Before production cloud sync ships, the rules should be tightened with document-shape/integrity validation and exercised against the Firebase Rules Emulator or an equivalent automated rules test setup.
+An authenticated user cannot read/write another user's owner namespace.
 
-## Firebase setup
+Public sharing is isolated under `/shares/{token}`.
 
-Enable Google sign-in in Firebase Authentication and create the Firestore database for the same Firebase project. Keep the existing `NEXT_PUBLIC_FIREBASE_*` environment configuration local to the deployment environment.
+## Public share namespace
+
+```text
+shares/{token}
+shares/{token}/notebooks/{documentId}
+shares/{token}/people/{documentId}
+shares/{token}/transactions/{documentId}
+```
+
+The root record includes:
+
+```text
+token
+ownerUid
+scope: khata | individual
+notebookId
+personId? 
+title
+createdAt
+expiresAt
+active
+schemaVersion
+```
+
+The token is the bearer authority for anonymous reads. The public `/shares` collection cannot be listed.
+
+## Share access rules
+
+Public viewer:
+
+- may `get` an active, unexpired share root by exact token
+- may read its snapshot child documents while the share is active/unexpired
+- may not list the share collection
+- may not write share metadata or snapshot data
+
+Share owner:
+
+- must be authenticated
+- can manage their own share root/reference and snapshot children
+
+The repository-root `firestore.rules` is the authoritative implementation.
+
+## Publication model
+
+Share creation is intentionally staged:
+
+```text
+create inactive public root
+create inactive owner reference
+write notebook snapshot
+write people snapshot
+write transaction snapshot
+activate public root + owner reference
+```
+
+This prevents partially written snapshot data from becoming publicly readable during creation.
+
+## Sync writes
+
+Canonical entities use `merge:true` so an older client does not erase fields introduced by a newer client.
+
+This means omission is not deletion. Schema field removal/rename requires an explicit migration/write strategy.
+
+Journal records use replacement semantics. Delete operations use tombstones/version records so stale upserts cannot resurrect newer deletes.
+
+## Query/index discipline
+
+Firestore indexes must reflect real application queries. Do not create speculative composite indexes simply because the database supports them.
+
+Current public share reading is token-scoped and then reads child collections under the token; it is not a global collection query.
+
+## Production security checks
+
+Before considering the backend ready, verify:
+
+```text
+anonymous -> /users/*             DENY
+other UID -> /users/owner/*      DENY
+anonymous -> /shares/token       ALLOW only while active/unexpired
+anonymous -> list /shares        DENY
+anonymous -> revoked share       DENY
+anonymous -> expired share       DENY
+viewer -> write share             DENY
+owner -> own share                ALLOW
+non-owner -> other's share write DENY
+```
+
+Use emulator/rules testing when available and real production dry-run for deployed configuration.

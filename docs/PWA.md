@@ -1,52 +1,72 @@
 # PWA & Offline Strategy
 
+> Current PWA contract. Cloud sync is additive; it must never become the only way to use the ledger.
+
 ## Core promise
 
-The app must be **fully usable with zero network connection**, indefinitely, after the first successful load — including creating notebooks, adding transactions, viewing all history and balances. This is not a "nice to have" offline fallback; it is the primary operating mode, since the target user is a shopkeeper who may have unreliable connectivity and needs this to work exactly like a paper notebook always does.
+After a successful initial load, the core ledger should remain usable without network access:
 
-## Why this is achievable simply
+- open notebooks
+- inspect balances
+- view transactions
+- add/edit/delete local transactions
+- use local backup/restore
 
-Per ARCHITECTURE.md, there is no server-side data dependency in v1 — all reads/writes are local IndexedDB via Dexie. This means "offline support" is mostly just "cache the app shell," not "build a sync-conflict-resolution system." That complexity is deliberately deferred to Phase 2 (see ROADMAP.md) when Supabase sync is added.
+The service worker provides the app shell; Dexie provides data persistence.
 
-## Service worker (Serwist)
+## Service worker
 
-- **Precache:** the full app shell — JS/CSS bundles, fonts (Inter + Noto Sans Bengali, self-hosted, not loaded from Google Fonts CDN at runtime — critical for true offline use), icons, manifest.
-- **Runtime caching:** none required for core functionality in v1, since there are no external API calls on the critical path. If the home banner (DESIGN-SYSTEM.md) links to external content, that's an outbound tap action, not a fetch the app depends on.
-- **Update strategy:** standard "new service worker waits, prompts user to refresh" pattern — a small, dismissible "Update available" toast, never a forced reload (never interrupt someone mid-transaction-entry).
+Inspect the actual `public/sw.js` and build/runtime configuration before modifying caching behavior. Do not assume a library-based Serwist/Workbox setup from historical docs.
 
-## Manifest
+The service worker must not cache sensitive per-user Firestore data as a substitute for the application database.
 
-```json
-{
-  "name": "Khata — Simple Money Notebook",
-  "short_name": "Khata",
-  "description": "A simple offline money notebook for daily gave/took cash tracking.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#FBF7EF",
-  "theme_color": "#2F6B4F",
-  "orientation": "portrait",
-  "icons": [ /* 192, 512, and maskable variants, matching the accent-green mark */ ]
-}
+## Firebase interaction
+
+Cloud operations are intentionally network-dependent and optional:
+
+```text
+local ledger → Dexie
+cloud sync   → Firestore when linked + online
 ```
 
-- `display: standalone` — no browser chrome once installed, reinforces "this is an app, not a website" for a non-technical user.
-- `theme_color` matches `--color-accent` from DESIGN-SYSTEM.md so the OS status bar / task switcher tab matches the brand.
-- Portrait-locked orientation — this is a one-handed phone tool, no meaningful landscape layout needed in v1.
+A failed/offline Firebase request must not erase or block local ledger writes.
 
-## Install prompt
+## Install
 
-- No aggressive custom "Install our app!" banner/modal on first visit. Install lives in two quiet spots: a compact pill in the home header and a full-width button in the hamburger drawer (`components/pwa/PWAInstallButton.tsx`, state via `lib/useInstallPrompt.tsx`). Both hide automatically once the app runs in standalone mode.
-- Clicking Install triggers the browser's native `beforeinstallprompt` flow and shows a brief "Installed" confirmation on accept.
-- On iOS Safari (no native beforeinstallprompt event), the button opens a bottom-sheet guide with plain-language Share → Add to Home Screen steps (EN + BN via the `install` i18n namespace), since this flow is genuinely non-obvious for the target user.
+The app is intended to run as a standalone PWA. Installed standalone mode is also relevant to Firebase auth: the current auth implementation selects redirect auth for standalone/mobile contexts.
 
-## Data persistence safety
+## Storage safety
 
-- Request `navigator.storage.persist()` on first launch (silently — no user-facing permission dialog needed for this specific API on most browsers) to reduce the risk of the browser evicting IndexedDB data under storage pressure. This directly protects the user's financial records.
-- Combined with the manual JSON export/import in DATA-MODEL.md as a user-controlled belt-and-suspenders backup, independent of browser storage guarantees.
+Local storage persistence is a financial-record safety concern. Preserve any existing storage-persistence behavior and do not add an automatic data-clearing flow.
 
-## Testing checklist for "done"
+Manual JSON backup remains an independent recovery mechanism.
 
-- Fresh install, then airplane mode: create a notebook, add 3 transactions, close and reopen the app — all data intact, balances correct.
-- Force-refresh with an intentionally broken network mid-load — app shell still renders from cache, no blank white screen.
-- Verify service worker update flow doesn't wipe an in-progress (unsaved) transaction sheet.
+## Pull-down / reload safety
+
+On mobile, a downward sheet gesture must not accidentally cause a browser/page reload. When changing sheet/scroll behavior, verify the interaction boundary carefully because this is a real PWA usability requirement.
+
+## Offline test contract
+
+Minimum regression scenario:
+
+```text
+load once
+→ go offline
+→ create notebook
+→ add transactions
+→ close/reopen app
+→ verify data and derived balance
+→ reconnect
+→ if linked, allow sync
+→ verify cloud/cross-device state
+```
+
+Do not describe cloud sync as the offline mechanism. Local Dexie persistence is the offline mechanism.
+
+## Agent rules
+
+- Keep service-worker scope narrow.
+- Do not cache credentials or private cloud snapshots globally.
+- Do not make offline local CRUD depend on network calls.
+- Do not introduce forced reloads during active transaction entry.
+- When changing install/auth behavior, test both normal browser and standalone PWA paths.
