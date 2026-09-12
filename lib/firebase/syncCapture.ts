@@ -55,7 +55,7 @@ async function setCapturedVersion(
   }
 }
 
-async function captureAndRecordUpsert(
+export async function captureAndRecordUpsert(
   entity: SyncEntityType,
   payload: SyncEntityPayload,
   changedAt: number,
