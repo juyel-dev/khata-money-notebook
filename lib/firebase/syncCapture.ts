@@ -31,8 +31,7 @@ async function captureUpsert(
   payload: SyncEntityPayload,
   changedAt: number,
 ): Promise<string> {
-  const id = await captureMutation(entity, payload.id, "upsert", payload, changedAt);
-  return id;
+  return captureMutation(entity, payload.id, "upsert", payload, changedAt);
 }
 
 async function captureDelete(
@@ -62,8 +61,6 @@ async function captureAndRecordUpsert(
   changedAt: number,
 ): Promise<string> {
   const id = await captureUpsert(entity, payload, changedAt);
-  // enqueueMutation owns the definitive deviceId/sequence. Re-read it so the durable
-  // local entity version exactly matches the queued mutation when capture succeeds.
   if (id) {
     const { syncDb } = await import("./syncDb");
     const mutation = await syncDb.syncMutations.get(id);
@@ -105,4 +102,4 @@ export async function captureTransaction(
   return captureAndRecordUpsert("transaction", transaction, changedAt);
 }
 
-export { captureDelete };
+export { captureAndRecordDelete as captureDelete };
