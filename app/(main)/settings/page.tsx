@@ -21,6 +21,7 @@ import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { shareApp } from "@/lib/shareApp";
 import { AccountCard } from "@/components/account/AccountCard";
+import { SyncStatusCard } from "@/components/sync/SyncStatusCard";
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
@@ -65,6 +66,8 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+
+        {user && <SyncStatusCard />}
 
         <div>
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-dim">

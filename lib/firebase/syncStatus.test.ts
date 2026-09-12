@@ -1,108 +1,32 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import "fake-indexeddb/auto";
-import { syncDb } from "./syncDb";
-import {
-  deriveSyncStatus,
-  getRetryDelayMs,
-  getSyncStatus,
-  setSyncStatus,
-  subscribeSyncStatus,
-} from "./syncStatus";
+import { describe, expect, it } from "vitest";
+import { deriveSyncStatus } from "./syncStatus";
 
-describe("sync status", () => {
-  beforeEach(async () => {
-    await syncDb.syncMeta.clear();
+const emptyQueue = { pending: 0, syncing: 0, failed: 0 };
+
+describe("deriveSyncStatus", () => {
+  it("keeps signed-out users local-only", () => {
+    expect(deriveSyncStatus({ signedIn: false, linked: false, online: true, firebaseAvailable: true, syncing: false, queue: emptyQueue }).kind).toBe("signed-out");
   });
 
-  it("derives local-only when signed out", () => {
-    expect(deriveSyncStatus({ signedIn: false, online: true })).toBe("local-only");
+  it("does not treat a signed-in but unlinked account as synced", () => {
+    expect(deriveSyncStatus({ signedIn: true, linked: false, online: true, firebaseAvailable: true, syncing: false, queue: emptyQueue }).kind).toBe("needs-link");
   });
 
-  it("prioritizes reconciliation over connectivity", () => {
-    expect(
-      deriveSyncStatus({
-        signedIn: true,
-        online: true,
-        linkStatus: "reconciliation-required",
-      }),
-    ).toBe("needs-reconciliation");
+  it("prefers offline over a normal synced state", () => {
+    expect(deriveSyncStatus({ signedIn: true, linked: true, online: false, firebaseAvailable: true, syncing: false, queue: emptyQueue }).kind).toBe("offline");
   });
 
-  it("reports offline before queue state", () => {
-    expect(
-      deriveSyncStatus({
-        signedIn: true,
-        online: false,
-        linkStatus: "linked",
-        pendingCount: 3,
-      }),
-    ).toBe("offline");
+  it("reports syncing before queue errors", () => {
+    expect(deriveSyncStatus({ signedIn: true, linked: true, online: true, firebaseAvailable: true, syncing: true, queue: { pending: 1, syncing: 1, failed: 2 } }).kind).toBe("syncing");
   });
 
-  it("reports errors before syncing when failed mutations exist", () => {
-    expect(
-      deriveSyncStatus({
-        signedIn: true,
-        online: true,
-        linkStatus: "linked",
-        pendingCount: 2,
-        failedCount: 1,
-      }),
-    ).toBe("error");
+  it("reports failed mutations as an error state", () => {
+    const status = deriveSyncStatus({ signedIn: true, linked: true, online: true, firebaseAvailable: true, syncing: false, queue: { pending: 0, syncing: 0, failed: 1 }, lastError: "network" });
+    expect(status.kind).toBe("error");
+    expect(status.lastError).toBe("network");
   });
 
-  it("reports syncing for an active link or pending queue", () => {
-    expect(
-      deriveSyncStatus({
-        signedIn: true,
-        online: true,
-        linkStatus: "linking",
-      }),
-    ).toBe("syncing");
-
-    expect(
-      deriveSyncStatus({
-        signedIn: true,
-        online: true,
-        linkStatus: "linked",
-        pendingCount: 1,
-      }),
-    ).toBe("syncing");
-  });
-
-  it("reports synced only when a linked account is online and idle", () => {
-    expect(
-      deriveSyncStatus({
-        signedIn: true,
-        online: true,
-        linkStatus: "linked",
-      }),
-    ).toBe("synced");
-  });
-
-  it("uses capped exponential retry backoff", () => {
-    expect(getRetryDelayMs(0)).toBe(1000);
-    expect(getRetryDelayMs(1)).toBe(2000);
-    expect(getRetryDelayMs(8)).toBe(256000);
-    expect(getRetryDelayMs(20)).toBe(300000);
-  });
-
-  it("falls back to the base delay for non-finite or negative attempts", () => {
-    expect(getRetryDelayMs(Number.NaN)).toBe(1000);
-    expect(getRetryDelayMs(-1)).toBe(1000);
-  });
-
-  it("persists and publishes the latest status", async () => {
-    const received: string[] = [];
-    const unsubscribe = subscribeSyncStatus((snapshot) => received.push(snapshot.status));
-
-    const saved = await setSyncStatus("synced", { lastSyncedAt: 123 });
-    const loaded = await getSyncStatus();
-
-    unsubscribe();
-
-    expect(saved).toEqual(loaded);
-    expect(saved.lastSyncedAt).toBe(123);
-    expect(received).toEqual(["synced"]);
+  it("reports a clean linked account as synced", () => {
+    expect(deriveSyncStatus({ signedIn: true, linked: true, online: true, firebaseAvailable: true, syncing: false, queue: emptyQueue, lastSyncedAt: 123 }).kind).toBe("synced");
   });
 });

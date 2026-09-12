@@ -6,18 +6,10 @@ import { ThemeProvider } from "@/lib/theme";
 import { InstallPromptProvider } from "@/lib/useInstallPrompt";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { AuthProvider } from "@/lib/firebase/AuthProvider";
+import { SyncProvider } from "@/components/sync/SyncProvider";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const notoBengali = Noto_Sans_Bengali({
-  variable: "--font-noto-bengali",
-  subsets: ["bengali"],
-  display: "swap",
-});
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
+const notoBengali = Noto_Sans_Bengali({ variable: "--font-noto-bengali", subsets: ["bengali"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "Khata — Simple Money Notebook",
@@ -30,11 +22,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Khata",
-  },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Khata" },
 };
 
 export const viewport: Viewport = {
@@ -45,10 +33,6 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// Runs before hydration so the correct theme class is on <html> at first
-// paint — without this, a dark-mode user would see a flash of the light
-// theme every load, since the real ThemeProvider can only read
-// localStorage after mount.
 const THEME_INIT_SCRIPT = `
 (function () {
   try {
@@ -62,14 +46,14 @@ const THEME_INIT_SCRIPT = `
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} /></head>
       <body className={`${inter.variable} ${notoBengali.variable} antialiased`}>
         <ThemeProvider>
           <I18nProvider>
             <InstallPromptProvider>
-              <AuthProvider>{children}</AuthProvider>
+              <AuthProvider>
+                <SyncProvider>{children}</SyncProvider>
+              </AuthProvider>
             </InstallPromptProvider>
           </I18nProvider>
         </ThemeProvider>

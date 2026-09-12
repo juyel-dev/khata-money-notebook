@@ -8,6 +8,7 @@ import {
   markMutationPending,
   markMutationSyncing,
   removeMutation,
+  retryFailedMutations,
 } from "./syncQueue";
 
 describe("sync queue", () => {
@@ -63,6 +64,12 @@ describe("sync queue", () => {
     await markMutationPending(id);
     expect((await syncDb.syncMutations.get(id))?.status).toBe("pending");
     expect((await syncDb.syncMutations.get(id))?.lastError).toBeUndefined();
+
+    await markMutationSyncing(id);
+    await markMutationFailed(id, "offline again");
+    expect(await retryFailedMutations()).toBe(1);
+    expect((await syncDb.syncMutations.get(id))?.status).toBe("pending");
+    expect((await syncDb.syncMutations.get(id))?.attempts).toBe(2);
   });
 
   it("removes a completed mutation", async () => {
