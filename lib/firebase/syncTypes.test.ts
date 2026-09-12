@@ -16,18 +16,24 @@ describe("sync types", () => {
     expect(isSyncOperation("merge")).toBe(false);
   });
 
-  it("orders equal timestamps deterministically by device and sequence", () => {
+  it("orders by logical sequence before device and wall-clock metadata", () => {
     expect(
       compareSyncVersions(
         { changedAt: 100, deviceId: "b", sequence: 1 },
         { changedAt: 100, deviceId: "a", sequence: 99 },
       ),
+    ).toBeLessThan(0);
+    expect(
+      compareSyncVersions(
+        { changedAt: 100, deviceId: "b", sequence: 2 },
+        { changedAt: 100, deviceId: "a", sequence: 2 },
+      ),
     ).toBeGreaterThan(0);
     expect(
       compareSyncVersions(
         { changedAt: 100, deviceId: "a", sequence: 2 },
-        { changedAt: 100, deviceId: "a", sequence: 1 },
+        { changedAt: 101, deviceId: "a", sequence: 2 },
       ),
-    ).toBeGreaterThan(0);
+    ).toBeLessThan(0);
   });
 });
