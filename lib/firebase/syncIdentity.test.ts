@@ -27,10 +27,11 @@ describe("sync identity", () => {
     expect(await nextLogicalClock()).toBe(52);
   });
 
-  it("ignores an older remote sequence while still advancing on receive", async () => {
-    expect(await nextLogicalClock()).toBe(10);
-    expect(await observeLogicalClock(4)).toBe(11);
-    expect(await nextLogicalClock()).toBe(12);
+  it("keeps a local clock ahead when the observed remote sequence is older", async () => {
+    expect(await nextLogicalClock()).toBe(1);
+    expect(await nextLogicalClock()).toBe(2);
+    expect(await observeLogicalClock(1)).toBe(3);
+    expect(await nextLogicalClock()).toBe(4);
   });
 
   it("rejects invalid remote sequences", async () => {
