@@ -14,6 +14,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
   const [snapshot, setSnapshot] = useState<ShareSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Mark unavailable Firebase setup as finished loading immediately. */
   useEffect(() => {
     let cancelled = false;
     const services = getFirebaseServices();
@@ -35,6 +36,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
       cancelled = true;
     };
   }, [token]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const grouped = useMemo(
     () => groupByDay(snapshot?.transactions ?? [], (timestamp) => dayLabel(timestamp, t, locale)),
