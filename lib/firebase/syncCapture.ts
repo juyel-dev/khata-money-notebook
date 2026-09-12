@@ -72,7 +72,7 @@ async function captureAndRecordUpsert(
 async function captureAndRecordDelete(
   entity: SyncEntityType,
   entityId: string,
-  changedAt: number,
+  changedAt = Date.now(),
 ): Promise<string> {
   const id = await captureDelete(entity, entityId, changedAt);
   if (id) {
