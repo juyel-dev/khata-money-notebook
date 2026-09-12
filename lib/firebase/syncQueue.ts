@@ -1,5 +1,6 @@
 import { syncDb } from "./syncDb";
 import { getDeviceId, nextLogicalClock } from "./syncIdentity";
+import { getRetryDelayMs } from "./syncStatus";
 import { compareSyncVersions, createMutationId, type SyncEntityPayload, type SyncEntityType, type SyncMutation, type SyncOperation, type SyncVersion } from "./syncTypes";
 
 export interface EnqueueMutationInput {
@@ -9,6 +10,8 @@ export interface EnqueueMutationInput {
   payload?: SyncEntityPayload;
   changedAt: number;
 }
+
+export const MAX_AUTO_RETRY_ATTEMPTS = 8;
 
 export async function enqueueMutation(input: EnqueueMutationInput): Promise<string> {
   const version: SyncVersion = {
@@ -40,6 +43,24 @@ export async function getPendingMutations(limit = 50): Promise<SyncMutation[]> {
     .slice(0, limit);
 }
 
+export async function getRetryableFailedMutations(
+  now = Date.now(),
+  limit = 50,
+): Promise<SyncMutation[]> {
+  const mutations = await syncDb.syncMutations
+    .where("status")
+    .equals("failed")
+    .toArray();
+
+  return mutations
+    .filter((mutation) =>
+      mutation.attempts < MAX_AUTO_RETRY_ATTEMPTS &&
+      (mutation.nextRetryAt === undefined || mutation.nextRetryAt <= now),
+    )
+    .sort((left, right) => compareSyncVersions(left.version, right.version))
+    .slice(0, limit);
+}
+
 export async function resetStaleSyncingMutations(): Promise<number> {
   const mutations = await syncDb.syncMutations
     .where("status")
@@ -62,15 +83,22 @@ export async function markMutationSyncing(id: string): Promise<void> {
 export async function markMutationFailed(id: string, lastError: string): Promise<void> {
   const mutation = await syncDb.syncMutations.get(id);
   if (!mutation) return;
+
+  const attempts = mutation.attempts + 1;
   await syncDb.syncMutations.update(id, {
     status: "failed",
-    attempts: mutation.attempts + 1,
+    attempts,
     lastError,
+    nextRetryAt: Date.now() + getRetryDelayMs(attempts),
   });
 }
 
 export async function markMutationPending(id: string): Promise<void> {
-  await syncDb.syncMutations.update(id, { status: "pending", lastError: undefined });
+  await syncDb.syncMutations.update(id, {
+    status: "pending",
+    lastError: undefined,
+    nextRetryAt: undefined,
+  });
 }
 
 export async function retryFailedMutations(): Promise<number> {
@@ -84,6 +112,7 @@ export async function retryFailedMutations(): Promise<number> {
       syncDb.syncMutations.update(mutation.id, {
         status: "pending",
         lastError: undefined,
+        nextRetryAt: undefined,
       }),
     ),
   );
