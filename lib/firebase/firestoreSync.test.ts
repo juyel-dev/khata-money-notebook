@@ -41,76 +41,99 @@ describe("Firestore sync transport", () => {
     expect(isCursorComplete(null, { receivedOrder: 12 })).toBe(false);
   });
 
-  it("records every mutation but only materializes the winning version", async () => {
+  function setupTransaction({
+    entityVersion,
+    tombstoneVersion,
+    journalExists = false,
+    order = 7,
+  }: {
+    entityVersion?: { changedAt: number; deviceId: string; sequence: number };
+    tombstoneVersion?: { changedAt: number; deviceId: string; sequence: number };
+    journalExists?: boolean;
+    order?: number;
+  }) {
     const writes: Array<{ kind: string; path: string; data?: unknown }> = [];
-    const journalExists = { exists: () => false };
-    const entityExists = {
-      exists: () => true,
-      data: () => ({ version: { changedAt: 999, deviceId: "device-b", sequence: 20 } }),
-    };
-    const tombstoneExists = { exists: () => false };
-    const orderSnapshot = { data: () => ({ value: 7 }) };
-
     const transaction = {
       get: vi.fn(async (ref: { path: string }) => {
-        if (ref.path.includes("_syncMutations")) return journalExists;
-        if (ref.path.includes("_syncTombstones")) return tombstoneExists;
-        if (ref.path.includes("_syncMeta")) return orderSnapshot;
-        return entityExists;
+        if (ref.path.includes("_syncMutations")) {
+          return { exists: () => journalExists };
+        }
+        if (ref.path.includes("_syncTombstones")) {
+          return { exists: () => Boolean(tombstoneVersion), data: () => ({ version: tombstoneVersion }) };
+        }
+        if (ref.path.includes("_syncMeta")) {
+          return { data: () => ({ value: order }) };
+        }
+        return { exists: () => Boolean(entityVersion), data: () => ({ version: entityVersion }) };
       }),
       set: vi.fn((ref: { path: string }, data: unknown) => writes.push({ kind: "set", path: ref.path, data })),
       delete: vi.fn((ref: { path: string }) => writes.push({ kind: "delete", path: ref.path })),
     };
-
     mocks.runTransaction.mockImplementation(async (_firestore, callback) => callback(transaction));
+    return { transaction, writes };
+  }
 
-    await pushMutation({} as never, "user-1", {
-      id: "transaction:tx-1:1:device-a:21",
-      entity: "transaction",
-      entityId: "tx-1",
-      operation: "upsert",
-      payload: {
-        id: "tx-1",
-        notebookId: "nb-1",
-        personId: "person-1",
-        type: "gave",
-        amount: 50000,
-        occurredAt: 1,
-        createdAt: 1,
-      },
-      changedAt: 1,
-      version: { changedAt: 1, deviceId: "device-a", sequence: 21 },
-      status: "pending",
-      attempts: 0,
+  const upsertMutation = {
+    id: "transaction:tx-1:1:device-a:21",
+    entity: "transaction" as const,
+    entityId: "tx-1",
+    operation: "upsert" as const,
+    payload: {
+      id: "tx-1",
+      notebookId: "nb-1",
+      personId: "person-1",
+      type: "gave" as const,
+      amount: 50000,
+      occurredAt: 1,
+      createdAt: 1,
+    },
+    changedAt: 1,
+    version: { changedAt: 1, deviceId: "device-a", sequence: 21 },
+    status: "pending" as const,
+    attempts: 0,
+  };
+
+  it("records a mutation and materializes it when it wins", async () => {
+    const { writes } = setupTransaction({
+      entityVersion: { changedAt: 999, deviceId: "device-b", sequence: 20 },
     });
 
+    await pushMutation({} as never, "user-1", upsertMutation);
+
     expect(writes.some((write) => write.path.includes("_syncMutations/"))).toBe(true);
-    expect(writes.some((write) => write.path.includes("transactions/tx-1"))).toBe(true);
-    expect(writes.some((write) => write.path.includes("transactions/tx-1") && write.kind === "delete")).toBe(false);
+    expect(writes.some((write) => write.path.includes("transactions/tx-1") && write.kind === "set")).toBe(true);
+  });
+
+  it("records stale mutations but does not replace the winner", async () => {
+    const { writes } = setupTransaction({
+      entityVersion: { changedAt: 999, deviceId: "device-b", sequence: 22 },
+    });
+
+    await pushMutation({} as never, "user-1", upsertMutation);
+
+    expect(writes.some((write) => write.path.includes("_syncMutations/"))).toBe(true);
+    expect(writes.some((write) => write.path.includes("transactions/tx-1") && write.kind === "set")).toBe(false);
+  });
+
+  it("does not resurrect an entity behind a newer tombstone", async () => {
+    const { writes } = setupTransaction({
+      tombstoneVersion: { changedAt: 1, deviceId: "device-b", sequence: 22 },
+    });
+
+    await pushMutation({} as never, "user-1", upsertMutation);
+
+    expect(writes.some((write) => write.path.includes("transactions/tx-1") && write.kind === "set")).toBe(false);
   });
 
   it("does not duplicate an already-journaled mutation", async () => {
-    const journalExists = { exists: () => true };
-    const transaction = {
-      get: vi.fn(async (ref: { path: string }) => {
-        if (ref.path.includes("_syncMutations")) return journalExists;
-        throw new Error("no further reads expected");
-      }),
-      set: vi.fn(),
-      delete: vi.fn(),
-    };
-
-    mocks.runTransaction.mockImplementation(async (_firestore, callback) => callback(transaction));
+    const { transaction } = setupTransaction({ journalExists: true });
 
     await pushMutation({} as never, "user-1", {
+      ...upsertMutation,
       id: "transaction:tx-1:1:device-a:1",
-      entity: "transaction",
-      entityId: "tx-1",
       operation: "delete",
-      changedAt: 1,
+      payload: undefined,
       version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
-      status: "pending",
-      attempts: 0,
     });
 
     expect(transaction.set).not.toHaveBeenCalled();
