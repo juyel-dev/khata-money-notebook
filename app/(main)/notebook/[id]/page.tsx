@@ -59,7 +59,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
           {notebook.pinned && <Pin size={14} className="text-accent shrink-0" fill="currentColor" />}
           {notebook.name}
         </span>
-        <button onClick={() => setMenuOpen((v) => !v)} className="p-2 text-ink" aria-label={t("notebook.actionsLabel")}>
+        <button onClick={() => setMenuOpen((v) => !v)} className="p-2 text-ink" aria-label={locale === "bn" ? "খাতার কাজ" : "Khata actions"}>
           <MoreVertical size={20} />
         </button>
 
@@ -91,7 +91,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
                   className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
                 >
                   <Share2 size={16} />
-                  {t("share.action")}
+                  {locale === "bn" ? "শেয়ার" : "Share"}
                 </button>
                 <Link
                   href={`/notebook/${id}/edit`}
