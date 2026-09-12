@@ -16,20 +16,35 @@ vi.mock("./client", () => ({ getFirebaseServices: mocks.getFirebaseServices }));
 
 import { shouldUseRedirectAuth, signInWithGoogle } from "./auth";
 
+function setBrowserContext({ userAgent, standalone, displayModeStandalone }: {
+  userAgent: string;
+  standalone: boolean;
+  displayModeStandalone: boolean;
+}) {
+  const browserWindow = (globalThis as typeof globalThis & {
+    window?: {
+      matchMedia: (query: string) => { matches: boolean };
+    };
+  }).window ?? { matchMedia: () => ({ matches: false }) };
+
+  browserWindow.matchMedia = vi.fn(() => ({ matches: displayModeStandalone }));
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: { userAgent, standalone },
+  });
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: browserWindow,
+  });
+}
+
 describe("Google authentication flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: vi.fn(() => ({ matches: false })),
-    });
-    Object.defineProperty(window.navigator, "standalone", {
-      configurable: true,
-      value: false,
-    });
-    Object.defineProperty(window.navigator, "userAgent", {
-      configurable: true,
-      value: "Mozilla/5.0 desktop",
+    setBrowserContext({
+      userAgent: "Mozilla/5.0 desktop",
+      standalone: false,
+      displayModeStandalone: false,
     });
   });
 
@@ -43,9 +58,10 @@ describe("Google authentication flow", () => {
   });
 
   it("uses redirect authentication on mobile web", async () => {
-    Object.defineProperty(window.navigator, "userAgent", {
-      configurable: true,
-      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile Safari",
+    setBrowserContext({
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile Safari",
+      standalone: false,
+      displayModeStandalone: false,
     });
     mocks.signInWithRedirect.mockResolvedValue(undefined);
 
@@ -57,9 +73,10 @@ describe("Google authentication flow", () => {
   });
 
   it("uses redirect authentication for an installed standalone PWA", async () => {
-    Object.defineProperty(window.navigator, "standalone", {
-      configurable: true,
-      value: true,
+    setBrowserContext({
+      userAgent: "Mozilla/5.0 desktop",
+      standalone: false,
+      displayModeStandalone: true,
     });
     mocks.signInWithRedirect.mockResolvedValue(undefined);
 
@@ -70,10 +87,15 @@ describe("Google authentication flow", () => {
     expect(shouldUseRedirectAuth()).toBe(true);
   });
 
-  it("keeps server-side evaluation safe by not selecting redirect without a browser", () => {
+  it("selects popup safely when no browser globals are available", () => {
     const originalWindow = globalThis.window;
-    // The helper is intentionally browser-only; sign-in itself is only called from client UI.
-    // This assertion locks the no-browser branch without mutating the shared test environment.
-    expect(typeof originalWindow).toBe("object");
+    Reflect.deleteProperty(globalThis, "window");
+
+    expect(shouldUseRedirectAuth()).toBe(false);
+
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: originalWindow,
+    });
   });
 });
