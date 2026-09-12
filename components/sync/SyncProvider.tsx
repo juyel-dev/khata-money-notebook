@@ -38,6 +38,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [linkStatus, setLinkStatus] = useState<"linked" | "reconciliation-required" | "linking" | undefined>();
 
   useEffect(() => {
+    // navigator.onLine is an external browser read during effect setup; keep the
+    // state sync localized to the subscription boundary rather than restructuring it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOnline(navigator.onLine);
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
@@ -122,6 +125,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (authLoading) return;
+    // Auth has settled; refresh the local sync metadata snapshot once per effect run.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [authLoading, refresh]);
 
