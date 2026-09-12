@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, Clock3, Eye, Share2 } from "lucide-react";
+import { Clock3, Eye, Share2 } from "lucide-react";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { readPublicShare, type ShareSnapshot } from "@/lib/firebase/sharing";
 import { useI18n } from "@/lib/i18n";
@@ -17,18 +17,28 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
     let cancelled = false;
     const services = getFirebaseServices();
     if (!services) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       return;
     }
     void readPublicShare(services.firestore, token)
       .then((result) => {
-        if (!cancelled) setSnapshot(result);
+        if (!cancelled) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setSnapshot(result);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSnapshot(null);
+        if (!cancelled) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setSnapshot(null);
+        }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
