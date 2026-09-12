@@ -132,7 +132,7 @@ describe("Firestore sync transport", () => {
     journalExists?: boolean;
     order?: number;
   }) {
-    const writes: Array<{ kind: string; path: string; data?: unknown }> = [];
+    const writes: Array<{ kind: string; path: string; data?: unknown; options?: unknown }> = [];
     const transaction = {
       get: vi.fn(async (ref: { path: string }) => {
         if (ref.path.includes("_syncMutations")) {
@@ -146,7 +146,9 @@ describe("Firestore sync transport", () => {
         }
         return { exists: () => Boolean(entityVersion), data: () => ({ version: entityVersion }) };
       }),
-      set: vi.fn((ref: { path: string }, data: unknown) => writes.push({ kind: "set", path: ref.path, data })),
+      set: vi.fn((ref: { path: string }, data: unknown, options?: unknown) =>
+        writes.push({ kind: "set", path: ref.path, data, options }),
+      ),
       delete: vi.fn((ref: { path: string }) => writes.push({ kind: "delete", path: ref.path })),
     };
     mocks.runTransaction.mockImplementation(async (_firestore, callback) => callback(transaction));
@@ -182,6 +184,22 @@ describe("Firestore sync transport", () => {
 
     expect(writes.some((write) => write.path.includes("_syncMutations/"))).toBe(true);
     expect(writes.some((write) => write.path.includes("transactions/tx-1") && write.kind === "set")).toBe(true);
+  });
+
+  it("uses merge semantics only for the canonical entity and order metadata writes", async () => {
+    const { writes } = setupTransaction({
+      entityVersion: { changedAt: 999, deviceId: "device-b", sequence: 20 },
+    });
+
+    await pushMutation({} as never, "user-1", upsertMutation);
+
+    const entityWrite = writes.find((write) => write.path.includes("transactions/tx-1"));
+    const orderWrite = writes.find((write) => write.path.includes("_syncMeta/mutationOrder"));
+    const journalWrite = writes.find((write) => write.path.includes("_syncMutations/"));
+
+    expect(entityWrite?.options).toEqual({ merge: true });
+    expect(orderWrite?.options).toEqual({ merge: true });
+    expect(journalWrite?.options).toBeUndefined();
   });
 
   it("records stale mutations but does not replace the winner", async () => {
