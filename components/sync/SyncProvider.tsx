@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { getAccountLink } from "@/lib/firebase/accountLink";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { syncOnce } from "@/lib/firebase/syncEngine";
-import { retryFailedMutations, getPendingMutations } from "@/lib/firebase/syncQueue";
+import { retryFailedMutations } from "@/lib/firebase/syncQueue";
 import { syncDb } from "@/lib/firebase/syncDb";
 import { deriveSyncStatus, getSyncStatus, setSyncStatus, type SyncStatusSnapshot } from "@/lib/firebase/syncStatus";
 import { useAuth } from "@/lib/firebase/AuthProvider";
