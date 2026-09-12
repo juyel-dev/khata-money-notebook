@@ -66,8 +66,7 @@
     "deletePermanently": "Delete permanently",
     "pinAction": "Pin this notebook",
     "unpinAction": "Unpin this notebook",
-    "createdOn": "Created",
-    "actionsLabel": "Khata actions"
+    "createdOn": "Created"
   },
   "form": {
     "notebookName": "Notebook name",
@@ -152,40 +151,6 @@
     "exportFailed": "Export failed — please try again.",
     "imported": "Import complete",
     "invalid": "Invalid backup file"
-  },
-  "share": {
-    "action": "Share",
-    "title": "Share",
-    "thisKhata": "This Khata",
-    "individual": "An individual",
-    "person": "Person",
-    "readOnlyKhata": "A read-only snapshot of this Khata will be created.",
-    "readOnlyIndividual": "A read-only snapshot of this person's transactions will be created.",
-    "linkReady": "Link ready",
-    "copy": "Copy",
-    "share": "Share",
-    "create": "Create share link",
-    "creating": "Creating…",
-    "activeLinks": "Active links",
-    "revoke": "Revoke",
-    "created": "Share link created.",
-    "revoked": "Share link revoked.",
-    "signIn": "Sign in with Google before sharing.",
-    "setupSync": "Set up cloud sync before sharing.",
-    "choosePerson": "Choose a person first.",
-    "createFailed": "Couldn't create the share link.",
-    "copyFailed": "Couldn't copy the link.",
-    "revokeFailed": "Couldn't revoke the link."
-  },
-  "shareViewer": {
-    "sharedSnapshot": "Shared snapshot",
-    "readOnly": "Read only",
-    "notAvailable": "This share link is no longer available.",
-    "loading": "Loading snapshot…",
-    "transactions": "Transactions",
-    "people": "People",
-    "noTransactions": "No transactions in this snapshot.",
-    "sharedAt": "Shared {time}"
   },
   "common": {
     "back": "Back",
