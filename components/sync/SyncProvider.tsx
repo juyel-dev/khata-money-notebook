@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { beginAccountLink, getAccountLink, markReconciliationRequired } from "@/lib/firebase/accountLink";
+import { beginAccountLink, completeAccountLink, getAccountLink, markReconciliationRequired } from "@/lib/firebase/accountLink";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { syncOnce } from "@/lib/firebase/syncEngine";
 import { inspectFirstAccountLink, confirmAccountReconciliation, type AccountReconciliationInspection } from "@/lib/firebase/reconciliationFlow";
@@ -110,7 +110,6 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
       const inspection = await inspectFirstAccountLink(services.firestore, user.uid);
       if (inspection.plan.action === "link-only") {
-        const { completeAccountLink } = await import("@/lib/firebase/accountLink");
         await completeAccountLink(user.uid);
         await syncOnce(services.firestore, user.uid);
         await setSyncStatus("synced", { lastSyncedAt: Date.now(), lastError: undefined });
