@@ -41,12 +41,13 @@ describe("Firestore sync transport", () => {
     expect(isCursorComplete(null, { receivedOrder: 12 })).toBe(false);
   });
 
-  it("records every accepted mutation but only materializes the winning version", async () => {
+  it("records every mutation but only materializes the winning version", async () => {
     const writes: Array<{ kind: string; path: string; data?: unknown }> = [];
     const journalExists = { exists: () => false };
-    const entityExists = { exists: () => true, data: () => ({
-      version: { changedAt: 999, deviceId: "device-b", sequence: 20 },
-    }) };
+    const entityExists = {
+      exists: () => true,
+      data: () => ({ version: { changedAt: 999, deviceId: "device-b", sequence: 20 } }),
+    };
     const tombstoneExists = { exists: () => false };
     const orderSnapshot = { data: () => ({ value: 7 }) };
 
@@ -84,7 +85,8 @@ describe("Firestore sync transport", () => {
     });
 
     expect(writes.some((write) => write.path.includes("_syncMutations/"))).toBe(true);
-    expect(writes.some((write) => write.path.includes("transactions/tx-1"))).toBe(false);
+    expect(writes.some((write) => write.path.includes("transactions/tx-1"))).toBe(true);
+    expect(writes.some((write) => write.path.includes("transactions/tx-1") && write.kind === "delete")).toBe(false);
   });
 
   it("does not duplicate an already-journaled mutation", async () => {
