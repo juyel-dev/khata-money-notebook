@@ -6,11 +6,10 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
-  setDoc,
   startAfter,
   Timestamp,
-  writeBatch,
   type Firestore,
 } from "firebase/firestore";
 import {
@@ -24,6 +23,8 @@ import { compareSyncVersions, type SyncEntityPayload, type SyncEntityType, type 
 
 const JOURNAL_COLLECTION = "_syncMutations";
 const TOMBSTONE_COLLECTION = "_syncTombstones";
+const META_COLLECTION = "_syncMeta";
+const ORDER_DOC_ID = "mutationOrder";
 const PAGE_SIZE = 100;
 
 export interface CloudMutationEnvelope {
@@ -33,12 +34,12 @@ export interface CloudMutationEnvelope {
   operation: SyncOperation;
   payload?: SyncEntityPayload;
   version: SyncVersion;
+  receivedOrder: number;
   receivedAt?: Timestamp;
 }
 
 export interface SyncCursor {
-  receivedAtMillis: number;
-  mutationId: string;
+  receivedOrder: number;
 }
 
 export interface RemoteMutation {
@@ -79,6 +80,10 @@ function tombstonePath(uid: string, entity: SyncEntityType, entityId: string): s
   return `${userDocPath(uid)}/${TOMBSTONE_COLLECTION}/${entity}:${entityId}`;
 }
 
+function orderDocPath(uid: string): string {
+  return `${userDocPath(uid)}/${META_COLLECTION}/${ORDER_DOC_ID}`;
+}
+
 export async function pushMutation(
   firestore: Firestore,
   uid: string,
@@ -86,44 +91,74 @@ export async function pushMutation(
 ): Promise<void> {
   validateVersion(mutation.version);
 
-  const journalRef = doc(firestore, journalPath(uid, mutation.id));
-  const entityRef = doc(firestore, entityDocPath(uid, mutation.entity, mutation.entityId));
-  const batch = writeBatch(firestore);
+  await runTransaction(firestore, async (transaction) => {
+    const journalRef = doc(firestore, journalPath(uid, mutation.id));
+    const entityRef = doc(firestore, entityDocPath(uid, mutation.entity, mutation.entityId));
+    const tombstoneRef = doc(firestore, tombstonePath(uid, mutation.entity, mutation.entityId));
+    const orderRef = doc(firestore, orderDocPath(uid));
 
-  batch.set(journalRef, {
-    id: mutation.id,
-    entity: mutation.entity,
-    entityId: mutation.entityId,
-    operation: mutation.operation,
-    ...(mutation.payload ? { payload: mutation.payload } : {}),
-    version: mutation.version,
-    receivedAt: serverTimestamp(),
-  }, { merge: true });
+    const [journalSnapshot, entitySnapshot, tombstoneSnapshot, orderSnapshot] = await Promise.all([
+      transaction.get(journalRef),
+      transaction.get(entityRef),
+      transaction.get(tombstoneRef),
+      transaction.get(orderRef),
+    ]);
 
-  const current = await getDoc(entityRef);
-  const currentVersion = current.exists() ? (current.data().version as SyncVersion | undefined) : undefined;
-  const order = currentVersion ? compareSyncVersions(mutation.version, currentVersion) : 1;
+    if (journalSnapshot.exists()) return;
 
-  if (order > 0 || (order === 0 && mutation.operation === "delete")) {
-    if (mutation.operation === "delete") {
-      batch.delete(entityRef);
-      batch.set(doc(firestore, tombstonePath(uid, mutation.entity, mutation.entityId)), {
-        entity: mutation.entity,
-        entityId: mutation.entityId,
-        version: mutation.version,
-        deletedAt: mutation.changedAt,
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      batch.set(entityRef, {
-        ...(mutation.payload ?? {}),
-        version: mutation.version,
-        syncUpdatedAt: serverTimestamp(),
-      }, { merge: true });
+    const currentVersion = entitySnapshot.exists()
+      ? (entitySnapshot.data().version as SyncVersion | undefined)
+      : undefined;
+    const tombstoneVersion = tombstoneSnapshot.exists()
+      ? (tombstoneSnapshot.data().version as SyncVersion | undefined)
+      : undefined;
+    const currentWinner = [currentVersion, tombstoneVersion]
+      .filter((version): version is SyncVersion => Boolean(version))
+      .sort(compareSyncVersions)
+      .at(-1);
+    const order = currentWinner ? compareSyncVersions(mutation.version, currentWinner) : 1;
+    const currentOrder = Number(orderSnapshot.data()?.value ?? 0);
+
+    if (!Number.isSafeInteger(currentOrder) || currentOrder < 0 || currentOrder >= Number.MAX_SAFE_INTEGER) {
+      throw new RangeError("cloud mutation order overflow");
     }
-  }
 
-  await batch.commit();
+    const receivedOrder = currentOrder + 1;
+    transaction.set(orderRef, { value: receivedOrder }, { merge: true });
+
+    transaction.set(journalRef, {
+      id: mutation.id,
+      entity: mutation.entity,
+      entityId: mutation.entityId,
+      operation: mutation.operation,
+      ...(mutation.payload ? { payload: mutation.payload } : {}),
+      version: mutation.version,
+      receivedOrder,
+      receivedAt: serverTimestamp(),
+    });
+
+    if (order > 0 || (order === 0 && mutation.operation === "delete")) {
+      if (mutation.operation === "delete") {
+        transaction.delete(entityRef);
+        transaction.set(tombstoneRef, {
+          entity: mutation.entity,
+          entityId: mutation.entityId,
+          version: mutation.version,
+          deletedAt: mutation.changedAt,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        transaction.set(entityRef, {
+          ...(mutation.payload ?? {}),
+          version: mutation.version,
+          syncUpdatedAt: serverTimestamp(),
+        }, { merge: true });
+        if (tombstoneVersion && compareSyncVersions(mutation.version, tombstoneVersion) > 0) {
+          transaction.delete(tombstoneRef);
+        }
+      }
+    }
+  });
 }
 
 export async function readMutationJournal(
@@ -133,15 +168,12 @@ export async function readMutationJournal(
   pageSize = PAGE_SIZE,
 ): Promise<{ mutations: RemoteMutation[]; nextCursor: SyncCursor | null }> {
   const journal = collection(firestore, `${userDocPath(uid)}/${JOURNAL_COLLECTION}`);
-  const q = cursor
-    ? query(
-        journal,
-        orderBy("receivedAt"),
-        orderBy("id"),
-        startAfter(Timestamp.fromMillis(cursor.receivedAtMillis), cursor.mutationId),
-        limit(pageSize),
-      )
-    : query(journal, orderBy("receivedAt"), orderBy("id"), limit(pageSize));
+  const q = query(
+    journal,
+    orderBy("receivedOrder"),
+    ...(cursor ? [startAfter(cursor.receivedOrder)] : []),
+    limit(pageSize),
+  );
 
   const snapshot = await getDocs(q);
   const mutations: RemoteMutation[] = [];
@@ -149,7 +181,7 @@ export async function readMutationJournal(
 
   for (const row of snapshot.docs) {
     const data = row.data() as CloudMutationEnvelope;
-    if (!data.receivedAt) continue;
+    if (!Number.isSafeInteger(data.receivedOrder)) continue;
     mutations.push({
       id: data.id,
       entity: data.entity,
@@ -158,10 +190,7 @@ export async function readMutationJournal(
       payload: data.payload,
       version: data.version,
     });
-    nextCursor = {
-      receivedAtMillis: data.receivedAt.toMillis(),
-      mutationId: data.id,
-    };
+    nextCursor = { receivedOrder: data.receivedOrder };
   }
 
   return { mutations, nextCursor };
@@ -200,15 +229,11 @@ export async function readCloudEntity(
 }
 
 export function isCursorComplete(cursor: SyncCursor | null, nextCursor: SyncCursor | null): boolean {
-  return Boolean(
-    cursor &&
-      nextCursor &&
-      cursor.receivedAtMillis === nextCursor.receivedAtMillis &&
-      cursor.mutationId === nextCursor.mutationId,
-  );
+  return Boolean(cursor && nextCursor && cursor.receivedOrder === nextCursor.receivedOrder);
 }
 
 export const FIRESTORE_SYNC_INTERNAL_COLLECTIONS = {
   journal: JOURNAL_COLLECTION,
   tombstones: TOMBSTONE_COLLECTION,
+  meta: META_COLLECTION,
 } as const;
