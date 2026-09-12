@@ -13,7 +13,7 @@ import {
 import { getSyncCursor, getEntityVersion, setEntityVersion, setSyncCursor } from "./syncState";
 import { observeLogicalClock } from "./syncIdentity";
 import { recordTombstone, clearTombstoneForNewerUpsert, shouldRejectUpsert } from "./syncTombstones";
-import type { SyncEntityPayload, SyncEntityType, SyncMutation, SyncVersion } from "./syncTypes";
+import { compareSyncVersions, type SyncEntityPayload, type SyncEntityType, type SyncVersion } from "./syncTypes";
 import type { Firestore } from "firebase/firestore";
 
 const DEFAULT_PUSH_BATCH = 50;
@@ -115,7 +115,7 @@ async function pushPendingMutations(
     getRetryableFailedMutations(Date.now(), batchSize),
   ]);
   const mutations = [...pending, ...retryable]
-    .sort((left, right) => compareSyncVersionsForQueue(left, right))
+    .sort((left, right) => compareSyncVersions(left.version, right.version))
     .slice(0, batchSize);
   let pushed = 0;
   let firstError: unknown | null = null;
@@ -136,13 +136,6 @@ async function pushPendingMutations(
   }
 
   return { pushed, firstError };
-}
-
-function compareSyncVersionsForQueue(left: SyncMutation, right: SyncMutation): number {
-  if (left.version.sequence !== right.version.sequence) return left.version.sequence - right.version.sequence;
-  const deviceOrder = left.version.deviceId.localeCompare(right.version.deviceId);
-  if (deviceOrder !== 0) return deviceOrder;
-  return left.version.changedAt - right.version.changedAt;
 }
 
 async function pullJournal(
