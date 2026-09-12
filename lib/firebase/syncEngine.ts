@@ -12,7 +12,7 @@ import {
 import { getSyncCursor, getEntityVersion, setEntityVersion, setSyncCursor } from "./syncState";
 import { observeLogicalClock } from "./syncIdentity";
 import { recordTombstone, clearTombstoneForNewerUpsert, shouldRejectUpsert } from "./syncTombstones";
-import { compareSyncVersions, type SyncEntityPayload, type SyncEntityType, type SyncVersion } from "./syncTypes";
+import type { SyncEntityPayload, SyncEntityType, SyncVersion } from "./syncTypes";
 import type { Firestore } from "firebase/firestore";
 
 const DEFAULT_PUSH_BATCH = 50;
@@ -136,7 +136,7 @@ async function pullJournal(
   pageSize: number,
   maxPages: number,
 ): Promise<{ pulled: number; skipped: number; pages: number }> {
-  let cursorOrder = await getSyncCursor(uid);
+  const cursorOrder = await getSyncCursor(uid);
   let cursor: SyncCursor | null = cursorOrder > 0 ? { receivedOrder: cursorOrder } : null;
   let pulled = 0;
   let skipped = 0;
