@@ -99,6 +99,28 @@ describe("Firestore sync transport", () => {
     );
   });
 
+  it("fails the journal read when quarantine persistence fails", async () => {
+    const quarantineError = new Error("quarantine write failed");
+    mocks.quarantineJournalRow.mockRejectedValueOnce(quarantineError);
+    mocks.getDocs.mockResolvedValue({
+      docs: [
+        {
+          data: () => ({
+            id: "broken",
+            entity: "transaction",
+            entityId: "tx-1",
+            operation: "upsert",
+            receivedOrder: 9,
+            version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
+            payload: { id: "wrong-id" },
+          }),
+        },
+      ],
+    });
+
+    await expect(readMutationJournal({} as never, "user-1", null, 100)).rejects.toBe(quarantineError);
+  });
+
   function setupTransaction({
     entityVersion,
     tombstoneVersion,
