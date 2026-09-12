@@ -86,14 +86,20 @@ The cloud layer is additive and opt-in. Dexie remains the local operational sour
 - Failed mutation isolation so one poison mutation does not block later mutations
 - Auto-retry cutoff with explicit manual recovery still available
 
-#### R15.3 — Firestore merge semantics + field-retention review 🚧
+#### R15.3 — Firestore merge semantics + field-retention review ✅
 - Audit canonical entity, journal, order-metadata, and tombstone write semantics
 - Retain `merge:true` only where partial/forward-compatible writes are intentional
 - Document the schema-evolution rule for fields removed or renamed from merged entities
 - Add regression coverage for the intended merge/replacement split
 
+#### R15.4A — Mobile-safe Google authentication 🚧
+- Use redirect authentication for mobile browsers and installed standalone PWAs
+- Keep popup authentication for normal desktop web
+- Regression coverage for mobile and standalone routing
+- Production-device verification remains a human-operated gate
+
 #### Remaining R15 work
-- Production Google OAuth/session verification
+- Production Google OAuth/session + share dry-run
 - Operational sync observability and recovery UX
 
 **Cloud phase done when:** a user can opt into Google/Firebase, safely connect existing local data, use the same Khata across devices, and continue using the app fully offline without data loss or silent overwrites.
