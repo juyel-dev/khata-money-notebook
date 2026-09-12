@@ -14,8 +14,9 @@ export type SyncEntityType = (typeof SYNC_ENTITY_TYPES)[number];
 export type SyncQueueStatus = "pending" | "syncing" | "failed";
 
 /**
- * A version is comparable across devices. Wall-clock time provides the
- * primary order; deviceId and sequence make equal timestamps deterministic.
+ * A version is comparable across devices without trusting wall clocks.
+ * `sequence` is a Lamport clock; deviceId is the deterministic tie-breaker.
+ * changedAt is retained as the real-world time for audit/display purposes.
  */
 export interface SyncVersion {
   changedAt: number;
@@ -69,8 +70,8 @@ export function createMutationId(
 }
 
 export function compareSyncVersions(left: SyncVersion, right: SyncVersion): number {
-  if (left.changedAt !== right.changedAt) return left.changedAt - right.changedAt;
+  if (left.sequence !== right.sequence) return left.sequence - right.sequence;
   const deviceOrder = left.deviceId.localeCompare(right.deviceId);
   if (deviceOrder !== 0) return deviceOrder;
-  return left.sequence - right.sequence;
+  return left.changedAt - right.changedAt;
 }
