@@ -17,7 +17,7 @@ describe("sync queue", () => {
     await syncDb.syncMeta.clear();
   });
 
-  it("persists a pending mutation and returns oldest first", async () => {
+  it("persists a pending mutation and returns logical-version order", async () => {
     await enqueueMutation({
       entity: "transaction",
       entityId: "tx-2",
@@ -41,7 +41,7 @@ describe("sync queue", () => {
     });
 
     const pending = await getPendingMutations();
-    expect(pending.map((m) => m.entityId)).toEqual(["tx-1", "tx-2"]);
+    expect(pending.map((m) => m.entityId)).toEqual(["tx-2", "tx-1"]);
     expect(pending[0].version.deviceId).toBeTruthy();
     expect(pending[0].version.sequence).toBeGreaterThan(0);
   });
