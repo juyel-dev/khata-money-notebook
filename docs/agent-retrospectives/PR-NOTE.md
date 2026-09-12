@@ -1,0 +1,1 @@
+Documentation-only cleanup: keeps the retrospective area limited to durable agent process memory and updates the documentation index accordingly.
