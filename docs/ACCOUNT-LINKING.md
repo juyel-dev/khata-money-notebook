@@ -1,6 +1,6 @@
 # First-account linking and reconciliation
 
-R6 defines the safe transition from local-only Khata data to a Google-linked cloud account.
+R6 defines the safe transition from local-only Khata data to a Google-linked cloud account. R13 adds the user-facing setup and explicit reconciliation actions.
 
 ## Safety rules
 
@@ -9,10 +9,11 @@ R6 defines the safe transition from local-only Khata data to a Google-linked clo
 - A first link creates a persistent local account-link record with the target Firebase UID.
 - Switching to a different Google account is blocked until the existing link has been explicitly reconciled.
 - Signing out must not delete local Khata data.
+- A user choice to keep one side is applied through the existing sync engine/version rules; it is not a direct unchecked overwrite.
 
 ## First-link decisions
 
-The reconciliation planner compares only dataset presence at this stage:
+The reconciliation planner compares dataset presence:
 
 | Local | Cloud | Safe plan |
 | --- | --- | --- |
@@ -21,9 +22,11 @@ The reconciliation planner compares only dataset presence at this stage:
 | Empty | Has data | Preserve cloud; explicit confirmation before migration |
 | Has data | Has data | Reconciliation required; no automatic winner |
 
-When both sides contain data, the sync engine must reconcile entity-level versions using the deterministic R5 ordering rules where version metadata exists. Records without trustworthy sync version metadata must not be guessed into a winner; they require an explicit reconciliation path.
+R13 presents the local/cloud counts before the user confirms a choice. When both sides contain data, the UI intentionally does not invent an automatic merge. The user can explicitly keep the device copy or use the cloud copy. A future entity-level merge review can be added separately without weakening this safety boundary.
 
-R6 intentionally stops short of moving data automatically. `reconciliation.ts` produces the safe plan, while the later Firestore/sync integration owns the actual transfer after the user confirms the plan.
+When preserving the device copy, migration first advances the local Lamport clock past every known cloud entity/tombstone version, creates fresh local mutations, deletes cloud-only entities through tombstone-aware mutations, then completes the account link and runs the sync engine.
+
+When using the cloud copy, local ledger tables and stale sync queue/tombstone/version state are replaced from the cloud snapshot. The device Lamport clock is advanced past the latest known cloud version so future local edits remain causally newer. Cloud entity versions and tombstones are restored into local sync metadata before the account link is completed.
 
 ## Account-link state
 
@@ -34,3 +37,14 @@ R6 intentionally stops short of moving data automatically. `reconciliation.ts` p
 - `linked` — the account link is complete; sync may use the bound UID.
 
 An account-link record contains the Firebase UID, Google provider, creation timestamp, and state. Malformed metadata is treated as absent rather than trusted.
+
+## R13 runtime flow
+
+1. Google sign-in establishes the Firebase identity.
+2. Settings shows **Set up cloud sync** while the local link is absent.
+3. The setup action reads local and cloud dataset counts.
+4. Empty/empty completes the link immediately.
+5. Any non-empty case enters explicit reconciliation before `linked` can be reached.
+6. After a confirmed action, the link completes and R12 automatic sync can take over.
+
+The setup reads are owner-only Firestore reads. Viewer/sharing paths are intentionally not part of this flow.
