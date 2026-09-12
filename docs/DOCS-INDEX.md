@@ -35,6 +35,21 @@
 
 - `ROADMAP.md` — current milestone history and remaining gates. Treat completed milestones as history, not active tasks.
 
+## Multi-agent process memory
+
+- `agent-retrospectives/README.md` — purpose and ownership model.
+- `agent-retrospectives/CHATGPT.md` — ChatGPT's first-person engineering/process retrospective.
+- `agent-retrospectives/CLAUDE.md` — reserved for Claude's own retrospective.
+- `agent-retrospectives/OPENCODE.md` — reserved for OpenCode's own retrospective.
+- `agent-retrospectives/PROCESS.md` — rules for keeping agent retrospectives separate from product truth.
+- `agent-retrospectives/AGENT-TAKEOVER-CHECKLIST.md` — takeover checklist for a new agent entering the project.
+- `agent-retrospectives/FINAL-NOTE.md` — scope reminder for this process-memory area.
+- `agent-retrospectives/TAKEOVER.md` — compact takeover reminder.
+- `agent-retrospectives/HANDOFF-PROTOCOL.md` — multi-agent handoff protocol.
+- `agent-retrospectives/BRANCH-TEST.txt` — temporary marker from the documentation migration; remove in the next history-cleanup pass.
+
+These retrospective files are process memory only. They never outrank current implementation, tests, or engineering invariants.
+
 ## Documentation rules for agents
 
 - Docs are implementation guidance, not permission to invent new product behavior.
@@ -42,3 +57,4 @@
 - Runtime code/tests outrank narrative docs.
 - When an architecture change is approved, update the focused architecture/invariant docs in the same change so future agents do not learn the obsolete model.
 - Never add credentials, API keys, tokens or private configuration values to documentation.
+- Agent-specific retrospectives must be written by the agent whose name owns the file; do not impersonate another agent's first-person account.
