@@ -20,6 +20,7 @@ import {
   userDocPath,
 } from "./firestoreSchema";
 import { compareSyncVersions, isSyncEntityType, isSyncOperation, type SyncEntityPayload, type SyncEntityType, type SyncMutation, type SyncOperation, type SyncVersion } from "./syncTypes";
+import { quarantineJournalRow } from "./syncQuarantine";
 
 const JOURNAL_COLLECTION = "_syncMutations";
 const TOMBSTONE_COLLECTION = "_syncTombstones";
@@ -135,6 +136,12 @@ function parseJournalRow(row: unknown): CloudMutationEnvelope {
   };
 }
 
+function safeReceivedOrder(row: unknown): number | null {
+  if (!row || typeof row !== "object") return null;
+  const value = (row as Record<string, unknown>).receivedOrder;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
 export async function pushMutation(
   firestore: Firestore,
   uid: string,
@@ -231,16 +238,30 @@ export async function readMutationJournal(
   let nextCursor = cursor;
 
   for (const row of snapshot.docs) {
-    const data = parseJournalRow(row.data());
-    mutations.push({
-      id: data.id,
-      entity: data.entity,
-      entityId: data.entityId,
-      operation: data.operation,
-      payload: data.payload,
-      version: data.version,
-    });
-    nextCursor = { receivedOrder: data.receivedOrder };
+    const rawData = row.data();
+    try {
+      const data = parseJournalRow(rawData);
+      mutations.push({
+        id: data.id,
+        entity: data.entity,
+        entityId: data.entityId,
+        operation: data.operation,
+        payload: data.payload,
+        version: data.version,
+      });
+      nextCursor = { receivedOrder: data.receivedOrder };
+    } catch (error) {
+      const receivedOrder = safeReceivedOrder(rawData);
+      await quarantineJournalRow(
+        receivedOrder,
+        rawData,
+        error instanceof Error ? error.message : String(error),
+      );
+      if (receivedOrder === null) {
+        throw new Error("corrupt Firestore sync journal row has no safe cursor");
+      }
+      nextCursor = { receivedOrder };
+    }
   }
 
   return { mutations, nextCursor };
