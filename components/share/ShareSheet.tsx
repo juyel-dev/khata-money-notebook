@@ -31,8 +31,14 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
     setPersonId(people[0]?.id ?? "");
     setCreatedUrl(null);
     const services = getFirebaseServices();
-    if (!services) return;
-    void listActiveShares(services.firestore, "", notebookId).then(() => undefined).catch(() => undefined);
+    const user = services?.auth.currentUser;
+    if (!services || !user) {
+      setShares([]);
+      return;
+    }
+    void listActiveShares(services.firestore, user.uid, notebookId)
+      .then(setShares)
+      .catch(() => setShares([]));
   }, [open, notebookId, people]);
 
   if (!open) return null;
@@ -136,18 +142,10 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
 
         <div className="mt-5 rounded-2xl border border-rule bg-paper p-1">
           <div className="grid grid-cols-2 gap-1">
-            <button
-              type="button"
-              onClick={() => setScope("khata")}
-              className={`rounded-xl px-3 py-2 text-xs font-semibold ${scope === "khata" ? "bg-accent text-paper" : "text-ink-dim"}`}
-            >
+            <button type="button" onClick={() => setScope("khata")} className={`rounded-xl px-3 py-2 text-xs font-semibold ${scope === "khata" ? "bg-accent text-paper" : "text-ink-dim"}`}>
               {isBn ? "পুরো খাতা" : "This Khata"}
             </button>
-            <button
-              type="button"
-              onClick={() => setScope("individual")}
-              className={`rounded-xl px-3 py-2 text-xs font-semibold ${scope === "individual" ? "bg-accent text-paper" : "text-ink-dim"}`}
-            >
+            <button type="button" onClick={() => setScope("individual")} className={`rounded-xl px-3 py-2 text-xs font-semibold ${scope === "individual" ? "bg-accent text-paper" : "text-ink-dim"}`}>
               {isBn ? "একজন ব্যক্তি" : "An individual"}
             </button>
           </div>
@@ -156,14 +154,8 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
         {scope === "individual" && (
           <label className="mt-4 block text-xs font-semibold text-ink">
             {isBn ? "ব্যক্তি" : "Person"}
-            <select
-              value={personId}
-              onChange={(event) => setPersonId(event.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-rule bg-paper px-3 py-2.5 text-sm font-normal text-ink outline-none focus:border-accent"
-            >
-              {people.map((person) => (
-                <option key={person.id} value={person.id}>{person.name}</option>
-              ))}
+            <select value={personId} onChange={(event) => setPersonId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-rule bg-paper px-3 py-2.5 text-sm font-normal text-ink outline-none focus:border-accent">
+              {people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
             </select>
           </label>
         )}
@@ -203,12 +195,7 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
           </div>
         )}
 
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void handleCreate()}
-          className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-full bg-accent py-3 text-sm font-semibold text-paper disabled:cursor-wait disabled:opacity-60"
-        >
+        <button type="button" disabled={busy} onClick={() => void handleCreate()} className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-full bg-accent py-3 text-sm font-semibold text-paper disabled:cursor-wait disabled:opacity-60">
           {busy ? (isBn ? "তৈরি হচ্ছে…" : "Creating…") : (isBn ? "শেয়ার লিংক তৈরি করুন" : "Create share link")}
         </button>
       </div>
