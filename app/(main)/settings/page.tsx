@@ -61,8 +61,8 @@ export default function SettingsPage() {
           {user && (
             <div className="mt-2 px-1 text-xs text-ink-dim">
               {locale === "bn"
-                ? "Google দিয়ে সাইন ইন করা আছে। ক্লাউড সিঙ্ক পরে চালু হবে।"
-                : "Signed in with Google. Cloud sync will be enabled next."}
+                ? "Google দিয়ে সাইন ইন করা আছে। নিচে ক্লাউড সিঙ্ক সেটআপ করা যাবে।"
+                : "Signed in with Google. Cloud sync can be set up below."}
             </div>
           )}
         </div>
