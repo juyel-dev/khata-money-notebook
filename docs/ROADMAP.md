@@ -66,7 +66,7 @@ The cloud layer is additive and opt-in. Dexie remains the local operational sour
 - Explicit local-vs-cloud reconciliation choice when data exists
 - Version-aware migration and tombstone-safe linking
 
-### R14 — Sharing snapshots 🚧
+### R14 — Sharing snapshots ✅
 - Khata-level or individual read-only share snapshots
 - Google-authenticated owner creates/revokes links
 - Viewer access without login
@@ -74,7 +74,13 @@ The cloud layer is additive and opt-in. Dexie remains the local operational sour
 - Private owner share references for active-link management
 
 ### R15 — Sync production hardening
-- Corrupt journal quarantine/recovery policy
+#### R15.1 — Corrupt journal quarantine/recovery policy 🚧
+- Durable local quarantine for malformed journal rows
+- Safe cursor advancement when `receivedOrder` is trustworthy
+- Cursor hold when ordering metadata is corrupt
+- Explicit separation of corrupt-data handling from transient transport retry
+
+#### Remaining R15 work
 - Retry/backoff and poison-mutation handling
 - Firestore `merge:true` field-retention review
 - Production Google OAuth/session verification

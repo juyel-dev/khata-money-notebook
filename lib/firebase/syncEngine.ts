@@ -146,8 +146,17 @@ async function pullJournal(
     const page = await readMutationJournal(firestore, uid, cursor, pageSize);
     pages += 1;
 
-    // An empty page is the terminal condition. Do not depend on null/null cursor equality.
-    if (page.mutations.length === 0) break;
+    if (page.mutations.length === 0) {
+      // A page can contain only quarantined rows. Persist their safe cursor and
+      // continue so corrupt rows cannot block later journal pages.
+      if (page.nextCursor && (!cursor || page.nextCursor.receivedOrder !== cursor.receivedOrder)) {
+        await setSyncCursor(uid, page.nextCursor.receivedOrder);
+        cursor = page.nextCursor;
+        continue;
+      }
+      // A genuinely empty page is the terminal condition.
+      break;
+    }
 
     for (const mutation of page.mutations) {
       const result = await applyRemoteMutation(mutation);

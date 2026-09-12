@@ -12,19 +12,23 @@ const mocks = vi.hoisted(() => ({
   serverTimestamp: vi.fn(() => ({ serverTimestamp: true })),
   startAfter: vi.fn((value: number) => ({ type: "startAfter", value })),
   Timestamp: { fromMillis: vi.fn((value: number) => ({ millis: value })) },
+  quarantineJournalRow: vi.fn(),
 }));
 
 vi.mock("firebase/firestore", () => mocks);
+vi.mock("./syncQuarantine", () => ({ quarantineJournalRow: mocks.quarantineJournalRow }));
 
 import {
   FIRESTORE_SYNC_INTERNAL_COLLECTIONS,
   isCursorComplete,
   pushMutation,
+  readMutationJournal,
 } from "./firestoreSync";
 
 describe("Firestore sync transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.quarantineJournalRow.mockResolvedValue(undefined);
   });
 
   it("uses the server-side mutation order journal and internal collections", () => {
@@ -39,6 +43,82 @@ describe("Firestore sync transport", () => {
     expect(isCursorComplete({ receivedOrder: 12 }, { receivedOrder: 12 })).toBe(true);
     expect(isCursorComplete({ receivedOrder: 12 }, { receivedOrder: 13 })).toBe(false);
     expect(isCursorComplete(null, { receivedOrder: 12 })).toBe(false);
+  });
+
+  it("quarantines a corrupt row and advances the safe journal cursor", async () => {
+    mocks.getDocs.mockResolvedValue({
+      docs: [
+        {
+          data: () => ({
+            id: "broken",
+            entity: "transaction",
+            entityId: "tx-1",
+            operation: "upsert",
+            receivedOrder: 9,
+            version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
+            payload: { id: "wrong-id" },
+          }),
+        },
+        {
+          data: () => ({
+            id: "transaction:tx-2:2:device-b:2",
+            entity: "transaction",
+            entityId: "tx-2",
+            operation: "delete",
+            receivedOrder: 10,
+            version: { changedAt: 2, deviceId: "device-b", sequence: 2 },
+          }),
+        },
+      ],
+    });
+
+    const result = await readMutationJournal({} as never, "user-1", null, 100);
+
+    expect(result.mutations).toHaveLength(1);
+    expect(result.mutations[0]).toMatchObject({ id: "transaction:tx-2:2:device-b:2", entityId: "tx-2" });
+    expect(result.nextCursor).toEqual({ receivedOrder: 10 });
+    expect(mocks.quarantineJournalRow).toHaveBeenCalledWith(
+      9,
+      expect.objectContaining({ id: "broken" }),
+      "sync journal entity id does not match payload id",
+    );
+  });
+
+  it("does not advance past a corrupt row without a safe cursor", async () => {
+    mocks.getDocs.mockResolvedValue({
+      docs: [{ data: () => ({ id: "broken", entity: "transaction" }) }],
+    });
+
+    await expect(readMutationJournal({} as never, "user-1", null, 100)).rejects.toThrow(
+      "corrupt Firestore sync journal row has no safe cursor",
+    );
+    expect(mocks.quarantineJournalRow).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ id: "broken" }),
+      "corrupt Firestore sync journal row",
+    );
+  });
+
+  it("fails the journal read when quarantine persistence fails", async () => {
+    const quarantineError = new Error("quarantine write failed");
+    mocks.quarantineJournalRow.mockRejectedValueOnce(quarantineError);
+    mocks.getDocs.mockResolvedValue({
+      docs: [
+        {
+          data: () => ({
+            id: "broken",
+            entity: "transaction",
+            entityId: "tx-1",
+            operation: "upsert",
+            receivedOrder: 9,
+            version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
+            payload: { id: "wrong-id" },
+          }),
+        },
+      ],
+    });
+
+    await expect(readMutationJournal({} as never, "user-1", null, 100)).rejects.toBe(quarantineError);
   });
 
   function setupTransaction({
