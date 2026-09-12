@@ -11,26 +11,16 @@ export async function createNotebook(input: {
 }): Promise<Notebook> {
   const now = Date.now();
   const notebook: Notebook = {
-    id: uuid(),
-    name: input.name.trim(),
-    openingBalance: input.openingBalance,
-    createdAt: now,
-    updatedAt: now,
-    archived: false,
-    color: input.color,
-    icon: input.icon,
-    pinned: false,
-    groupId: input.groupId ?? null,
+    id: uuid(), name: input.name.trim(), openingBalance: input.openingBalance,
+    createdAt: now, updatedAt: now, archived: false, color: input.color, icon: input.icon,
+    pinned: false, groupId: input.groupId ?? null,
   };
   await db.notebooks.add(notebook);
   await captureNotebook(notebook);
   return notebook;
 }
 
-export async function updateNotebook(
-  id: string,
-  changes: Partial<Pick<Notebook, "name" | "openingBalance" | "color" | "icon" | "groupId">>
-) {
+export async function updateNotebook(id: string, changes: Partial<Pick<Notebook, "name" | "openingBalance" | "color" | "icon" | "groupId">>) {
   const updatedAt = Date.now();
   await db.notebooks.update(id, { ...changes, updatedAt });
   const updated = await db.notebooks.get(id);
@@ -58,13 +48,11 @@ export async function deleteNotebookPermanently(id: string) {
     db.transactions.where("notebookId").equals(id).toArray(),
   ]);
   if (!notebook) return;
-
   await db.transaction("rw", db.notebooks, db.people, db.transactions, async () => {
     await db.transactions.where("notebookId").equals(id).delete();
     await db.people.where("notebookId").equals(id).delete();
     await db.notebooks.delete(id);
   });
-
   const changedAt = Date.now();
   await Promise.all([
     ...transactions.map((txn) => captureDelete("transaction", txn.id, changedAt)),
@@ -88,87 +76,39 @@ export async function getLastActivityAt(notebookId: string): Promise<number | nu
   return Math.max(...txns.map((t) => t.occurredAt));
 }
 
-export interface HomeGroupSection {
-  group: NotebookGroup | null; // null = "ungrouped" bucket
-  notebooks: Notebook[];
-}
+export interface HomeGroupSection { group: NotebookGroup | null; notebooks: Notebook[]; }
+export interface HomeListResult { pinned: Notebook[]; hasGroups: boolean; sections: HomeGroupSection[]; }
 
-export interface HomeListResult {
-  pinned: Notebook[];
-  /** true once the person has created at least one group — controls whether
-   *  the Home screen shows group section headers at all, so the simple
-   *  flat list stays exactly as before for anyone who never uses groups. */
-  hasGroups: boolean;
-  sections: HomeGroupSection[];
-}
-
-// Most-recently-active notebooks first: activity means either a metadata
-// edit (updatedAt) or its most recent transaction, whichever is later.
-// Transaction activity is aggregated in one read to avoid N+1 queries.
-function sortByRecency(
-  notebooks: Notebook[],
-  lastActivityByNotebook: Map<string, number>
-): Notebook[] {
-  const withTs = notebooks.map((notebook) => ({
-    notebook,
-    ts: Math.max(notebook.updatedAt, lastActivityByNotebook.get(notebook.id) ?? 0),
-  }));
-
-  withTs.sort((a, b) => {
-    return (
-      b.ts - a.ts ||
-      b.notebook.createdAt - a.notebook.createdAt ||
-      b.notebook.id.localeCompare(a.notebook.id)
-    );
-  });
-
+function sortByRecency(notebooks: Notebook[], lastActivityByNotebook: Map<string, number>): Notebook[] {
+  const withTs = notebooks.map((notebook) => ({ notebook, ts: Math.max(notebook.updatedAt, lastActivityByNotebook.get(notebook.id) ?? 0) }));
+  withTs.sort((a, b) => b.ts - a.ts || b.notebook.createdAt - a.notebook.createdAt || b.notebook.id.localeCompare(a.notebook.id));
   return withTs.map((w) => w.notebook);
 }
 
 export async function getHomeList(): Promise<HomeListResult> {
   const [notebooks, groups, transactions] = await Promise.all([
     db.notebooks.filter((n) => !n.archived).toArray(),
-    db.groups.toArray(),
-    db.transactions.toArray(),
+    db.groups.toArray(), db.transactions.toArray(),
   ]);
-
   const lastActivityByNotebook = new Map<string, number>();
   for (const txn of transactions) {
     const current = lastActivityByNotebook.get(txn.notebookId) ?? 0;
-    if (txn.occurredAt > current) {
-      lastActivityByNotebook.set(txn.notebookId, txn.occurredAt);
-    }
+    if (txn.occurredAt > current) lastActivityByNotebook.set(txn.notebookId, txn.occurredAt);
   }
-
   const sorted = sortByRecency(notebooks, lastActivityByNotebook);
   const pinned = sorted.filter((n) => n.pinned);
   const rest = sorted.filter((n) => !n.pinned);
-
   const groupMap = new Map(groups.map((g) => [g.id, g]));
   const byGroup = new Map<string, Notebook[]>();
   const ungrouped: Notebook[] = [];
   for (const n of rest) {
     if (n.groupId && groupMap.has(n.groupId)) {
-      const arr = byGroup.get(n.groupId) ?? [];
-      arr.push(n);
-      byGroup.set(n.groupId, arr);
-    } else {
-      ungrouped.push(n);
-    }
+      const arr = byGroup.get(n.groupId) ?? []; arr.push(n); byGroup.set(n.groupId, arr);
+    } else ungrouped.push(n);
   }
-
   const hasGroups = byGroup.size > 0;
-  if (!hasGroups) {
-    return { pinned, hasGroups: false, sections: [{ group: null, notebooks: rest }] };
-  }
-
-  // byGroup's key order follows `rest`'s order (already most-recent-first),
-  // so the group containing the most recently active notebook appears first.
-  const sections: HomeGroupSection[] = Array.from(byGroup.entries()).map(([gid, nbs]) => ({
-    group: groupMap.get(gid)!,
-    notebooks: nbs,
-  }));
+  if (!hasGroups) return { pinned, hasGroups: false, sections: [{ group: null, notebooks: rest }] };
+  const sections: HomeGroupSection[] = Array.from(byGroup.entries()).map(([gid, nbs]) => ({ group: groupMap.get(gid)!, notebooks: nbs }));
   if (ungrouped.length > 0) sections.push({ group: null, notebooks: ungrouped });
-
   return { pinned, hasGroups: true, sections };
 }
