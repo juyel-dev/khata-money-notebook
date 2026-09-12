@@ -19,7 +19,11 @@ vi.mock("./syncEngine", () => ({
 
 vi.mock("firebase/firestore", () => ({
   collection: (_firestore: unknown, ...parts: string[]) => ({ path: parts.join("/") }),
-  doc: (_firestore: unknown, ...parts: string[]) => ({ path: parts.join("/") }),
+  doc: (first: { path?: string } | unknown, ...parts: string[]) => ({
+    path: (typeof first === "object" && first !== null && "path" in first && typeof first.path === "string")
+      ? `${first.path}/${parts.join("/")}`
+      : parts.join("/"),
+  }),
   getDoc: vi.fn(async (ref: { path: string }) => ({
     exists: () => store.has(ref.path),
     data: () => store.get(ref.path),
