@@ -116,6 +116,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
 
       <BalanceHeader notebook={notebook} />
 
+      {/* Tab bar — part of the header hierarchy, compact by design */}
       <div
         role="tablist"
         aria-label={t("notebook.tabsLabel")}
@@ -204,6 +205,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
+      {/* spacer so list content isn't hidden behind the sticky Gave/Got buttons */}
       <div className="h-20" />
 
       <ShareSheet
