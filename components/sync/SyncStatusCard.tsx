@@ -61,6 +61,16 @@ export function SyncStatusCard() {
   }
 
   async function handleChoice(action: "preserve-local" | "preserve-cloud") {
+    const message = action === "preserve-local"
+      ? isBn
+        ? "এই ডিভাইসের ডেটা ক্লাউডে রেখে, ক্লাউডের অন্য ডেটা সরিয়ে দেওয়া হতে পারে। চালিয়ে যাবেন?"
+        : "Your device data will become the cloud copy. Other cloud-only data may be removed. Continue?"
+      : isBn
+        ? "ক্লাউডের ডেটা এই ডিভাইসে বসবে। এই ডিভাইসের বর্তমান ডেটা প্রতিস্থাপিত হবে। চালিয়ে যাবেন?"
+        : "Cloud data will replace the current data on this device. Continue?";
+
+    if (!window.confirm(message)) return;
+
     try {
       await confirmReconciliation(action);
     } catch {
