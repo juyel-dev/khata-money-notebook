@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { InstallPromptProvider } from "@/lib/useInstallPrompt";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { AuthProvider } from "@/lib/firebase/AuthProvider";
+import { SyncProvider } from "@/components/sync/SyncProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -69,7 +70,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <I18nProvider>
             <InstallPromptProvider>
-              <AuthProvider>{children}</AuthProvider>
+              <AuthProvider>
+                <SyncProvider>{children}</SyncProvider>
+              </AuthProvider>
             </InstallPromptProvider>
           </I18nProvider>
         </ThemeProvider>

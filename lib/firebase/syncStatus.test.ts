@@ -18,6 +18,10 @@ describe("sync status", () => {
     expect(deriveSyncStatus({ signedIn: false, online: true })).toBe("local-only");
   });
 
+  it("requires a cloud link before reporting sync readiness", () => {
+    expect(deriveSyncStatus({ signedIn: true, online: true })).toBe("needs-link");
+  });
+
   it("prioritizes reconciliation over connectivity", () => {
     expect(
       deriveSyncStatus({

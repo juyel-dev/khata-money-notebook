@@ -9,6 +9,7 @@ export type SyncStatus =
   | "synced"
   | "offline"
   | "error"
+  | "needs-link"
   | "needs-reconciliation";
 
 export interface SyncStatusSnapshot {
@@ -37,6 +38,7 @@ function isValidStatus(value: unknown): value is SyncStatus {
     value === "synced" ||
     value === "offline" ||
     value === "error" ||
+    value === "needs-link" ||
     value === "needs-reconciliation"
   );
 }
@@ -50,6 +52,7 @@ export function deriveSyncStatus({
 }: SyncStatusInputs): SyncStatus {
   if (!signedIn) return "local-only";
   if (linkStatus === "reconciliation-required") return "needs-reconciliation";
+  if (!linkStatus) return "needs-link";
   if (!online) return "offline";
   if (failedCount > 0) return "error";
   if (pendingCount > 0 || linkStatus === "linking") return "syncing";

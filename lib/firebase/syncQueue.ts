@@ -73,6 +73,24 @@ export async function markMutationPending(id: string): Promise<void> {
   await syncDb.syncMutations.update(id, { status: "pending", lastError: undefined });
 }
 
+export async function retryFailedMutations(): Promise<number> {
+  const mutations = await syncDb.syncMutations
+    .where("status")
+    .equals("failed")
+    .toArray();
+
+  await Promise.all(
+    mutations.map((mutation) =>
+      syncDb.syncMutations.update(mutation.id, {
+        status: "pending",
+        lastError: undefined,
+      }),
+    ),
+  );
+
+  return mutations.length;
+}
+
 export async function removeMutation(id: string): Promise<void> {
   await syncDb.syncMutations.delete(id);
 }
