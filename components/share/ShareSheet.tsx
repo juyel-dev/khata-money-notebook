@@ -25,6 +25,7 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
   const [shares, setShares] = useState<ShareRecord[]>([]);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Reset transient share-sheet state when the sheet opens. */
   useEffect(() => {
     if (!open) return;
     setScope("khata");
@@ -40,6 +41,7 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
       .then((active) => setShares(active))
       .catch(() => setShares([]));
   }, [open, notebookId, people]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open) return null;
 
