@@ -89,7 +89,8 @@ export async function markMutationFailed(id: string, lastError: string): Promise
     status: "failed",
     attempts,
     lastError,
-    nextRetryAt: Date.now() + getRetryDelayMs(attempts),
+    // The current failure is the `attempts - 1` backoff step: first failure waits 1s.
+    nextRetryAt: Date.now() + getRetryDelayMs(mutation.attempts),
   });
 }
 
