@@ -6,6 +6,7 @@ import { getFirebaseServices } from "@/lib/firebase/client";
 import { readPublicShare, type ShareSnapshot } from "@/lib/firebase/sharing";
 import { useI18n } from "@/lib/i18n";
 import { dayLabel, groupByDay } from "@/lib/shared/grouping";
+import { formatMoney } from "@/lib/money";
 
 export default function PublicSharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -17,28 +18,18 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
     let cancelled = false;
     const services = getFirebaseServices();
     if (!services) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       return;
     }
     void readPublicShare(services.firestore, token)
       .then((result) => {
-        if (!cancelled) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setSnapshot(result);
-        }
+        if (!cancelled) setSnapshot(result);
       })
       .catch(() => {
-        if (!cancelled) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setSnapshot(null);
-        }
+        if (!cancelled) setSnapshot(null);
       })
       .finally(() => {
-        if (!cancelled) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -139,7 +130,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
                         {transaction.note && <div className="mt-0.5 truncate text-xs text-ink-dim">{transaction.note}</div>}
                       </div>
                       <div className={`shrink-0 text-sm font-semibold tabular-nums ${transaction.type === "gave" ? "text-owe-you" : "text-accent"}`}>
-                        {transaction.type === "gave" ? t("notebook.gave") : t("notebook.got")} · {transaction.amount}
+                        {transaction.type === "gave" ? t("notebook.gave") : t("notebook.got")} · {formatMoney(transaction.amount)}
                       </div>
                     </div>
                   );
