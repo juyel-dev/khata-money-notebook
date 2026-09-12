@@ -74,9 +74,7 @@ describe("sync engine", () => {
 
   it("requires a completed account link before network sync", async () => {
     mocks.assertAccountLinkTarget.mockResolvedValue(null);
-    await expect(syncOnce({} as never, "user-1")).rejects.toMatchObject(
-      new SyncEngineError("RECONCILIATION_REQUIRED"),
-    );
+    await expect(syncOnce({} as never, "user-1")).rejects.toThrow("RECONCILIATION_REQUIRED");
     expect(mocks.pushMutation).not.toHaveBeenCalled();
   });
 
@@ -106,11 +104,11 @@ describe("sync engine", () => {
       .mockResolvedValueOnce({
         mutations: [
           {
-            id: "transaction:remote:1:device-b:2",
+            id: "transaction:tx-remote:2:device-b:2",
             entity: "transaction",
-            entityId: "remote",
+            entityId: "tx-remote",
             operation: "upsert",
-            payload: mutation.payload,
+            payload: { ...mutation.payload, id: "tx-remote" },
             version: { changedAt: 2, deviceId: "device-b", sequence: 2 },
           },
         ],
@@ -121,7 +119,7 @@ describe("sync engine", () => {
     mocks.resolveConflict.mockReturnValue("incoming");
     mocks.shouldRejectUpsert.mockResolvedValue(false);
     mocks.observeLogicalClock.mockResolvedValue(3);
-    mocks.table.put.mockResolvedValue("remote");
+    mocks.table.put.mockResolvedValue("tx-remote");
 
     const result = await syncOnce({} as never, "user-1");
 
@@ -129,7 +127,7 @@ describe("sync engine", () => {
     expect(mocks.pushMutation).toHaveBeenCalledWith(expect.anything(), "user-1", mutation);
     expect(mocks.setSyncCursor).toHaveBeenCalledWith("user-1", 4);
     expect(mocks.observeLogicalClock).toHaveBeenCalledWith(2);
-    expect(mocks.table.put).toHaveBeenCalledWith(mutation.payload);
+    expect(mocks.table.put).toHaveBeenCalledWith({ ...mutation.payload, id: "tx-remote" });
   });
 
   it("does not use cursor equality as the empty-page stop condition", async () => {
