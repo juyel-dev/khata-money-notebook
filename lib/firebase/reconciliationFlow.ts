@@ -3,7 +3,9 @@ import { db, type Notebook, type NotebookGroup, type Person, type Transaction } 
 import { completeAccountLink, getAccountLink } from "./accountLink";
 import { planFirstAccountReconciliation, type ReconciliationPlan } from "./reconciliation";
 import { syncOnce } from "./syncEngine";
-import { captureAndRecordUpsert } from "./syncCapture";
+import { captureAndRecordUpsert, captureDelete } from "./syncCapture";
+import { syncDb } from "./syncDb";
+import { observeLogicalClock } from "./syncIdentity";
 import { setEntityVersion } from "./syncState";
 import type { SyncEntityPayload, SyncEntityType, SyncVersion } from "./syncTypes";
 import { userCollectionPath } from "./firestoreSchema";
@@ -38,6 +40,8 @@ const COLLECTIONS: Record<SyncEntityType, keyof LocalDataset> = {
   person: "people",
   transaction: "transactions",
 };
+
+const PRESERVED_META_KEYS = new Set(["accountLink", "deviceId", "logicalClock"]);
 
 function isSyncVersion(value: unknown): value is SyncVersion {
   if (!value || typeof value !== "object") return false;
@@ -80,10 +84,10 @@ async function readCloudDataset(firestore: Firestore, uid: string): Promise<Clou
     versions[entity] = entityVersions;
   }
 
-  const toNotebook = (rows: Record<string, unknown>[]): Notebook[] => rows.map(stripCloudMetadata) as unknown as Notebook[];
-  const toGroup = (rows: Record<string, unknown>[]): NotebookGroup[] => rows.map(stripCloudMetadata) as unknown as NotebookGroup[];
-  const toPerson = (rows: Record<string, unknown>[]): Person[] => rows.map(stripCloudMetadata) as unknown as Person[];
-  const toTransaction = (rows: Record<string, unknown>[]): Transaction[] => rows.map(stripCloudMetadata) as unknown as Transaction[];
+  const toNotebook = (entityRows: Record<string, unknown>[]): Notebook[] => entityRows.map(stripCloudMetadata) as unknown as Notebook[];
+  const toGroup = (entityRows: Record<string, unknown>[]): NotebookGroup[] => entityRows.map(stripCloudMetadata) as unknown as NotebookGroup[];
+  const toPerson = (entityRows: Record<string, unknown>[]): Person[] => entityRows.map(stripCloudMetadata) as unknown as Person[];
+  const toTransaction = (entityRows: Record<string, unknown>[]): Transaction[] => entityRows.map(stripCloudMetadata) as unknown as Transaction[];
 
   return {
     notebooks: toNotebook(raw.notebook),
@@ -110,6 +114,16 @@ function summarize(dataset: LocalDataset): LocalDatasetSummary {
   };
 }
 
+function maxCloudSequence(cloud: CloudDataset): number {
+  let maximum = 0;
+  for (const entityVersions of Object.values(cloud.versions)) {
+    for (const version of Object.values(entityVersions ?? {})) {
+      maximum = Math.max(maximum, version.sequence);
+    }
+  }
+  return maximum;
+}
+
 export async function inspectFirstAccountLink(
   firestore: Firestore,
   uid: string,
@@ -128,7 +142,13 @@ export async function inspectFirstAccountLink(
 }
 
 async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<void> {
-  const local = await readLocalDataset();
+  const [local, cloud] = await Promise.all([
+    readLocalDataset(),
+    readCloudDataset(firestore, uid),
+  ]);
+
+  await observeLogicalClock(maxCloudSequence(cloud));
+
   const ordered: Array<[SyncEntityType, SyncEntityPayload[]]> = [
     ["group", local.groups],
     ["notebook", local.notebooks],
@@ -137,6 +157,11 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
   ];
 
   for (const [entity, rows] of ordered) {
+    const localIds = new Set(rows.map((row) => row.id));
+    const cloudRows = cloud[COLLECTIONS[entity]] as SyncEntityPayload[];
+    for (const row of cloudRows) {
+      if (!localIds.has(row.id)) await captureDelete(entity, row.id);
+    }
     for (const row of rows) {
       await captureAndRecordUpsert(entity, row, getMigrationChangedAt(entity, row));
     }
@@ -148,8 +173,17 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
 
 function getMigrationChangedAt(entity: SyncEntityType, payload: SyncEntityPayload): number {
   if (entity === "notebook") return payload.updatedAt;
-  if (entity === "transaction") return payload.createdAt;
   return payload.createdAt;
+}
+
+async function resetLocalSyncStateForCloudImport(): Promise<void> {
+  await syncDb.syncMutations.clear();
+  await syncDb.syncTombstones.clear();
+  const meta = await syncDb.syncMeta.toArray();
+  const keysToDelete = meta
+    .map((row) => row.key)
+    .filter((key) => !PRESERVED_META_KEYS.has(key));
+  if (keysToDelete.length) await syncDb.syncMeta.bulkDelete(keysToDelete);
 }
 
 async function replaceLocalWithCloud(firestore: Firestore, uid: string): Promise<void> {
@@ -165,6 +199,8 @@ async function replaceLocalWithCloud(firestore: Firestore, uid: string): Promise
     if (cloud.people.length) await db.people.bulkPut(cloud.people);
     if (cloud.transactions.length) await db.transactions.bulkPut(cloud.transactions);
   });
+
+  await resetLocalSyncStateForCloudImport();
 
   for (const [entity, key] of Object.entries(COLLECTIONS) as Array<[SyncEntityType, keyof LocalDataset]>) {
     const rows = cloud[key] as SyncEntityPayload[];
