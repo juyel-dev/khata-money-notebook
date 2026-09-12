@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronLeft, MoreVertical, Pin, PinOff } from "lucide-react";
+import { ChevronLeft, MoreVertical, Pin, PinOff, Share2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { db } from "@/lib/db/schema";
 import { deriveIndividuals } from "@/lib/db/people";
@@ -13,6 +13,7 @@ import { BalanceHeader } from "@/components/notebook/BalanceHeader";
 import { PersonRow } from "@/components/person/PersonRow";
 import { TransactionRow } from "@/components/transaction/TransactionRow";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ShareSheet } from "@/components/share/ShareSheet";
 import { dayLabel, groupByDay } from "@/lib/shared/grouping";
 import { useI18n } from "@/lib/i18n";
 import { useUIStore } from "@/lib/store";
@@ -26,6 +27,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
   const { t, locale } = useI18n();
   const openAddSheet = useUIStore((s) => s.openAddSheet);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   // Transactions is the default tab — the khata opens on its ledger.
   const [tab, setTab] = useState<DetailTab>("transactions");
 
@@ -57,7 +59,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
           {notebook.pinned && <Pin size={14} className="text-accent shrink-0" fill="currentColor" />}
           {notebook.name}
         </span>
-        <button onClick={() => setMenuOpen((v) => !v)} className="p-2 text-ink">
+        <button onClick={() => setMenuOpen((v) => !v)} className="p-2 text-ink" aria-label={t("notebook.actionsLabel")}>
           <MoreVertical size={20} />
         </button>
 
@@ -80,6 +82,16 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
                 >
                   {notebook.pinned ? <PinOff size={16} /> : <Pin size={16} />}
                   {notebook.pinned ? t("notebook.unpinAction") : t("notebook.pinAction")}
+                </button>
+                <button
+                  onClick={() => {
+                    setShareOpen(true);
+                    setMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
+                >
+                  <Share2 size={16} />
+                  {t("share.action")}
                 </button>
                 <Link
                   href={`/notebook/${id}/edit`}
@@ -104,7 +116,6 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
 
       <BalanceHeader notebook={notebook} />
 
-      {/* Tab bar — part of the header hierarchy, compact by design */}
       <div
         role="tablist"
         aria-label={t("notebook.tabsLabel")}
@@ -193,8 +204,15 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      {/* spacer so list content isn't hidden behind the sticky Gave/Got buttons */}
       <div className="h-20" />
+
+      <ShareSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        notebookId={id}
+        notebookName={notebook.name}
+        people={people ?? []}
+      />
     </div>
   );
 }
