@@ -10,15 +10,53 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function activeShare(token) {
+      return exists(/databases/$(database)/documents/shares/$(token))
+        && get(/databases/$(database)/documents/shares/$(token)).data.active == true
+        && (
+          get(/databases/$(database)/documents/shares/$(token)).data.expiresAt == null
+          || get(/databases/$(database)/documents/shares/$(token)).data.expiresAt > request.time.toMillis()
+        );
+    }
+
+    function shareOwner(token) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/shares/$(token))
+        && get(/databases/$(database)/documents/shares/$(token)).data.ownerUid == request.auth.uid;
+    }
+
     // Khata cloud data is private to its owning Firebase account.
-    // Sharing snapshots will use a separate, narrowly-scoped rule surface
-    // in the sharing phase; do not broaden these rules for viewers here.
     match /users/{uid} {
       allow read, write: if isOwner(uid);
     }
 
     match /users/{uid}/{document=**} {
       allow read, write: if isOwner(uid);
+    }
+
+    // Share metadata is bearer-token readable only while active and unexpired.
+    // Listing the public share collection is intentionally disabled.
+    match /shares/{token} {
+      allow get: if shareOwner(token)
+        || (
+          resource.data.active == true
+          && (
+            resource.data.expiresAt == null
+            || resource.data.expiresAt > request.time.toMillis()
+          )
+        );
+      allow list: if false;
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.token == token;
+      allow update, delete: if shareOwner(token);
+    }
+
+    // Snapshot payloads inherit the token's public read boundary. Only the owner
+    // can mutate a snapshot after its root metadata document exists.
+    match /shares/{token}/{subcollection}/{documentId} {
+      allow read: if activeShare(token) || shareOwner(token);
+      allow write: if shareOwner(token);
     }
   }
 }
