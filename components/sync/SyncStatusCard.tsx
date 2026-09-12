@@ -6,7 +6,7 @@ import { showToast } from "@/components/shared/Toast";
 import { useSync } from "./SyncProvider";
 
 function formatLastSync(timestamp: number | undefined, locale: "en" | "bn"): string {
-  if (!timestamp) return locale === "bn" ? "এখনও সিঙ্ক হয়নি" : "Not synced yet";
+  if (!timestamp) return locale === "bn" ? "এখনও নয়" : "Not yet";
   return new Intl.DateTimeFormat(locale === "bn" ? "bn-BD" : "en-IN", { hour: "numeric", minute: "2-digit" }).format(timestamp);
 }
 
@@ -143,7 +143,6 @@ export function SyncStatusCard() {
         <button
           type="button"
           onClick={handleSync}
-          disabled={status.status === "syncing"}
           className="mt-3 inline-flex items-center gap-2 rounded-full border border-rule px-3 py-2 text-xs font-semibold text-ink-dim transition-colors hover:bg-accent-soft disabled:cursor-wait disabled:opacity-60"
         >
           <RefreshCw size={14} />
