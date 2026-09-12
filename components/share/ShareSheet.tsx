@@ -27,17 +27,22 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
 
   useEffect(() => {
     if (!open) return;
+    // Reset transient sheet state only when the sheet opens or its source people change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setScope("khata");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPersonId(people[0]?.id ?? "");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCreatedUrl(null);
     const services = getFirebaseServices();
     const user = services?.auth.currentUser;
     if (!services || !user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShares([]);
       return;
     }
     void listActiveShares(services.firestore, user.uid, notebookId)
-      .then(setShares)
+      .then((active) => setShares(active))
       .catch(() => setShares([]));
   }, [open, notebookId, people]);
 
