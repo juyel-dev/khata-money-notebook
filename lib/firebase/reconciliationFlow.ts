@@ -6,9 +6,10 @@ import { syncOnce } from "./syncEngine";
 import { captureAndRecordUpsert, captureDelete } from "./syncCapture";
 import { syncDb } from "./syncDb";
 import { observeLogicalClock } from "./syncIdentity";
+import { recordTombstone } from "./syncTombstones";
 import { setEntityVersion } from "./syncState";
-import type { SyncEntityPayload, SyncEntityType, SyncVersion } from "./syncTypes";
-import { userCollectionPath } from "./firestoreSchema";
+import type { SyncEntityPayload, SyncEntityType, SyncTombstone, SyncVersion } from "./syncTypes";
+import { userCollectionPath, userDocPath } from "./firestoreSchema";
 
 export interface LocalDataset {
   notebooks: Notebook[];
@@ -19,6 +20,7 @@ export interface LocalDataset {
 
 export interface CloudDataset extends LocalDataset {
   versions: Partial<Record<SyncEntityType, Record<string, SyncVersion>>>;
+  tombstones: SyncTombstone[];
 }
 
 export interface AccountReconciliationInspection {
@@ -42,6 +44,7 @@ const COLLECTIONS: Record<SyncEntityType, keyof LocalDataset> = {
 };
 
 const PRESERVED_META_KEYS = new Set(["accountLink", "deviceId", "logicalClock"]);
+const TOMBSTONE_COLLECTION = "_syncTombstones";
 
 function isSyncVersion(value: unknown): value is SyncVersion {
   if (!value || typeof value !== "object") return false;
@@ -64,30 +67,42 @@ async function readLocalDataset(): Promise<LocalDataset> {
 }
 
 async function readCloudDataset(firestore: Firestore, uid: string): Promise<CloudDataset> {
-  const rows = await Promise.all(
+  const entityRows = await Promise.all(
     (Object.entries(COLLECTIONS) as Array<[SyncEntityType, keyof LocalDataset]>).map(async ([entity, key]) => {
       const snapshot = await getDocs(collection(firestore, userCollectionPath(uid, key)));
       return [entity, snapshot.docs.map((docSnapshot) => docSnapshot.data())] as const;
     }),
   );
-
-  const raw = Object.fromEntries(rows) as Record<SyncEntityType, Record<string, unknown>[]>;
+  const tombstoneSnapshot = await getDocs(collection(firestore, `${userDocPath(uid)}/${TOMBSTONE_COLLECTION}`));
+  const raw = Object.fromEntries(entityRows) as Record<SyncEntityType, Record<string, unknown>[]>;
   const versions: CloudDataset["versions"] = {};
 
-  for (const [entity, entityRows] of rows) {
+  for (const [entity, rows] of entityRows) {
     const entityVersions: Record<string, SyncVersion> = {};
-    for (const row of entityRows) {
-      if (isSyncVersion(row.version) && typeof row.id === "string") {
-        entityVersions[row.id] = row.version;
-      }
+    for (const row of rows) {
+      if (isSyncVersion(row.version) && typeof row.id === "string") entityVersions[row.id] = row.version;
     }
     versions[entity] = entityVersions;
   }
 
-  const toNotebook = (entityRows: Record<string, unknown>[]): Notebook[] => entityRows.map(stripCloudMetadata) as unknown as Notebook[];
-  const toGroup = (entityRows: Record<string, unknown>[]): NotebookGroup[] => entityRows.map(stripCloudMetadata) as unknown as NotebookGroup[];
-  const toPerson = (entityRows: Record<string, unknown>[]): Person[] => entityRows.map(stripCloudMetadata) as unknown as Person[];
-  const toTransaction = (entityRows: Record<string, unknown>[]): Transaction[] => entityRows.map(stripCloudMetadata) as unknown as Transaction[];
+  const tombstones: SyncTombstone[] = [];
+  for (const rowSnapshot of tombstoneSnapshot.docs) {
+    const row = rowSnapshot.data() as Record<string, unknown>;
+    if (
+      typeof row.entity === "string" &&
+      typeof row.entityId === "string" &&
+      typeof row.id === "string" &&
+      isSyncVersion(row.version) &&
+      typeof row.deletedAt === "number" && Number.isFinite(row.deletedAt)
+    ) {
+      tombstones.push(row as unknown as SyncTombstone);
+    }
+  }
+
+  const toNotebook = (rows: Record<string, unknown>[]): Notebook[] => rows.map(stripCloudMetadata) as unknown as Notebook[];
+  const toGroup = (rows: Record<string, unknown>[]): NotebookGroup[] => rows.map(stripCloudMetadata) as unknown as NotebookGroup[];
+  const toPerson = (rows: Record<string, unknown>[]): Person[] => rows.map(stripCloudMetadata) as unknown as Person[];
+  const toTransaction = (rows: Record<string, unknown>[]): Transaction[] => rows.map(stripCloudMetadata) as unknown as Transaction[];
 
   return {
     notebooks: toNotebook(raw.notebook),
@@ -95,6 +110,7 @@ async function readCloudDataset(firestore: Firestore, uid: string): Promise<Clou
     people: toPerson(raw.person),
     transactions: toTransaction(raw.transaction),
     versions,
+    tombstones,
   };
 }
 
@@ -117,10 +133,9 @@ function summarize(dataset: LocalDataset): LocalDatasetSummary {
 function maxCloudSequence(cloud: CloudDataset): number {
   let maximum = 0;
   for (const entityVersions of Object.values(cloud.versions)) {
-    for (const version of Object.values(entityVersions ?? {})) {
-      maximum = Math.max(maximum, version.sequence);
-    }
+    for (const version of Object.values(entityVersions ?? {})) maximum = Math.max(maximum, version.sequence);
   }
+  for (const tombstone of cloud.tombstones) maximum = Math.max(maximum, tombstone.version.sequence);
   return maximum;
 }
 
@@ -162,9 +177,12 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
     for (const row of cloudRows) {
       if (!localIds.has(row.id)) await captureDelete(entity, row.id);
     }
-    for (const row of rows) {
-      await captureAndRecordUpsert(entity, row, getMigrationChangedAt(entity, row));
-    }
+    for (const row of rows) await captureAndRecordUpsert(entity, row, getMigrationChangedAt(entity, row));
+  }
+
+  for (const tombstone of cloud.tombstones) {
+    const localRows = local[COLLECTIONS[tombstone.entity]] as SyncEntityPayload[];
+    if (!localRows.some((row) => row.id === tombstone.entityId)) await captureAndRecordUpsert(tombstone.entity, localRows[0] as never, tombstone.version.changedAt).catch(() => undefined);
   }
 
   await completeAccountLink(uid);
@@ -180,14 +198,13 @@ async function resetLocalSyncStateForCloudImport(): Promise<void> {
   await syncDb.syncMutations.clear();
   await syncDb.syncTombstones.clear();
   const meta = await syncDb.syncMeta.toArray();
-  const keysToDelete = meta
-    .map((row) => row.key)
-    .filter((key) => !PRESERVED_META_KEYS.has(key));
+  const keysToDelete = meta.map((row) => row.key).filter((key) => !PRESERVED_META_KEYS.has(key));
   if (keysToDelete.length) await syncDb.syncMeta.bulkDelete(keysToDelete);
 }
 
 async function replaceLocalWithCloud(firestore: Firestore, uid: string): Promise<void> {
   const cloud = await readCloudDataset(firestore, uid);
+  await observeLogicalClock(maxCloudSequence(cloud));
 
   await db.transaction("rw", db.notebooks, db.groups, db.people, db.transactions, async () => {
     await db.transactions.clear();
@@ -207,10 +224,12 @@ async function replaceLocalWithCloud(firestore: Firestore, uid: string): Promise
     const entityVersions = cloud.versions[entity] ?? {};
     for (const row of rows) {
       const version = entityVersions[row.id];
-      if (version) {
-        await setEntityVersion({ entity, entityId: row.id, version, deleted: false });
-      }
+      if (version) await setEntityVersion({ entity, entityId: row.id, version, deleted: false });
     }
+  }
+
+  for (const tombstone of cloud.tombstones) {
+    await recordTombstone(tombstone.entity, tombstone.entityId, tombstone.version);
   }
 
   await completeAccountLink(uid);
