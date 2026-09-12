@@ -1,52 +1,102 @@
 # Navigation
 
-## Structure
+> Current route and navigation contract. Read `SCREENS.md` for screen behavior.
 
-Two navigation layers, as specified:
-- **Bottom nav** — 3 items, always visible on top-level screens, for the primary "where am I in the app" switching.
-- **Hamburger menu** — slide-in drawer from the left, for secondary/infrequent actions that don't need thumb-reach priority.
+## IA
 
-## Bottom nav (3 items)
-
-| Icon | Label (EN) | Label (BN) | Destination | Purpose |
-|---|---|---|---|---|
-| 📒 Book | Home | হোম | `/` | Notebook list — the default landing screen |
-| ➕ Plus (center, visually emphasized) | Add | যোগ করুন | Opens the transaction entry sheet directly | Fast-path: skip navigating into a notebook if there's only one, or if the last-used notebook should be pre-selected. If more than one notebook exists, this first prompts "which notebook?" as a single lightweight step before the same entry sheet from DESIGN-SYSTEM.md. |
-| 🕘 Clock | History | ইতিহাস | `/history` (all notebooks combined, filterable by notebook) | See everything chronologically without drilling into a specific notebook |
-
-The center "Add" item is visually distinct (raised pill / filled accent circle, slightly larger than the other two) since it's the single highest-frequency action in the entire app — this mirrors the "camera button in the middle" pattern from mainstream consumer apps, which the target user is very likely already familiar with from WhatsApp/Instagram-adjacent apps even without technical literacy.
-
-Bottom nav is **not** shown inside the transaction entry sheet, person detail drill-down, or settings — those are stack-navigated (back button / swipe-back returns to the bottom-nav level), keeping the 3-item nav meaning "top level of the app" consistently.
-
-## Hamburger menu (drawer)
-
-Opened via a top-left icon on the Home screen's header (not duplicated on every screen — only Home needs it, since it's for infrequent, app-wide settings, not per-screen actions).
-
-Contents, in order:
-1. **Language** — English / বাংলা toggle (also duplicated in Settings, but surfaced here since it's a plausible very-first action for a Bengali-preferring user)
-2. **Backup & Restore** — export/import JSON (see DATA-MODEL.md)
-3. **Archived Notebooks** — restore or permanently delete
-4. **Settings** — app-wide preferences (theme, default currency display already fixed to INR so minimal here)
-5. **About / Share this app** — short about text + a native share-sheet button, since the user's brother may want to share it onward
-6. **Help** — 3–4 line plain-language explainer of gave/got/owe, no tutorial video, no onboarding wizard — just a static reference for the rare moment of confusion
-
-## Routing map
-
-```
-/                              Home (notebook list + banner)
-/notebook/new                  New notebook form
-/notebook/[id]                 Notebook detail (balance header + person list + Gave/Got buttons)
-/notebook/[id]/edit            Edit notebook (name, opening balance, color/icon)
-/notebook/[id]/person/[pid]    Person detail (their transaction history + net balance)
-/history                       Combined chronological log, filterable by notebook
-/settings                      Settings screen
-/settings/backup               Backup & restore
-/settings/archived              Archived notebooks
-/about                          About / share / help
+```text
+HOME
+  ↓
+KHATA DETAILS
+  ├── TRANSACTIONS  ← default
+  └── INDIVIDUALS
+        ↓
+      PERSON DETAIL
 ```
 
-Transaction add/edit is **never** its own route — always the bottom sheet component, invoked from the notebook screen, the Add nav item, or a transaction row's edit action. This keeps the "add a transaction" interaction consistent everywhere it can be triggered from, per the two-tap-entry principle in PLANNING.md.
+Secondary top-level surfaces:
+
+```text
+HOME / HISTORY / SETTINGS
+```
+
+Public share is outside the authenticated/local app hierarchy:
+
+```text
+/share/[token]
+```
+
+## Home-level navigation
+
+The app shell provides the primary navigation pattern currently implemented in `components/nav/`.
+
+Before changing labels or routes, inspect `BottomNav.tsx` and `HamburgerMenu.tsx`; this document is a contract map, not an excuse to invent new destinations.
+
+Primary destinations include:
+
+| Area | Route | Responsibility |
+|---|---|---|
+| Home | `/` | notebook list / primary landing |
+| Add | sheet | transaction entry path |
+| History | `/history` | cross-notebook chronological transactions |
+| Settings | `/settings` | preferences, backup, archive, account/sync |
+| About | `/about` | app information/share-app surface |
+
+## Khata routes
+
+```text
+/notebook/new
+/notebook/[id]
+/notebook/[id]/edit
+/notebook/[id]/person/[personId]
+```
+
+Khata detail is transaction-first. The `Individuals` tab is secondary and derived from transactions.
+
+## Transaction entry
+
+Transaction add/edit is a bottom sheet, not a route.
+
+Entry can be launched from:
+
+- Khata detail `দিলাম` / `নিলাম`
+- the global Add path when the current app shell exposes it
+- person/transaction edit actions as implemented
+
+Keep one transaction-entry implementation instead of creating route-specific variants.
+
+## Khata actions
+
+Current Khata detail kebab actions include the existing notebook controls and Share entry. Sharing is a product action, not a separate top-level navigation destination.
+
+## Public sharing
+
+```text
+/share/[token]
+```
+
+This route is anonymous/read-only. It reads only the supplied share token snapshot and does not navigate through the owner's private `/users/{uid}` hierarchy.
+
+## Settings paths
+
+```text
+/settings
+/settings/backup
+/settings/archived
+```
+
+Account/cloud sync is part of Settings rather than a separate top-level “cloud” section.
 
 ## Back behavior
 
-Standard stack navigation (browser/PWA back = logical "up" one level), except: closing the transaction entry sheet (swipe down or tap outside) returns to wherever it was opened from without a route change, since it was never a route.
+Use normal App Router/browser/PWA back behavior for routed screens.
+
+Transaction entry is a sheet: closing it returns to its previous context without creating a transaction-entry URL.
+
+## Agent constraints
+
+- Do not reintroduce an old “People first” Khata detail flow.
+- Do not make Individuals the default tab.
+- Do not add a route just to support a modal/sheet that already exists.
+- Do not rename routes without a migration/redirect plan and a repository-wide caller search.
+- Search all `Link`, `router.push`, route constants, tests and share URLs before changing a path.

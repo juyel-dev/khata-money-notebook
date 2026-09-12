@@ -1,50 +1,88 @@
-# First-account linking and reconciliation
+# First-Account Linking and Reconciliation
 
-R6 defines the safe transition from local-only Khata data to a Google-linked cloud account. R13 adds the user-facing setup and explicit reconciliation actions.
+> Current behavior for binding local Khata data to a Google/Firebase account.
+
+## Principle
+
+Sign-in and account linking are separate concepts.
+
+```text
+Google identity established
+        ↓
+inspect local/cloud state
+        ↓
+explicit link/reconciliation
+        ↓
+linked UID becomes the sync identity
+```
+
+Local use remains possible before and after linking.
+
+Signing out does not delete local ledger data.
 
 ## Safety rules
 
-- Local data remains usable while signed out.
-- Linking never silently replaces local data with cloud data, or cloud data with local data.
-- A first link creates a persistent local account-link record with the target Firebase UID.
-- Switching to a different Google account is blocked until the existing link has been explicitly reconciled.
-- Signing out must not delete local Khata data.
-- A user choice to keep one side is applied through the existing sync engine/version rules; it is not a direct unchecked overwrite.
+- Never silently replace non-empty local data with cloud data.
+- Never silently replace non-empty cloud data with local data.
+- Never bind a new Firebase UID while an existing different binding remains unresolved.
+- Never bypass reconciliation just because one side appears newer by wall-clock time.
+- Preserve version/tombstone semantics when moving between local and cloud states.
 
-## First-link decisions
+## Decision matrix
 
-The reconciliation planner compares dataset presence:
+| Local | Cloud | Required action |
+|---|---|---|
+| empty | empty | `link-only` |
+| non-empty | empty | explicit `preserve-local` |
+| empty | non-empty | explicit `preserve-cloud` |
+| non-empty | non-empty | explicit reconciliation; no automatic winner |
 
-| Local | Cloud | Safe plan |
-| --- | --- | --- |
-| Empty | Empty | Link only |
-| Has data | Empty | Preserve local; explicit confirmation before migration |
-| Empty | Has data | Preserve cloud; explicit confirmation before migration |
-| Has data | Has data | Reconciliation required; no automatic winner |
+Dataset presence is determined by the planner, not by a UI guess.
 
-R13 presents the local/cloud counts before the user confirms a choice. When both sides contain data, the UI intentionally does not invent an automatic merge. The user can explicitly keep the device copy or use the cloud copy. A future entity-level merge review can be added separately without weakening this safety boundary.
+## Link state
 
-When preserving the device copy, migration first advances the local Lamport clock past every known cloud entity/tombstone version, creates fresh local mutations, deletes cloud-only entities through tombstone-aware mutations, then completes the account link and runs the sync engine.
+`accountLink` is persisted in sync metadata. Current states:
 
-When using the cloud copy, local ledger tables and stale sync queue/tombstone/version state are replaced from the cloud snapshot. The device Lamport clock is advanced past the latest known cloud version so future local edits remain causally newer. Cloud entity versions and tombstones are restored into local sync metadata before the account link is completed.
+```text
+linking
+reconciliation-required
+linked
+```
 
-## Account-link state
+The record binds the Firebase UID and provider metadata plus timestamps/state. Malformed metadata is not trusted as a valid link.
 
-`accountLink` is stored in the existing Dexie sync metadata store as JSON:
+## Preserve local
 
-- `linking` — account target is being prepared.
-- `reconciliation-required` — local/cloud state must be resolved before completion.
-- `linked` — the account link is complete; sync may use the bound UID.
+The local ledger remains authoritative for the first-link choice.
 
-An account-link record contains the Firebase UID, Google provider, creation timestamp, and state. Malformed metadata is treated as absent rather than trusted.
+The reconciliation path advances the local logical clock beyond known cloud versions/tombstones, creates fresh local mutations, removes cloud-only state through sync/tombstone semantics, then completes the link and runs normal sync.
 
-## R13 runtime flow
+It is not a raw Firestore overwrite followed by “linked=true”.
 
-1. Google sign-in establishes the Firebase identity.
-2. Settings shows **Set up cloud sync** while the local link is absent.
-3. The setup action reads local and cloud dataset counts.
-4. Empty/empty completes the link immediately.
-5. Any non-empty case enters explicit reconciliation before `linked` can be reached.
-6. After a confirmed action, the link completes and R12 automatic sync can take over.
+## Preserve cloud
 
-The setup reads are owner-only Firestore reads. Viewer/sharing paths are intentionally not part of this flow.
+The cloud snapshot becomes the local ledger baseline.
+
+Local ledger tables and stale sync metadata are replaced from the cloud state, the local logical clock is advanced beyond the newest known cloud version, and remote versions/tombstones are restored into local sync metadata before completing the link.
+
+Again, this is a version-aware migration, not an unchecked overwrite.
+
+## Current runtime flow
+
+`SyncProvider` coordinates the user-visible path:
+
+1. User signs into Google.
+2. Settings/Account exposes cloud setup.
+3. `startAccountLink()` checks existing binding and online state.
+4. `inspectFirstAccountLink()` computes local/cloud presence and safe plan.
+5. Empty/empty completes immediately and runs sync.
+6. Any non-empty case moves to `reconciliation-required` and waits for an explicit action.
+7. Confirmed action completes the link and returns the app to normal sync.
+
+## Account switching
+
+If a persisted link exists for UID A and the signed-in Firebase identity is UID B, the app must not silently switch ownership. Reconciliation is required before UID B becomes the linked sync identity.
+
+## Production test gate
+
+Test these four matrix states with real Firebase data before treating account linking as production-ready. The automated suite can validate planner/state semantics, but only the real deployment can prove Google session persistence, Firestore permissions and cross-device identity behavior.

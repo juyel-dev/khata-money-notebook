@@ -1,36 +1,142 @@
-# Read-only sharing snapshots
+# Read-Only Sharing Snapshots
 
-R14 adds bearer-token read-only snapshots without changing the private owner sync model.
+> Current sharing architecture. Sharing is snapshot publication, not collaboration.
 
 ## Scope
 
-A signed-in owner with a linked Google/Firebase account can share either:
+A user must have a linked Google/Firebase account to create or revoke a share.
 
-- a whole Khata (notebook metadata, its people, and its transactions), or
-- one individual (that person and only that person's transactions).
+Supported scopes:
 
-The snapshot is static. Later edits in the owner's Khata do not change an existing share link.
+```text
+khata
+individual
+```
 
-## Token and access model
+### Whole Khata
 
-Each share uses a cryptographically random token as its public URL identifier. The token is the authority for viewer access; viewers do not need a Firebase account.
+Snapshot contains the selected notebook plus its people and transactions.
 
-The root `/shares/{token}` document is readable only while `active == true` and `expiresAt` is null or still in the future. Public collection listing is disabled. Snapshot child documents inherit the same token gate. Only the authenticated owner can create, update, or revoke a share.
+### Individual
 
-The owner also receives a private `users/{uid}/shareRefs/{token}` record so active links can be listed without making the public `/shares` collection queryable.
+Snapshot contains exactly one person and only that person's transactions.
 
-## Snapshot publication safety
+## Snapshot lifecycle
 
-The share root and owner reference are created inactive first. Snapshot child documents are written before the root is activated. A partial write therefore does not become viewer-visible.
+```text
+validate linked owner
+       ↓
+sync latest state
+       ↓
+read local Dexie state
+       ↓
+create inactive share root + private owner ref
+       ↓
+write snapshot children
+       ↓
+activate share
+       ↓
+return /share/{token}
+```
 
-The share service runs one normal sync before reading local Dexie state so the published snapshot reflects the latest owner ledger that has successfully gone through the sync boundary.
+The snapshot is static. Later owner edits do not mutate an existing share.
 
-Large people/transaction collections are written in batches below Firestore's per-batch write limit. The snapshot is spread across child collections rather than packed into one document, avoiding a single-document size ceiling.
+## Token model
 
-## Revocation
+Each share uses a cryptographically generated token as the public URL identifier.
 
-Revocation is a metadata state change (`active: false`) rather than a public-data delete. Existing links immediately fail the public read rule, while the owner keeps a local record of the revoked share reference.
+The token is the bearer authority for public viewer access.
+
+Viewers do not need a Firebase account.
+
+The public `shares` collection is not listable.
+
+## Firestore layout
+
+```text
+/shares/{token}
+/shares/{token}/notebooks/{notebookId}
+/shares/{token}/people/{personId}
+/shares/{token}/transactions/{transactionId}
+```
+
+Root record:
+
+```text
+token
+ownerUid
+scope
+notebookId
+personId? 
+title
+createdAt
+expiresAt
+active
+schemaVersion
+```
+
+A separate private owner reference is stored at:
+
+```text
+/users/{uid}/shareRefs/{token}
+```
+
+This makes active-link management possible without exposing a queryable public share collection.
+
+## Publication safety
+
+The root is inactive while children are being written. Only after successful snapshot publication is `active` switched to true.
+
+Transactions/people are written in chunks below the Firestore batch limit rather than packed into one large document.
+
+Share creation performs one normal sync first so the snapshot reflects the latest owner state that has crossed the sync boundary.
+
+## Security
+
+Public viewer can read a share only when:
+
+```text
+active == true
+AND
+(expiresAt == null OR expiresAt > request.time)
+```
+
+Owner-only mutation requires Firebase UID ownership.
+
+Public viewers cannot write snapshots, mutate metadata, or enumerate `/shares`.
+
+## Revoke
+
+Revoke is a root/reference metadata update:
+
+```text
+active = false
+```
+
+The snapshot payload can remain stored because public access is controlled by the root authorization state.
+
+## Snapshot integrity checks
+
+The public reader validates the root record and snapshot consistency before returning data.
+
+For individual shares it rejects snapshots with:
+
+- missing `personId`
+- more than one person
+- the wrong person id
+- a transaction belonging to another person
+
+For whole-Khata shares it rejects people or transactions pointing at another notebook.
 
 ## Deliberate non-goals
 
-R14 does not add live sharing, shared editing, viewer comments, viewer authentication, or transaction-level sharing. Expiring links remain represented by `expiresAt`, but the first release creates links with `expiresAt: null` (Never).
+Do not introduce without an explicit product decision:
+
+- live sharing
+- collaborative editing
+- “Can edit” permissions
+- comments/reactions
+- viewer accounts
+- transaction-level sharing as a new UI concept
+
+Expiry is represented by `expiresAt`, but the current creation path uses `null` (Never).
