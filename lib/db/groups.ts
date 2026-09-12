@@ -25,7 +25,6 @@ export async function renameGroup(id: string, name: string) {
   if (updated) await captureGroup(updated);
 }
 
-// Deleting a group never deletes the notebooks in it — they just become ungrouped.
 export async function deleteGroup(id: string) {
   const affected = await db.notebooks.where("groupId").equals(id).toArray();
   const existing = await db.groups.get(id);
