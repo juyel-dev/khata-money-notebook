@@ -8,11 +8,11 @@ describe("sync conflict resolution", () => {
     mutationId: "upsert-a",
   };
 
-  it("accepts newer wall-clock changes", () => {
+  it("prefers the higher logical sequence even when its wall clock is older", () => {
     expect(
       resolveConflict(base, {
         ...base,
-        version: { changedAt: 101, deviceId: "device-z", sequence: 1 },
+        version: { changedAt: 1, deviceId: "device-z", sequence: 2 },
         mutationId: "upsert-z",
       }),
     ).toBe("incoming");
@@ -28,6 +28,16 @@ describe("sync conflict resolution", () => {
     ).toBe("incoming");
   });
 
+  it("uses wall-clock time only after logical sequence and device identity tie", () => {
+    expect(
+      resolveConflict(base, {
+        ...base,
+        version: { changedAt: 101, deviceId: "device-a", sequence: 1 },
+        mutationId: "upsert-z",
+      }),
+    ).toBe("incoming");
+  });
+
   it("lets delete win an otherwise exact version tie", () => {
     expect(
       resolveConflict(base, {
@@ -38,11 +48,11 @@ describe("sync conflict resolution", () => {
     ).toBe("incoming");
   });
 
-  it("keeps an older incoming change from replacing the current winner", () => {
+  it("keeps an older incoming logical change from replacing the current winner", () => {
     expect(
       resolveConflict(base, {
         ...base,
-        version: { changedAt: 99, deviceId: "device-z", sequence: 99 },
+        version: { changedAt: 999999, deviceId: "device-z", sequence: 0 },
         mutationId: "upsert-old",
       }),
     ).toBe("current");
