@@ -9,7 +9,7 @@ R15.1 defines the recovery boundary for malformed remote journal rows.
 - The record keeps the received order when it is a safe non-negative integer, the validation reason, quarantine time, and the raw Firestore row for later diagnosis/recovery.
 - A quarantined row is not applied to the local ledger and is never silently treated as a valid mutation.
 - When the row has a safe `receivedOrder`, the pull cursor advances past it after the quarantine write succeeds. This prevents one malformed mutation from permanently blocking later valid mutations.
-- When `receivedOrder` is missing or invalid, the client quarantines the row but does **not** advance the cursor. Cursor safety takes precedence over making progress because there is no trustworthy position from which to resume.
+- When `receivedOrder` is missing or invalid, the client quarantines the row but does **not** advance the cursor. Cursor safety takes precedence over making progress because there is no trustworthy position from which to resume. Such a row will be re-read and quarantined again on subsequent sync attempts until a recovery path exists.
 - A failed quarantine write is itself a sync failure; the client does not advance the cursor without durable quarantine state.
 
 ## Recovery
