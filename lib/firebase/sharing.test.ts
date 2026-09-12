@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { db } from "../db/schema";
-import { createShareSnapshot, readPublicShare, revokeShare } from "./sharing";
+import { createShareSnapshot, listActiveShares, readPublicShare, revokeShare } from "./sharing";
 
 const { accountLinkMock, syncOnceMock, store } = vi.hoisted(() => ({
   accountLinkMock: vi.fn(),
@@ -38,11 +38,14 @@ vi.mock("firebase/firestore", () => ({
     store.set(ref.path, { ...current, ...data });
   }),
   writeBatch: vi.fn(() => {
-    const writes: Array<[string, Record<string, unknown>]> = [];
+    const writes: Array<["set" | "update", string, Record<string, unknown>]> = [];
     return {
-      set: (ref: { path: string }, data: Record<string, unknown>) => writes.push([ref.path, data]),
+      set: (ref: { path: string }, data: Record<string, unknown>) => writes.push(["set", ref.path, data]),
+      update: (ref: { path: string }, data: Record<string, unknown>) => writes.push(["update", ref.path, data]),
       commit: vi.fn(async () => {
-        for (const [path, data] of writes) store.set(path, data);
+        for (const [operation, path, data] of writes) {
+          store.set(path, operation === "set" ? data : { ...(store.get(path) ?? {}), ...data });
+        }
       }),
     };
   }),
@@ -62,20 +65,8 @@ const notebook = {
   icon: "shop" as const,
 };
 
-const personA = {
-  id: "person-a",
-  notebookId: notebook.id,
-  name: "A",
-  createdAt: 100,
-};
-
-const personB = {
-  id: "person-b",
-  notebookId: notebook.id,
-  name: "B",
-  createdAt: 101,
-};
-
+const personA = { id: "person-a", notebookId: notebook.id, name: "A", createdAt: 100 };
+const personB = { id: "person-b", notebookId: notebook.id, name: "B", createdAt: 101 };
 const transactionA = {
   id: "txn-a",
   notebookId: notebook.id,
@@ -85,7 +76,6 @@ const transactionA = {
   occurredAt: 300,
   createdAt: 300,
 };
-
 const transactionB = {
   id: "txn-b",
   notebookId: notebook.id,
@@ -145,6 +135,25 @@ describe("sharing snapshots", () => {
     expect(store.has(`shares/${result.token}/people/${personB.id}`)).toBe(false);
     expect(store.get(`shares/${result.token}/transactions/${transactionA.id}`)).toEqual(transactionA);
     expect(store.has(`shares/${result.token}/transactions/${transactionB.id}`)).toBe(false);
+  });
+
+  it("lists only active, non-expired shares for the requested Khata", async () => {
+    const base = {
+      ownerUid: uid,
+      scope: "khata",
+      notebookId: notebook.id,
+      title: notebook.name,
+      createdAt: 1,
+      schemaVersion: 1,
+    };
+    store.set(`users/${uid}/shareRefs/active`, { ...base, token: "active", active: true, expiresAt: null });
+    store.set(`users/${uid}/shareRefs/expired`, { ...base, token: "expired", active: true, expiresAt: 1 });
+    store.set(`users/${uid}/shareRefs/revoked`, { ...base, token: "revoked", active: false, expiresAt: null });
+    store.set(`users/${uid}/shareRefs/other`, { ...base, token: "other", active: true, notebookId: "other-notebook", expiresAt: null });
+
+    await expect(listActiveShares(firestore, uid, notebook.id)).resolves.toEqual([
+      expect.objectContaining({ token: "active" }),
+    ]);
   });
 
   it("revokes an active share for the owner", async () => {
