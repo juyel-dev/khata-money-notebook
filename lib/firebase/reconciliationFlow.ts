@@ -189,9 +189,11 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
 
 function getMigrationChangedAt(entity: SyncEntityType, payload: SyncEntityPayload): number {
   if (entity === "notebook") {
-    return (payload as Notebook).updatedAt;
+    if (typeof payload.updatedAt === "number" && Number.isFinite(payload.updatedAt)) return payload.updatedAt;
+    throw new Error("NOTEBOOK_UPDATED_AT_REQUIRED");
   }
-  return (payload as NotebookGroup | Person | Transaction).createdAt;
+  if (typeof payload.createdAt === "number" && Number.isFinite(payload.createdAt)) return payload.createdAt;
+  throw new Error("ENTITY_CREATED_AT_REQUIRED");
 }
 
 async function resetLocalSyncStateForCloudImport(): Promise<void> {
