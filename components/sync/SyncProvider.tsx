@@ -1,9 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { getAccountLink } from "@/lib/firebase/accountLink";
+import { beginAccountLink, completeAccountLink, getAccountLink, markReconciliationRequired } from "@/lib/firebase/accountLink";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { syncOnce } from "@/lib/firebase/syncEngine";
+import { inspectFirstAccountLink, confirmAccountReconciliation, type AccountReconciliationInspection } from "@/lib/firebase/reconciliationFlow";
 import { retryFailedMutations } from "@/lib/firebase/syncQueue";
 import { syncDb } from "@/lib/firebase/syncDb";
 import { deriveSyncStatus, getSyncStatus, setSyncStatus, type SyncStatusSnapshot } from "@/lib/firebase/syncStatus";
@@ -11,7 +12,11 @@ import { useAuth } from "@/lib/firebase/AuthProvider";
 
 interface SyncContextValue {
   status: SyncStatusSnapshot | null;
+  reconciliation: AccountReconciliationInspection | null;
+  linking: boolean;
   syncNow: () => Promise<void>;
+  startAccountLink: () => Promise<void>;
+  confirmReconciliation: (action: "preserve-local" | "preserve-cloud") => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -34,7 +39,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [status, setStatus] = useState<SyncStatusSnapshot | null>(null);
+  const [reconciliation, setReconciliation] = useState<AccountReconciliationInspection | null>(null);
   const [linkStatus, setLinkStatus] = useState<"linked" | "reconciliation-required" | "linking" | undefined>();
 
   useEffect(() => {
@@ -56,6 +63,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     if (!user) {
       setLinkStatus(undefined);
       setStatus(null);
+      setReconciliation(null);
       return;
     }
 
@@ -87,6 +95,51 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
     setStatus(snapshot);
   }, [online, syncing, user]);
+
+  const startAccountLink = useCallback(async () => {
+    if (!user || !navigator.onLine || linking) return;
+    const services = getFirebaseServices();
+    if (!services) return;
+
+    setLinking(true);
+    setReconciliation(null);
+    try {
+      const existing = await getAccountLink();
+      if (existing && existing.uid !== user.uid) throw new Error("ACCOUNT_SWITCH_REQUIRES_RECONCILIATION");
+      if (!existing) await beginAccountLink(user.uid);
+
+      const inspection = await inspectFirstAccountLink(services.firestore, user.uid);
+      if (inspection.plan.action === "link-only") {
+        await completeAccountLink(user.uid);
+        await syncOnce(services.firestore, user.uid);
+        await setSyncStatus("synced", { lastSyncedAt: Date.now(), lastError: undefined });
+        await refresh();
+        return;
+      }
+
+      await markReconciliationRequired(user.uid);
+      setReconciliation(inspection);
+      await refresh();
+    } finally {
+      setLinking(false);
+    }
+  }, [linking, refresh, user]);
+
+  const confirmReconciliation = useCallback(async (action: "preserve-local" | "preserve-cloud") => {
+    if (!user || !navigator.onLine || linking) return;
+    const services = getFirebaseServices();
+    if (!services) return;
+
+    setLinking(true);
+    try {
+      await confirmAccountReconciliation(services.firestore, user.uid, action);
+      setReconciliation(null);
+      await setSyncStatus("synced", { lastSyncedAt: Date.now(), lastError: undefined });
+      await refresh();
+    } finally {
+      setLinking(false);
+    }
+  }, [linking, refresh, user]);
 
   const syncNow = useCallback(async () => {
     if (!user || !navigator.onLine) return;
@@ -159,7 +212,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(interval);
   }, [refresh, user]);
 
-  const value = useMemo(() => ({ status, syncNow, refresh }), [refresh, status, syncNow]);
+  const value = useMemo(
+    () => ({ status, reconciliation, linking, syncNow, startAccountLink, confirmReconciliation, refresh }),
+    [confirmReconciliation, linking, reconciliation, refresh, startAccountLink, status, syncNow],
+  );
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }
 
