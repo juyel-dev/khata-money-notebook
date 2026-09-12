@@ -3,10 +3,8 @@ import {
   doc,
   getDoc,
   getDocs,
-  query,
   setDoc,
   updateDoc,
-  where,
   writeBatch,
   type Firestore,
 } from "firebase/firestore";
@@ -55,6 +53,10 @@ function createShareToken(): string {
 
 function shareDoc(firestore: Firestore, token: string) {
   return doc(firestore, SHARES_COLLECTION, token);
+}
+
+function shareRefDoc(firestore: Firestore, uid: string, token: string) {
+  return doc(firestore, "users", uid, "shareRefs", token);
 }
 
 function shareChildCollection(
@@ -130,13 +132,15 @@ export async function createShareSnapshot(
     schemaVersion: 1,
   };
 
-  // Keep the share inactive until every child collection is written. A partial
-  // snapshot cannot become viewer-visible.
+  // Keep both the public share and the owner's private reference inactive until
+  // every snapshot document has been written successfully.
   await setDoc(shareDoc(firestore, token), record);
+  await setDoc(shareRefDoc(firestore, uid, token), record);
   await commitChunked(firestore, token, "notebooks", [notebook]);
   await commitChunked(firestore, token, "people", people);
   await commitChunked(firestore, token, "transactions", transactions);
   await updateDoc(shareDoc(firestore, token), { active: true });
+  await updateDoc(shareRefDoc(firestore, uid, token), { active: true });
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return { token, url: `${origin}/share/${token}` };
@@ -149,6 +153,7 @@ export async function revokeShare(firestore: Firestore, uid: string, token: stri
   }
 
   await updateDoc(shareDoc(firestore, token), { active: false });
+  await updateDoc(shareRefDoc(firestore, uid, token), { active: false });
 }
 
 export async function listActiveShares(
@@ -159,17 +164,15 @@ export async function listActiveShares(
   const link = await getAccountLink();
   if (!link || link.uid !== uid || link.status !== "linked") return [];
 
-  const snapshot = await getDocs(
-    query(
-      collection(firestore, SHARES_COLLECTION),
-      where("ownerUid", "==", uid),
-      where("notebookId", "==", notebookId),
-    ),
-  );
-
+  const snapshot = await getDocs(collection(firestore, "users", uid, "shareRefs"));
   return snapshot.docs
     .map((shareSnapshot) => shareSnapshot.data() as ShareRecord)
-    .filter((share) => share.active && (share.expiresAt === null || share.expiresAt > Date.now()));
+    .filter(
+      (share) =>
+        share.active &&
+        share.notebookId === notebookId &&
+        (share.expiresAt === null || share.expiresAt > Date.now()),
+    );
 }
 
 export async function readPublicShare(firestore: Firestore, token: string): Promise<ShareSnapshot | null> {
@@ -189,10 +192,16 @@ export async function readPublicShare(firestore: Firestore, token: string): Prom
   const notebook = notebookSnapshot.docs[0]?.data() as Notebook | undefined;
   if (!notebook || notebook.id !== record.notebookId) return null;
 
-  return {
-    record,
-    notebook,
-    people: peopleSnapshot.docs.map((docSnapshot) => docSnapshot.data() as Person),
-    transactions: transactionsSnapshot.docs.map((docSnapshot) => docSnapshot.data() as Transaction),
-  };
+  const people = peopleSnapshot.docs.map((docSnapshot) => docSnapshot.data() as Person);
+  const transactions = transactionsSnapshot.docs.map((docSnapshot) => docSnapshot.data() as Transaction);
+
+  if (record.scope === "individual") {
+    if (!record.personId || people.length !== 1 || people[0]?.id !== record.personId) return null;
+    if (transactions.some((transaction) => transaction.personId !== record.personId)) return null;
+  } else {
+    if (people.some((person) => person.notebookId !== record.notebookId)) return null;
+    if (transactions.some((transaction) => transaction.notebookId !== record.notebookId)) return null;
+  }
+
+  return { record, notebook, people, transactions };
 }
