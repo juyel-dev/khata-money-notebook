@@ -50,6 +50,14 @@ export interface SyncTombstone {
   deletedAt: number;
 }
 
+export interface SyncJournalQuarantine {
+  id: string;
+  receivedOrder: number | null;
+  quarantinedAt: number;
+  reason: string;
+  rawData: unknown;
+}
+
 export type SyncEntityPayload = Notebook | NotebookGroup | Person | Transaction;
 export type SyncableEntity = SyncEntityPayload;
 
