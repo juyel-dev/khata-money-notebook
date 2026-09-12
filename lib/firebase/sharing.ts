@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   setDoc,
@@ -56,7 +57,11 @@ function shareDoc(firestore: Firestore, token: string) {
   return doc(firestore, SHARES_COLLECTION, token);
 }
 
-function shareChildCollection(firestore: Firestore, token: string, collectionName: (typeof SHARE_CHILD_COLLECTIONS)[number]) {
+function shareChildCollection(
+  firestore: Firestore,
+  token: string,
+  collectionName: (typeof SHARE_CHILD_COLLECTIONS)[number],
+) {
   return collection(firestore, SHARES_COLLECTION, token, collectionName);
 }
 
@@ -85,7 +90,6 @@ export async function createShareSnapshot(
     throw new Error("ACCOUNT_LINK_REQUIRED");
   }
 
-  // Make the shared snapshot reflect the owner's latest local ledger state.
   await syncOnce(firestore, uid);
 
   const notebook = await db.notebooks.get(input.notebookId);
@@ -127,19 +131,15 @@ export async function createShareSnapshot(
   };
 
   // Keep the share inactive until every child collection is written. A partial
-  // snapshot therefore cannot become viewer-visible when the owner is offline.
+  // snapshot cannot become viewer-visible.
   await setDoc(shareDoc(firestore, token), record);
-  try {
-    await commitChunked(firestore, token, "notebooks", [notebook]);
-    await commitChunked(firestore, token, "people", people);
-    await commitChunked(firestore, token, "transactions", transactions);
-    await updateDoc(shareDoc(firestore, token), { active: true });
-  } catch (error) {
-    throw error;
-  }
+  await commitChunked(firestore, token, "notebooks", [notebook]);
+  await commitChunked(firestore, token, "people", people);
+  await commitChunked(firestore, token, "transactions", transactions);
+  await updateDoc(shareDoc(firestore, token), { active: true });
 
-  const url = `${window.location.origin}/share/${token}`;
-  return { token, url };
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return { token, url: `${origin}/share/${token}` };
 }
 
 export async function revokeShare(firestore: Firestore, uid: string, token: string): Promise<void> {
@@ -148,8 +148,7 @@ export async function revokeShare(firestore: Firestore, uid: string, token: stri
     throw new Error("ACCOUNT_LINK_REQUIRED");
   }
 
-  const share = shareDoc(firestore, token);
-  await updateDoc(share, { active: false });
+  await updateDoc(shareDoc(firestore, token), { active: false });
 }
 
 export async function listActiveShares(
@@ -174,7 +173,7 @@ export async function listActiveShares(
 }
 
 export async function readPublicShare(firestore: Firestore, token: string): Promise<ShareSnapshot | null> {
-  const snapshot = await import("firebase/firestore").then(({ getDoc }) => getDoc(shareDoc(firestore, token)));
+  const snapshot = await getDoc(shareDoc(firestore, token));
   if (!snapshot.exists()) return null;
 
   const record = snapshot.data() as ShareRecord;
