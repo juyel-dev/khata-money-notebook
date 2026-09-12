@@ -131,9 +131,13 @@ function parseJournalRow(row: unknown): CloudMutationEnvelope {
     operation: data.operation,
     ...(payload ? { payload } : {}),
     version: data.version,
-    ...(data.receivedAt instanceof Timestamp ? { receivedAt: data.receivedAt } : {}),
+    ...(isFirestoreTimestamp(data.receivedAt) ? { receivedAt: data.receivedAt } : {}),
     receivedOrder: data.receivedOrder,
   };
+}
+
+function isFirestoreTimestamp(value: unknown): value is Timestamp {
+  return typeof (value as { toMillis?: unknown } | null)?.toMillis === "function";
 }
 
 function safeReceivedOrder(row: unknown): number | null {
