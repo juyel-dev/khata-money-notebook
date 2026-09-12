@@ -158,8 +158,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }));
 
     try {
-      const failed = await syncDb.syncMutations.where("status").equals("failed").count();
-      if (failed > 0) await retryFailedMutations();
+      await retryFailedMutations();
       await syncOnce(services.firestore, user.uid);
       const saved = await setSyncStatus("synced", { lastSyncedAt: Date.now(), lastError: undefined });
       setStatus(saved);
