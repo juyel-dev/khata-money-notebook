@@ -55,8 +55,19 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
     [snapshot?.people],
   );
 
+  const copy = {
+    loading: locale === "bn" ? "শেয়ার snapshot লোড হচ্ছে…" : "Loading snapshot…",
+    sharedSnapshot: locale === "bn" ? "শেয়ার করা snapshot" : "Shared snapshot",
+    notAvailable: locale === "bn" ? "এই শেয়ার লিংকটি আর কাজ করছে না।" : "This share link is no longer available.",
+    readOnly: locale === "bn" ? "শুধু দেখার জন্য" : "Read only",
+    transactions: locale === "bn" ? "লেনদেন" : "Transactions",
+    people: locale === "bn" ? "জন" : "People",
+    noTransactions: locale === "bn" ? "এই snapshot-এ কোনো লেনদেন নেই।" : "No transactions in this snapshot.",
+    sharedAt: (time: string) => locale === "bn" ? `শেয়ার: ${time}` : `Shared ${time}`,
+  };
+
   if (loading) {
-    return <main className="mx-auto min-h-screen max-w-md px-5 py-8 text-sm text-ink-dim">{t("shareViewer.loading")}</main>;
+    return <main className="mx-auto min-h-screen max-w-md px-5 py-8 text-sm text-ink-dim">{copy.loading}</main>;
   }
 
   if (!snapshot) {
@@ -64,32 +75,35 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
       <main className="mx-auto flex min-h-screen max-w-md items-center px-5 py-8">
         <div className="w-full rounded-3xl border border-rule bg-paper-card p-6 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent"><Share2 size={21} /></div>
-          <h1 className="mt-4 text-lg font-semibold text-ink">{t("shareViewer.sharedSnapshot")}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-ink-dim">{t("shareViewer.notAvailable")}</p>
+          <h1 className="mt-4 text-lg font-semibold text-ink">{copy.sharedSnapshot}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-dim">{copy.notAvailable}</p>
         </div>
       </main>
     );
   }
+
+  const sharedDate = new Intl.DateTimeFormat(
+    locale === "bn" ? "bn-BD" : "en-IN",
+    { dateStyle: "medium" },
+  ).format(snapshot.record.createdAt);
 
   return (
     <main className="min-h-screen bg-paper pb-8">
       <div className="mx-auto max-w-md px-5 pt-5">
         <div className="flex items-center gap-2 text-xs font-medium text-ink-dim">
           <Eye size={15} />
-          {t("shareViewer.readOnly")}
+          {copy.readOnly}
         </div>
         <div className="mt-2 flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-ink">{snapshot.record.title}</h1>
             <div className="mt-1 flex items-center gap-1.5 text-xs text-ink-dim">
               <Clock3 size={13} />
-              {t("shareViewer.sharedAt", {
-                time: new Intl.DateTimeFormat(locale === "bn" ? "bn-BD" : "en-IN", { dateStyle: "medium" }).format(snapshot.record.createdAt),
-              })}
+              {copy.sharedAt(sharedDate)}
             </div>
           </div>
           <div className="shrink-0 rounded-full border border-rule bg-paper-card px-3 py-1.5 text-[11px] font-semibold text-accent">
-            {t("shareViewer.sharedSnapshot")}
+            {copy.sharedSnapshot}
           </div>
         </div>
 
@@ -97,19 +111,21 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-ink">{snapshot.notebook.name}</div>
-              <div className="mt-0.5 text-xs text-ink-dim">{snapshot.transactions.length} {t("shareViewer.transactions").toLowerCase()}</div>
+              <div className="mt-0.5 text-xs text-ink-dim">
+                {snapshot.transactions.length} {locale === "bn" ? "টি লেনদেন" : snapshot.transactions.length === 1 ? "transaction" : "transactions"}
+              </div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] text-ink-dim">{t("shareViewer.people")}</div>
+              <div className="text-[11px] text-ink-dim">{copy.people}</div>
               <div className="text-lg font-semibold tabular-nums text-ink">{snapshot.people.length}</div>
             </div>
           </div>
         </div>
 
         <section className="mt-6">
-          <h2 className="mb-2 text-sm font-semibold text-ink">{t("shareViewer.transactions")}</h2>
+          <h2 className="mb-2 text-sm font-semibold text-ink">{copy.transactions}</h2>
           {grouped.length === 0 ? (
-            <div className="rounded-2xl border border-rule bg-paper-card px-4 py-8 text-center text-sm text-ink-dim">{t("shareViewer.noTransactions")}</div>
+            <div className="rounded-2xl border border-rule bg-paper-card px-4 py-8 text-center text-sm text-ink-dim">{copy.noTransactions}</div>
           ) : grouped.map((group) => (
             <div key={group.label} className="mb-4">
               <div className="sticky top-0 bg-paper py-2 text-xs font-semibold uppercase tracking-wide text-ink-dim">{group.label}</div>
@@ -133,7 +149,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           ))}
         </section>
 
-        <div className="mt-8 text-center text-xs text-ink-dim">{t("shareViewer.readOnly")}</div>
+        <div className="mt-8 text-center text-xs text-ink-dim">{copy.readOnly}</div>
       </div>
     </main>
   );
