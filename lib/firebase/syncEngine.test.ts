@@ -130,6 +130,20 @@ describe("sync engine", () => {
     expect(mocks.table.put).toHaveBeenCalledWith({ ...mutation.payload, id: "tx-remote" });
   });
 
+  it("persists progress when a page contains only quarantined rows", async () => {
+    mocks.readMutationJournal
+      .mockResolvedValueOnce({ mutations: [], nextCursor: { receivedOrder: 9 } })
+      .mockResolvedValueOnce({ mutations: [], nextCursor: { receivedOrder: 9 } });
+
+    const result = await syncOnce({} as never, "user-1");
+
+    expect(result.pages).toBe(2);
+    expect(result.pulled).toBe(0);
+    expect(mocks.setSyncCursor).toHaveBeenCalledWith("user-1", 9);
+    expect(mocks.readMutationJournal).toHaveBeenNthCalledWith(1, expect.anything(), "user-1", null, 100);
+    expect(mocks.readMutationJournal).toHaveBeenNthCalledWith(2, expect.anything(), "user-1", { receivedOrder: 9 }, 100);
+  });
+
   it("does not use cursor equality as the empty-page stop condition", async () => {
     mocks.getSyncCursor.mockResolvedValue(0);
     mocks.readMutationJournal.mockResolvedValue({ mutations: [], nextCursor: null });
