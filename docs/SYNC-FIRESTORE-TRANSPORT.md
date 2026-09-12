@@ -33,11 +33,13 @@ The server counter is **not** the conflict clock. Conflict authority remains the
 
 `readMutationJournal()` pages by the monotonic `receivedOrder` field, not by client wall-clock time. This avoids pagination ambiguity when several writes arrive within the same timestamp.
 
-The future orchestrator must:
+The orchestrator must:
 
 - process each remote mutation through the R9 `observeLogicalClock(remoteSequence)` receive step;
+- validate journal row shape before treating it as a remote mutation;
 - apply the existing conflict and tombstone rules before changing Dexie;
-- advance the persisted cursor only after the page has been safely applied.
+- advance the persisted cursor only after the page has been safely applied;
+- stop on an empty page rather than relying on null/null cursor equality.
 
 Remote application must **not** call local mutation-capture helpers, or a pulled mutation would recursively create another cloud mutation.
 
