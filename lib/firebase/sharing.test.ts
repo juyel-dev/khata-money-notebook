@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { db } from "../db/schema";
+import { syncDb } from "./syncDb";
 import { createShareSnapshot, listActiveShares, readPublicShare, revokeShare } from "./sharing";
 
 const { accountLinkMock, syncOnceMock, store } = vi.hoisted(() => ({
@@ -96,7 +97,9 @@ describe("sharing snapshots", () => {
     await db.people.clear();
     await db.notebooks.clear();
     await db.groups.clear();
-    await db.syncMeta.clear();
+    await syncDb.syncMeta.clear();
+    await syncDb.syncMutations.clear();
+    await syncDb.syncTombstones.clear();
     store.clear();
     accountLinkMock.mockResolvedValue({ uid, status: "linked" });
     syncOnceMock.mockReset();
