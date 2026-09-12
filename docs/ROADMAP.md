@@ -80,14 +80,19 @@ The cloud layer is additive and opt-in. Dexie remains the local operational sour
 - Cursor hold when ordering metadata is corrupt
 - Explicit separation of corrupt-data handling from transient transport retry
 
-#### R15.2 — Retry/backoff + poison-mutation handling 🚧
+#### R15.2 — Retry/backoff + poison-mutation handling ✅
 - Durable exponential retry scheduling
 - Automatic retries only after the backoff window
 - Failed mutation isolation so one poison mutation does not block later mutations
 - Auto-retry cutoff with explicit manual recovery still available
 
+#### R15.3 — Firestore merge semantics + field-retention review 🚧
+- Audit canonical entity, journal, order-metadata, and tombstone write semantics
+- Retain `merge:true` only where partial/forward-compatible writes are intentional
+- Document the schema-evolution rule for fields removed or renamed from merged entities
+- Add regression coverage for the intended merge/replacement split
+
 #### Remaining R15 work
-- Firestore `merge:true` field-retention review
 - Production Google OAuth/session verification
 - Operational sync observability and recovery UX
 
