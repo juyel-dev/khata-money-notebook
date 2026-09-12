@@ -4,7 +4,7 @@ import { captureNotebook, captureDelete } from "../firebase/syncCapture";
 
 export async function createNotebook(input: {
   name: string;
-  openingBalance: number; // paise
+  openingBalance: number;
   color: NotebookColor;
   icon: NotebookIcon;
   groupId?: string | null;
@@ -89,22 +89,16 @@ export async function getLastActivityAt(notebookId: string): Promise<number | nu
 }
 
 export interface HomeGroupSection {
-  group: NotebookGroup | null; // null = "ungrouped" bucket
+  group: NotebookGroup | null;
   notebooks: Notebook[];
 }
 
 export interface HomeListResult {
   pinned: Notebook[];
-  /** true once the person has created at least one group — controls whether
-   *  the Home screen shows group section headers at all, so the simple
-   *  flat list stays exactly as before for anyone who never uses groups. */
   hasGroups: boolean;
   sections: HomeGroupSection[];
 }
 
-// Most-recently-active notebooks first: activity means either a metadata
-// edit (updatedAt) or its most recent transaction, whichever is later.
-// Transaction activity is aggregated in one read to avoid N+1 queries.
 function sortByRecency(
   notebooks: Notebook[],
   lastActivityByNotebook: Map<string, number>
@@ -162,8 +156,6 @@ export async function getHomeList(): Promise<HomeListResult> {
     return { pinned, hasGroups: false, sections: [{ group: null, notebooks: rest }] };
   }
 
-  // byGroup's key order follows `rest`'s order (already most-recent-first),
-  // so the group containing the most recently active notebook appears first.
   const sections: HomeGroupSection[] = Array.from(byGroup.entries()).map(([gid, nbs]) => ({
     group: groupMap.get(gid)!,
     notebooks: nbs,
