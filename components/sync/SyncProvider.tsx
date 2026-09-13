@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { beginAccountLink, completeAccountLink, getAccountLink, markReconciliationRequired } from "@/lib/firebase/accountLink";
 import { getFirebaseServices } from "@/lib/firebase/client";
-import { syncOnce } from "@/lib/firebase/syncEngine";
+import { DEFAULT_SYNC_TIMEOUT_MS, syncOnce, withTimeout } from "@/lib/firebase/syncEngine";
 import { inspectFirstAccountLink, confirmAccountReconciliation, type AccountReconciliationInspection } from "@/lib/firebase/reconciliationFlow";
 import { retryFailedMutations } from "@/lib/firebase/syncQueue";
 import { syncDb } from "@/lib/firebase/syncDb";
@@ -84,6 +84,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           linkStatus: nextLinkStatus,
           pendingCount: queue.pending + queue.syncing,
           failedCount: queue.failed,
+          // A stored "linking" row only means syncing while this tab is
+          // actually running the attempt; otherwise it is stale and the
+          // user must get the setup action back.
+          linkingInProgress: linking,
         });
 
     const snapshot: SyncStatusSnapshot = {
@@ -94,7 +98,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       ...(queue.lastError ? { lastError: queue.lastError } : persisted?.lastError ? { lastError: persisted.lastError } : {}),
     };
     setStatus(snapshot);
-  }, [online, syncing, user]);
+  }, [linking, online, syncing, user]);
 
   const startAccountLink = useCallback(async () => {
     if (!user || !navigator.onLine || linking) return;
@@ -108,7 +112,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (existing && existing.uid !== user.uid) throw new Error("ACCOUNT_SWITCH_REQUIRES_RECONCILIATION");
       if (!existing) await beginAccountLink(user.uid);
 
-      const inspection = await inspectFirstAccountLink(services.firestore, user.uid);
+      const inspection = await withTimeout(
+        inspectFirstAccountLink(services.firestore, user.uid),
+        DEFAULT_SYNC_TIMEOUT_MS,
+        "Cloud check timed out. Check your connection and try again.",
+      );
       if (inspection.plan.action === "link-only") {
         await completeAccountLink(user.uid);
         await syncOnce(services.firestore, user.uid);

@@ -74,6 +74,30 @@ describe("sync status", () => {
     ).toBe("syncing");
   });
 
+  it("reports syncing while a link attempt is running", () => {
+    expect(
+      deriveSyncStatus({
+        signedIn: true,
+        online: true,
+        linkStatus: "linking",
+        linkingInProgress: true,
+      }),
+    ).toBe("syncing");
+  });
+
+  it("treats a stored linking row as needs-link when no attempt is running", () => {
+    // A previous attempt died or hung before completing: the stored
+    // "linking" row must not report syncing forever. The user gets the
+    // setup action back instead of an endless spinner.
+    expect(
+      deriveSyncStatus({
+        signedIn: true,
+        online: true,
+        linkStatus: "linking",
+        linkingInProgress: false,
+      }),
+    ).toBe("needs-link");
+  });
   it("reports synced only when a linked account is online and idle", () => {
     expect(
       deriveSyncStatus({
