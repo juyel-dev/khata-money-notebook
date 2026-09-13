@@ -120,6 +120,13 @@ describe("confirmAccountReconciliation", () => {
 
   it("preserves local data through fresh mutations and deletes cloud-only entities", async () => {
     await db.notebooks.put(baseNotebook);
+    await enqueueMutation({
+      entity: "notebook",
+      entityId: "legacy-local",
+      operation: "upsert",
+      payload: baseNotebook,
+      changedAt: 150,
+    });
     await setReconciliationRequired();
     setCloudSnapshot({
       notebooks: [{
@@ -143,6 +150,7 @@ describe("confirmAccountReconciliation", () => {
       expect.objectContaining({ operation: "delete", entityId: cloudNotebook.id }),
       expect.objectContaining({ operation: "upsert", entityId: baseNotebook.id }),
     ]));
+    expect(mutations.some((mutation) => mutation.entityId === "legacy-local")).toBe(false);
     expect(mutations.every((mutation) => mutation.version.sequence > 12)).toBe(true);
     expect(await db.notebooks.get(cloudNotebook.id)).toBeUndefined();
     expect(await db.notebooks.get(baseNotebook.id)).toEqual(baseNotebook);
