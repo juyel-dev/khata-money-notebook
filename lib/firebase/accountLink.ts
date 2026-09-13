@@ -101,3 +101,14 @@ export async function assertAccountLinkTarget(uid: string): Promise<AccountLink 
   }
   return existing;
 }
+
+/**
+ * Explicitly drops the local account-link record so a different Google
+ * account can be linked on this device. This is a deliberate user action
+ * (triggered from the "different account is linked here" recovery prompt),
+ * not something the sync engine ever does on its own — it does not touch
+ * ledger data or the mutation queue, only the link/identity pointer.
+ */
+export async function clearAccountLink(): Promise<void> {
+  await syncDb.syncMeta.delete(ACCOUNT_LINK_KEY);
+}

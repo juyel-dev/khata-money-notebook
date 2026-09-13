@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { beginAccountLink, completeAccountLink, getAccountLink, markReconciliationRequired } from "@/lib/firebase/accountLink";
+import { beginAccountLink, clearAccountLink, completeAccountLink, getAccountLink, markReconciliationRequired } from "@/lib/firebase/accountLink";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { DEFAULT_SYNC_TIMEOUT_MS, syncOnce, withTimeout } from "@/lib/firebase/syncEngine";
 import { inspectFirstAccountLink, confirmAccountReconciliation, type AccountReconciliationInspection } from "@/lib/firebase/reconciliationFlow";
@@ -17,6 +17,7 @@ interface SyncContextValue {
   syncNow: () => Promise<void>;
   startAccountLink: () => Promise<void>;
   confirmReconciliation: (action: "preserve-local" | "preserve-cloud") => Promise<void>;
+  switchAccount: () => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -149,6 +150,17 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [linking, refresh, user]);
 
+  // Deliberate escape hatch for "a different Google account is already
+  // linked on this device" (ACCOUNT_SWITCH_REQUIRES_RECONCILIATION). Drops
+  // only the link/identity pointer — never ledger data or the mutation
+  // queue — so the currently signed-in account can go through a normal
+  // first-link check next.
+  const switchAccount = useCallback(async () => {
+    await clearAccountLink();
+    setReconciliation(null);
+    await refresh();
+  }, [refresh]);
+
   const performSync = useCallback(async (forceRetryFailed: boolean) => {
     if (!user || !navigator.onLine || syncing) return;
     const link = await getAccountLink();
@@ -238,8 +250,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [refresh, user]);
 
   const value = useMemo(
-    () => ({ status, reconciliation, linking, syncNow, startAccountLink, confirmReconciliation, refresh }),
-    [confirmReconciliation, linking, reconciliation, refresh, startAccountLink, status, syncNow],
+    () => ({ status, reconciliation, linking, syncNow, startAccountLink, confirmReconciliation, switchAccount, refresh }),
+    [confirmReconciliation, linking, reconciliation, refresh, startAccountLink, status, switchAccount, syncNow],
   );
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }
