@@ -48,8 +48,9 @@ Routing:
 
 ```text
 ordinary desktop web     → signInWithPopup
+installed desktop PWA    → signInWithPopup
 mobile browser           → signInWithRedirect
-installed standalone PWA → signInWithRedirect
+installed mobile PWA     → signInWithRedirect
 ```
 
 Firebase Authentication must have Google enabled, and the real production web origin must be an authorized domain.

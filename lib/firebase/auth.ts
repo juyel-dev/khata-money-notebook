@@ -1,5 +1,6 @@
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
   signInWithRedirect,
@@ -23,13 +24,13 @@ function requireAuth() {
 export function shouldUseRedirectAuth(): boolean {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
 
-  const isStandalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
-  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-
-  // Redirect is more reliable than popups for mobile browsers and installed PWAs.
-  return isMobile || isStandalone;
+  // Redirect is more reliable than popups on mobile browsers and installed
+  // mobile PWAs. Desktop browsers — including installed desktop PWAs — use
+  // popup instead: the Firebase redirect flow keeps its continuation state
+  // in sessionStorage, which does not survive the cross-origin round-trip
+  // from an installed desktop PWA window, so the sign-in silently never
+  // completes there. Popup keeps the opener window alive instead.
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
 export function signInWithGoogle() {
@@ -39,18 +40,27 @@ export function signInWithGoogle() {
     : signInWithPopup(auth, googleProvider);
 }
 
+export function resolveRedirectSignIn() {
+  const services = getFirebaseServices();
+  if (!services) return Promise.resolve(null);
+  return getRedirectResult(services.auth);
+}
+
 export function signOutUser() {
   return signOut(requireAuth());
 }
 
-export function observeAuthState(callback: (user: User | null) => void): Unsubscribe {
+export function observeAuthState(
+  callback: (user: User | null) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
   const services = getFirebaseServices();
   if (!services) {
     callback(null);
     return () => {};
   }
 
-  return onAuthStateChanged(services.auth, callback);
+  return onAuthStateChanged(services.auth, callback, onError);
 }
 
 export function getCurrentUser(): User | null {

@@ -98,8 +98,9 @@ Current provider behavior:
 
 ```text
 ordinary desktop browser → signInWithPopup
+installed desktop PWA    → signInWithPopup
 mobile browser           → signInWithRedirect
-installed standalone PWA → signInWithRedirect
+installed mobile PWA     → signInWithRedirect
 ```
 
 Google provider uses `prompt=select_account`.

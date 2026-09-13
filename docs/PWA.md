@@ -33,7 +33,7 @@ A failed/offline Firebase request must not erase or block local ledger writes.
 
 ## Install
 
-The app is intended to run as a standalone PWA. Installed standalone mode is also relevant to Firebase auth: the current auth implementation selects redirect auth for standalone/mobile contexts.
+The app is intended to run as a standalone PWA. Installed standalone mode is also relevant to Firebase auth: the current auth implementation selects redirect auth for mobile (browser or installed) contexts and popup auth on desktop (browser or installed), because redirect continuation state does not survive the round-trip from an installed desktop PWA window.
 
 ## Storage safety
 
