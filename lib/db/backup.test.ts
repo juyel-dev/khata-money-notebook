@@ -14,6 +14,8 @@ import {
 } from "./backup";
 import { db, type Notebook, type NotebookGroup, type Person, type Transaction } from "./schema";
 import { restoreTransaction } from "./transactions";
+import { syncDb } from "../firebase/syncDb";
+import { getPendingMutations } from "../firebase/syncQueue";
 
 function validBackup(): KhataBackup {
   const group: NotebookGroup = { id: "g1", name: "Shop", createdAt: 1000 };
@@ -195,6 +197,12 @@ describe("validateBackup", () => {
 describe("restoreBackup (replace, not merge)", () => {
   beforeEach(async () => {
     await clearAll();
+    await Promise.all([
+      db.syncCaptureIntents.clear(),
+      syncDb.syncMutations.clear(),
+      syncDb.syncTombstones.clear(),
+      syncDb.syncMeta.clear(),
+    ]);
   });
 
   it("round-trips exact IDs and replaces instead of merging", async () => {
@@ -235,6 +243,29 @@ describe("restoreBackup (replace, not merge)", () => {
     // Export output must itself validate (round-trip through the real path,
     // including JSON serialization like the download file).
     expect(() => parseBackupFile(JSON.stringify(exported))).not.toThrow();
+  });
+
+  it("stages durable sync intents for a restore, so a linked account converges instead of staying stale", async () => {
+    // First restore: nothing existed before, so every row should be an upsert intent.
+    const first = validBackup();
+    await restoreBackup(first);
+
+    const afterFirst = await getPendingMutations();
+    expect(afterFirst.find((m) => m.entityId === "n1")?.operation).toBe("upsert");
+    expect(afterFirst.find((m) => m.entityId === "t1")?.operation).toBe("upsert");
+    expect(afterFirst.find((m) => m.entityId === "t2")?.operation).toBe("upsert");
+
+    // Second restore: an older backup missing t2 — the row that disappears
+    // must be captured as a delete, not silently vanish from sync's view.
+    const second = validBackup();
+    second.data.transactions = second.data.transactions.filter((t) => t.id !== "t2");
+    await restoreBackup(second);
+
+    const afterSecond = await getPendingMutations();
+    const t1Mutations = afterSecond.filter((m) => m.entityId === "t1");
+    const t2Mutations = afterSecond.filter((m) => m.entityId === "t2");
+    expect(t1Mutations.at(-1)?.operation).toBe("upsert");
+    expect(t2Mutations.at(-1)?.operation).toBe("delete");
   });
 });
 
