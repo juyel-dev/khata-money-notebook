@@ -1,6 +1,7 @@
 import { syncDb } from "./syncDb";
 import { getDeviceId, nextLogicalClock } from "./syncIdentity";
 import { getRetryDelayMs } from "./syncStatus";
+import { serializeFirestoreRecord } from "./firestoreSerialization";
 import { compareSyncVersions, createMutationId, type SyncEntityPayload, type SyncEntityType, type SyncMutation, type SyncOperation, type SyncVersion } from "./syncTypes";
 
 export interface EnqueueMutationInput {
@@ -20,8 +21,15 @@ export async function enqueueMutation(input: EnqueueMutationInput): Promise<stri
     sequence: await nextLogicalClock(),
   };
   const id = createMutationId(input.entity, input.entityId, version);
+  const serialized = input.payload
+    ? serializeFirestoreRecord(input.payload as Record<string, unknown>)
+    : null;
   const mutation: SyncMutation = {
     ...input,
+    ...(serialized ? {
+      payload: serialized.clean as SyncEntityPayload,
+      ...(serialized.clearedFields.length ? { clearedFields: serialized.clearedFields } : {}),
+    } : {}),
     id,
     version,
     status: "pending",
