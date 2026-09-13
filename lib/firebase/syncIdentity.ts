@@ -18,10 +18,28 @@ export async function getDeviceId(): Promise<string> {
   return deviceId;
 }
 
+function parseStoredLogicalClock(value: string | undefined): number {
+  if (value === undefined) return 0;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new RangeError("stored logical clock is invalid");
+  }
+  return parsed;
+}
+
+function nextClockValue(current: number): number {
+  if (current >= Number.MAX_SAFE_INTEGER) {
+    throw new RangeError("logical clock overflow");
+  }
+  return current + 1;
+}
+
 export async function nextLogicalClock(): Promise<number> {
   return syncDb.transaction("rw", syncDb.syncMeta, async () => {
-    const current = await syncDb.syncMeta.get(LOGICAL_CLOCK_KEY);
-    const next = Number(current?.value ?? 0) + 1;
+    const current = parseStoredLogicalClock(
+      (await syncDb.syncMeta.get(LOGICAL_CLOCK_KEY))?.value,
+    );
+    const next = nextClockValue(current);
     await syncDb.syncMeta.put({ key: LOGICAL_CLOCK_KEY, value: String(next) });
     return next;
   });
@@ -38,11 +56,10 @@ export async function observeLogicalClock(remoteSequence: number): Promise<numbe
   }
 
   return syncDb.transaction("rw", syncDb.syncMeta, async () => {
-    const current = Number((await syncDb.syncMeta.get(LOGICAL_CLOCK_KEY))?.value ?? 0);
-    const next = Math.max(current, remoteSequence) + 1;
-    if (!Number.isSafeInteger(next)) {
-      throw new RangeError("logical clock overflow");
-    }
+    const current = parseStoredLogicalClock(
+      (await syncDb.syncMeta.get(LOGICAL_CLOCK_KEY))?.value,
+    );
+    const next = nextClockValue(Math.max(current, remoteSequence));
     await syncDb.syncMeta.put({ key: LOGICAL_CLOCK_KEY, value: String(next) });
     return next;
   });
