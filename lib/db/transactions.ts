@@ -1,6 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { db, type Transaction, type TransactionType } from "./schema";
-import { captureTransaction, captureDelete } from "../firebase/syncCapture";
+import { flushSyncCaptureIntents, stageSyncCapture } from "../firebase/syncCapture";
 
 function assertValidAmount(amount: number): void {
   if (!Number.isSafeInteger(amount) || amount <= 0) {
@@ -65,8 +65,17 @@ export async function addTransaction(input: {
     occurredAt: input.occurredAt,
     createdAt: Date.now(),
   };
-  await db.transactions.add(txn);
-  await captureTransaction(txn);
+  await db.transaction("rw", db.transactions, db.syncCaptureIntents, async () => {
+    await db.transactions.add(txn);
+    await stageSyncCapture({
+      entity: "transaction",
+      entityId: txn.id,
+      operation: "upsert",
+      payload: txn,
+      changedAt: txn.createdAt,
+    });
+  });
+  await flushSyncCaptureIntents();
   return txn;
 }
 
@@ -100,24 +109,47 @@ export async function updateTransaction(
     ...(changes.note !== undefined ? { note: changes.note?.trim() || undefined } : {}),
   };
 
-  await db.transactions.update(id, normalized);
-  const updated = await db.transactions.get(id);
-  if (updated) await captureTransaction(updated);
+  await db.transaction("rw", db.transactions, db.syncCaptureIntents, async () => {
+    await db.transactions.update(id, normalized);
+    const updated = await db.transactions.get(id);
+    if (updated) {
+      await stageSyncCapture({
+        entity: "transaction",
+        entityId: id,
+        operation: "upsert",
+        payload: updated,
+        changedAt: updated.createdAt,
+      });
+    }
+  });
+  await flushSyncCaptureIntents();
 }
 
 export async function deleteTransaction(id: string) {
   const existing = await db.transactions.get(id);
   if (!existing) return;
-  await db.transactions.delete(id);
-  await captureDelete("transaction", id);
+  await db.transaction("rw", db.transactions, db.syncCaptureIntents, async () => {
+    await db.transactions.delete(id);
+    await stageSyncCapture({ entity: "transaction", entityId: id, operation: "delete", changedAt: Date.now() });
+  });
+  await flushSyncCaptureIntents();
 }
 
 // ID-preserving write for undoing a delete — unlike addTransaction (which
 // always mints a fresh id), this restores the exact same row, so balances,
 // history order, and any id-based references stay identical.
 export async function restoreTransaction(txn: Transaction): Promise<void> {
-  await db.transactions.put({ ...txn });
-  await captureTransaction(txn);
+  await db.transaction("rw", db.transactions, db.syncCaptureIntents, async () => {
+    await db.transactions.put({ ...txn });
+    await stageSyncCapture({
+      entity: "transaction",
+      entityId: txn.id,
+      operation: "upsert",
+      payload: txn,
+      changedAt: txn.createdAt,
+    });
+  });
+  await flushSyncCaptureIntents();
 }
 
 export async function getTransaction(id: string) {

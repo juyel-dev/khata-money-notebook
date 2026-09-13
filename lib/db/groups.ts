@@ -1,6 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { db, type NotebookGroup } from "./schema";
-import { captureGroup, captureNotebook, captureDelete } from "../firebase/syncCapture";
+import { flushSyncCaptureIntents, stageSyncCapture } from "../firebase/syncCapture";
 
 export async function getGroups(): Promise<NotebookGroup[]> {
   return db.groups.orderBy("name").toArray();
@@ -14,15 +14,21 @@ export async function findOrCreateGroup(name: string): Promise<NotebookGroup> {
   if (existing) return existing;
 
   const group: NotebookGroup = { id: uuid(), name: trimmed, createdAt: Date.now() };
-  await db.groups.add(group);
-  await captureGroup(group);
+  await db.transaction("rw", db.groups, db.syncCaptureIntents, async () => {
+    await db.groups.add(group);
+    await stageSyncCapture({ entity: "group", entityId: group.id, operation: "upsert", payload: group, changedAt: group.createdAt });
+  });
+  await flushSyncCaptureIntents();
   return group;
 }
 
 export async function renameGroup(id: string, name: string) {
-  await db.groups.update(id, { name: name.trim() });
-  const updated = await db.groups.get(id);
-  if (updated) await captureGroup(updated);
+  await db.transaction("rw", db.groups, db.syncCaptureIntents, async () => {
+    await db.groups.update(id, { name: name.trim() });
+    const updated = await db.groups.get(id);
+    if (updated) await stageSyncCapture({ entity: "group", entityId: id, operation: "upsert", payload: updated, changedAt: updated.createdAt });
+  });
+  await flushSyncCaptureIntents();
 }
 
 export async function deleteGroup(id: string) {
@@ -31,18 +37,19 @@ export async function deleteGroup(id: string) {
   if (!existing) return;
 
   const changedAt = Date.now();
-  await db.transaction("rw", db.groups, db.notebooks, async () => {
+  await db.transaction("rw", db.groups, db.notebooks, db.syncCaptureIntents, async () => {
     await Promise.all(affected.map((n) => db.notebooks.update(n.id, { groupId: null, updatedAt: changedAt })));
     await db.groups.delete(id);
+    for (const notebook of affected) {
+      await stageSyncCapture({
+        entity: "notebook",
+        entityId: notebook.id,
+        operation: "upsert",
+        payload: { ...notebook, groupId: null, updatedAt: changedAt },
+        changedAt,
+      });
+    }
+    await stageSyncCapture({ entity: "group", entityId: existing.id, operation: "delete", changedAt });
   });
-
-  const updatedNotebooks = affected.map((notebook) => ({
-    ...notebook,
-    groupId: null,
-    updatedAt: changedAt,
-  }));
-  await Promise.all([
-    ...updatedNotebooks.map((notebook) => captureNotebook(notebook)),
-    captureDelete("group", existing.id, changedAt),
-  ]);
+  await flushSyncCaptureIntents();
 }

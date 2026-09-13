@@ -10,6 +10,7 @@ import {
   removeMutation,
   resetStaleSyncingMutations,
 } from "./syncQueue";
+import { flushSyncCaptureIntents } from "./syncCapture";
 import { getSyncCursor, getEntityVersion, setEntityVersion, setSyncCursor } from "./syncState";
 import { observeLogicalClock } from "./syncIdentity";
 import { recordTombstone, clearTombstoneForNewerUpsert, shouldRejectUpsert } from "./syncTombstones";
@@ -214,6 +215,11 @@ async function runSync(
   if (!link || (await getAccountLink())?.status !== "linked") {
     throw new SyncEngineError("RECONCILIATION_REQUIRED");
   }
+
+  // Promote source-of-truth-local durable capture intents before pushing the
+  // transport queue. If the sync DB is temporarily unavailable, intents remain
+  // in khata-db and the next sync retries them.
+  await flushSyncCaptureIntents();
 
   const recoveredSyncing = await resetStaleSyncingMutations();
   const pushResult = await pushPendingMutations(

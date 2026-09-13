@@ -1,6 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { db, type Person, type Transaction } from "./schema";
-import { capturePerson, captureDelete } from "../firebase/syncCapture";
+import { flushSyncCaptureIntents, stageSyncCapture } from "../firebase/syncCapture";
 
 export async function findOrCreatePerson(notebookId: string, name: string): Promise<Person> {
   const trimmed = name.trim();
@@ -17,15 +17,21 @@ export async function findOrCreatePerson(notebookId: string, name: string): Prom
     name: trimmed,
     createdAt: Date.now(),
   };
-  await db.people.add(person);
-  await capturePerson(person);
+  await db.transaction("rw", db.people, db.syncCaptureIntents, async () => {
+    await db.people.add(person);
+    await stageSyncCapture({ entity: "person", entityId: person.id, operation: "upsert", payload: person, changedAt: person.createdAt });
+  });
+  await flushSyncCaptureIntents();
   return person;
 }
 
 export async function renamePerson(id: string, name: string) {
-  await db.people.update(id, { name: name.trim() });
-  const updated = await db.people.get(id);
-  if (updated) await capturePerson(updated);
+  await db.transaction("rw", db.people, db.syncCaptureIntents, async () => {
+    await db.people.update(id, { name: name.trim() });
+    const updated = await db.people.get(id);
+    if (updated) await stageSyncCapture({ entity: "person", entityId: id, operation: "upsert", payload: updated, changedAt: updated.createdAt });
+  });
+  await flushSyncCaptureIntents();
 }
 
 export async function deletePersonIfEmpty(id: string): Promise<boolean> {
@@ -33,8 +39,11 @@ export async function deletePersonIfEmpty(id: string): Promise<boolean> {
   if (count > 0) return false;
   const existing = await db.people.get(id);
   if (!existing) return false;
-  await db.people.delete(id);
-  await captureDelete("person", id);
+  await db.transaction("rw", db.people, db.syncCaptureIntents, async () => {
+    await db.people.delete(id);
+    await stageSyncCapture({ entity: "person", entityId: id, operation: "delete", changedAt: Date.now() });
+  });
+  await flushSyncCaptureIntents();
   return true;
 }
 

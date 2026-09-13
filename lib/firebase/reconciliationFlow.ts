@@ -175,6 +175,7 @@ async function migrateEntity<T extends SyncEntityPayload>(
 async function resetLocalSyncStateForCloudImport(): Promise<void> {
   await syncDb.syncMutations.clear();
   await syncDb.syncTombstones.clear();
+  await db.syncCaptureIntents.clear();
   const meta = await syncDb.syncMeta.toArray();
   const keysToDelete = meta.map((row) => row.key).filter((key) => !PRESERVED_META_KEYS.has(key));
   if (keysToDelete.length) await syncDb.syncMeta.bulkDelete(keysToDelete);

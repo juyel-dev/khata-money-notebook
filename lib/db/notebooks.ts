@@ -1,6 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { db, type Notebook, type NotebookColor, type NotebookIcon, type NotebookGroup } from "./schema";
-import { captureNotebook, captureDelete } from "../firebase/syncCapture";
+import { flushSyncCaptureIntents, stageSyncCapture } from "../firebase/syncCapture";
 
 export async function createNotebook(input: {
   name: string;
@@ -15,30 +15,48 @@ export async function createNotebook(input: {
     createdAt: now, updatedAt: now, archived: false, color: input.color, icon: input.icon,
     pinned: false, groupId: input.groupId ?? null,
   };
-  await db.notebooks.add(notebook);
-  await captureNotebook(notebook);
+  await db.transaction("rw", db.notebooks, db.syncCaptureIntents, async () => {
+    await db.notebooks.add(notebook);
+    await stageSyncCapture({
+      entity: "notebook",
+      entityId: notebook.id,
+      operation: "upsert",
+      payload: notebook,
+      changedAt: notebook.updatedAt,
+    });
+  });
+  await flushSyncCaptureIntents();
   return notebook;
 }
 
 export async function updateNotebook(id: string, changes: Partial<Pick<Notebook, "name" | "openingBalance" | "color" | "icon" | "groupId">>) {
   const updatedAt = Date.now();
-  await db.notebooks.update(id, { ...changes, updatedAt });
-  const updated = await db.notebooks.get(id);
-  if (updated) await captureNotebook(updated);
+  await db.transaction("rw", db.notebooks, db.syncCaptureIntents, async () => {
+    await db.notebooks.update(id, { ...changes, updatedAt });
+    const updated = await db.notebooks.get(id);
+    if (updated) await stageSyncCapture({ entity: "notebook", entityId: id, operation: "upsert", payload: updated, changedAt: updated.updatedAt });
+  });
+  await flushSyncCaptureIntents();
 }
 
 export async function setNotebookPinned(id: string, pinned: boolean) {
   const updatedAt = Date.now();
-  await db.notebooks.update(id, { pinned, updatedAt });
-  const updated = await db.notebooks.get(id);
-  if (updated) await captureNotebook(updated);
+  await db.transaction("rw", db.notebooks, db.syncCaptureIntents, async () => {
+    await db.notebooks.update(id, { pinned, updatedAt });
+    const updated = await db.notebooks.get(id);
+    if (updated) await stageSyncCapture({ entity: "notebook", entityId: id, operation: "upsert", payload: updated, changedAt: updated.updatedAt });
+  });
+  await flushSyncCaptureIntents();
 }
 
 export async function archiveNotebook(id: string, archived = true) {
   const updatedAt = Date.now();
-  await db.notebooks.update(id, { archived, updatedAt });
-  const updated = await db.notebooks.get(id);
-  if (updated) await captureNotebook(updated);
+  await db.transaction("rw", db.notebooks, db.syncCaptureIntents, async () => {
+    await db.notebooks.update(id, { archived, updatedAt });
+    const updated = await db.notebooks.get(id);
+    if (updated) await stageSyncCapture({ entity: "notebook", entityId: id, operation: "upsert", payload: updated, changedAt: updated.updatedAt });
+  });
+  await flushSyncCaptureIntents();
 }
 
 export async function deleteNotebookPermanently(id: string) {
@@ -48,17 +66,20 @@ export async function deleteNotebookPermanently(id: string) {
     db.transactions.where("notebookId").equals(id).toArray(),
   ]);
   if (!notebook) return;
-  await db.transaction("rw", db.notebooks, db.people, db.transactions, async () => {
+  const changedAt = Date.now();
+  await db.transaction("rw", db.notebooks, db.people, db.transactions, db.syncCaptureIntents, async () => {
     await db.transactions.where("notebookId").equals(id).delete();
     await db.people.where("notebookId").equals(id).delete();
     await db.notebooks.delete(id);
+    for (const txn of transactions) {
+      await stageSyncCapture({ entity: "transaction", entityId: txn.id, operation: "delete", changedAt });
+    }
+    for (const person of people) {
+      await stageSyncCapture({ entity: "person", entityId: person.id, operation: "delete", changedAt });
+    }
+    await stageSyncCapture({ entity: "notebook", entityId: notebook.id, operation: "delete", changedAt });
   });
-  const changedAt = Date.now();
-  await Promise.all([
-    ...transactions.map((txn) => captureDelete("transaction", txn.id, changedAt)),
-    ...people.map((person) => captureDelete("person", person.id, changedAt)),
-    captureDelete("notebook", notebook.id, changedAt),
-  ]);
+  await flushSyncCaptureIntents();
 }
 
 export async function getNotebookBalance(notebookId: string): Promise<number> {

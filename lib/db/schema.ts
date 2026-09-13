@@ -51,12 +51,26 @@ export interface Settings {
   value: string;
 }
 
+export type LocalSyncEntityType = "notebook" | "group" | "person" | "transaction";
+export type LocalSyncOperation = "upsert" | "delete";
+
+export interface SyncCaptureIntent {
+  id: string;
+  entity: LocalSyncEntityType;
+  entityId: string;
+  operation: LocalSyncOperation;
+  payload?: Notebook | NotebookGroup | Person | Transaction;
+  changedAt: number;
+  createdAt: number;
+}
+
 export class KhataDB extends Dexie {
   notebooks!: EntityTable<Notebook, "id">;
   people!: EntityTable<Person, "id">;
   transactions!: EntityTable<Transaction, "id">;
   settings!: EntityTable<Settings, "key">;
   groups!: EntityTable<NotebookGroup, "id">;
+  syncCaptureIntents!: EntityTable<SyncCaptureIntent, "id">;
 
   constructor() {
     super("khata-db");
@@ -66,15 +80,26 @@ export class KhataDB extends Dexie {
       transactions: "id, notebookId, personId, occurredAt, type",
       settings: "key",
     });
-    // v2: pin + group support. Existing notebooks simply have no `pinned`/
-    // `groupId` value yet (treated as unpinned/ungrouped) — no data migration
-    // needed since both are optional fields.
+    // v2: pin + group support. Existing notebooks simply have no `pinned`/`groupId`
+    // value yet (treated as unpinned/ungrouped) — no data migration needed since
+    // both are optional fields.
     this.version(2).stores({
       notebooks: "id, archived, createdAt, updatedAt, pinned, groupId",
       people: "id, notebookId, name",
       transactions: "id, notebookId, personId, occurredAt, type",
       settings: "key",
       groups: "id, name, createdAt",
+    });
+    // v3: local sync-capture intents make a source-of-truth write and its
+    // corresponding sync intent atomic inside the same Dexie database. The
+    // intent is drained into the separate sync queue after the local commit.
+    this.version(3).stores({
+      notebooks: "id, archived, createdAt, updatedAt, pinned, groupId",
+      people: "id, notebookId, name",
+      transactions: "id, notebookId, personId, occurredAt, type",
+      settings: "key",
+      groups: "id, name, createdAt",
+      syncCaptureIntents: "id, entity, entityId, operation, changedAt, createdAt",
     });
   }
 }

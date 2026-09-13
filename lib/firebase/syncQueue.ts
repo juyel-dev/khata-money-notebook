@@ -10,6 +10,8 @@ export interface EnqueueMutationInput {
   operation: SyncOperation;
   payload?: SyncEntityPayload;
   changedAt: number;
+  /** Stable ID for a locally durable capture intent. */
+  mutationId?: string;
 }
 
 export const MAX_AUTO_RETRY_ATTEMPTS = 8;
@@ -20,12 +22,15 @@ export async function enqueueMutation(input: EnqueueMutationInput): Promise<stri
     deviceId: await getDeviceId(),
     sequence: await nextLogicalClock(),
   };
-  const id = createMutationId(input.entity, input.entityId, version);
+  const id = input.mutationId ?? createMutationId(input.entity, input.entityId, version);
   const serialized = input.payload
     ? serializeFirestoreRecord(input.payload as unknown as Record<string, unknown>)
     : null;
   const mutation: SyncMutation = {
-    ...input,
+    entity: input.entity,
+    entityId: input.entityId,
+    operation: input.operation,
+    changedAt: input.changedAt,
     ...(serialized ? {
       payload: serialized.clean as unknown as SyncEntityPayload,
       ...(serialized.clearedFields.length ? { clearedFields: serialized.clearedFields } : {}),
@@ -36,7 +41,15 @@ export async function enqueueMutation(input: EnqueueMutationInput): Promise<stri
     attempts: 0,
   };
 
-  await syncDb.syncMutations.put(mutation);
+  try {
+    // `add` makes a stable intent ID idempotent even if two flushers race or a
+    // crash occurs after queue persistence but before the intent is removed.
+    await syncDb.syncMutations.add(mutation);
+  } catch (error) {
+    const existing = await syncDb.syncMutations.get(id);
+    if (!existing) throw error;
+  }
+
   return id;
 }
 

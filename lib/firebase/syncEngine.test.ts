@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   clearTombstoneForNewerUpsert: vi.fn(),
   shouldRejectUpsert: vi.fn(),
   table: { put: vi.fn(), delete: vi.fn() },
+  flushSyncCaptureIntents: vi.fn(),
 }));
 
 vi.mock("../db/schema", () => ({
@@ -60,6 +61,7 @@ vi.mock("./syncTombstones", () => ({
   clearTombstoneForNewerUpsert: mocks.clearTombstoneForNewerUpsert,
   shouldRejectUpsert: mocks.shouldRejectUpsert,
 }));
+vi.mock("./syncCapture", () => ({ flushSyncCaptureIntents: mocks.flushSyncCaptureIntents }));
 
 import { syncOnce, withTimeout } from "./syncEngine";
 
@@ -73,6 +75,7 @@ describe("sync engine", () => {
     mocks.getRetryableFailedMutations.mockResolvedValue([]);
     mocks.getSyncCursor.mockResolvedValue(0);
     mocks.readMutationJournal.mockResolvedValue({ mutations: [], nextCursor: null });
+    mocks.flushSyncCaptureIntents.mockResolvedValue(0);
   });
 
   it("requires a completed account link before network sync", async () => {
