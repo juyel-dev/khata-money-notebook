@@ -96,7 +96,7 @@ The codebase can establish that the flows are structurally implemented; only a r
 - Sign out returns to local-only mode without deleting local ledger data.
 - Cancelled auth is understandable; do not accept a silent failure.
 
-Redirect auth is expected on mobile/standalone. Popup auth is expected on ordinary desktop web.
+Redirect auth is expected on mobile (browser or installed PWA). Popup auth is expected on desktop web, including an installed desktop PWA.
 
 ### Account linking / reconciliation
 

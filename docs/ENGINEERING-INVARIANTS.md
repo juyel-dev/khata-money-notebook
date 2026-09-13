@@ -194,7 +194,7 @@ Sync metadata, account-link state, UI state, and Firebase credentials are not po
 
 Google provider uses `select_account`.
 
-Desktop web uses popup auth. Mobile browsers and standalone PWAs use redirect auth because popup behavior is less reliable there.
+Desktop web uses popup auth, including installed desktop PWAs: the Firebase redirect flow keeps its continuation state in sessionStorage, which does not survive the cross-origin round-trip from an installed desktop PWA window. Mobile browsers and installed mobile PWAs use redirect auth because popup behavior is less reliable there.
 
 Auth initialization must fail soft when Firebase configuration is absent: local app surfaces must not crash merely because cloud env is missing.
 

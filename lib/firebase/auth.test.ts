@@ -74,10 +74,25 @@ describe("Google authentication flow", () => {
     expect(shouldUseRedirectAuth()).toBe(true);
   });
 
-  it("uses redirect authentication for an installed standalone PWA", async () => {
+  it("uses popup authentication for an installed desktop PWA", async () => {
     setBrowserContext({
       userAgent: "Mozilla/5.0 desktop",
       standalone: false,
+      displayModeStandalone: true,
+    });
+    mocks.signInWithPopup.mockResolvedValue({ user: { uid: "user-1" } });
+
+    await signInWithGoogle();
+
+    expect(mocks.signInWithPopup).toHaveBeenCalledWith({ id: "auth" }, expect.anything());
+    expect(mocks.signInWithRedirect).not.toHaveBeenCalled();
+    expect(shouldUseRedirectAuth()).toBe(false);
+  });
+
+  it("uses redirect authentication for an installed mobile PWA", async () => {
+    setBrowserContext({
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile Safari",
+      standalone: true,
       displayModeStandalone: true,
     });
     mocks.signInWithRedirect.mockResolvedValue(undefined);
