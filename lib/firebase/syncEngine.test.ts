@@ -236,10 +236,15 @@ describe("sync engine", () => {
 
       const first = syncOnce({} as never, "user-a", { timeoutMs: 1000 });
       const second = syncOnce({} as never, "user-b", { timeoutMs: 1000 });
+      // Attach the rejection assertion before advancing timers — otherwise the
+      // timer fires and rejects `first` before anything is listening for it,
+      // which vitest reports as an unhandled rejection even though it's
+      // handled a tick later.
+      const firstRejects = expect(first).rejects.toThrow("Sync timed out");
 
       await expect(second).resolves.toMatchObject({ pushed: 0, pulled: 0, pages: 1 });
       await vi.advanceTimersByTimeAsync(1000);
-      await expect(first).rejects.toThrow("Sync timed out");
+      await firstRejects;
     } finally {
       vi.useRealTimers();
     }
