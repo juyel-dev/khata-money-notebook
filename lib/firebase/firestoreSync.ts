@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -87,6 +88,34 @@ function tombstonePath(uid: string, entity: SyncEntityType, entityId: string): s
 
 function orderDocPath(uid: string): string {
   return `${userDocPath(uid)}/${META_COLLECTION}/${ORDER_DOC_ID}`;
+}
+
+function removeUndefinedFields<T extends Record<string, unknown>>(value: T): {
+  clean: T;
+  clearedFields: string[];
+} {
+  const clean: Record<string, unknown> = {};
+  const clearedFields: string[] = [];
+
+  for (const [key, fieldValue] of Object.entries(value)) {
+    if (fieldValue === undefined) {
+      clearedFields.push(key);
+    } else {
+      clean[key] = fieldValue;
+    }
+  }
+
+  return { clean: clean as T, clearedFields };
+}
+
+function buildCanonicalEntityWrite(
+  payload: SyncEntityPayload,
+): Record<string, unknown> {
+  const { clean, clearedFields } = removeUndefinedFields(payload as Record<string, unknown>);
+  return Object.fromEntries([
+    ...Object.entries(clean),
+    ...clearedFields.map((field) => [field, deleteField()] as const),
+  ]);
 }
 
 function parseJournalRow(row: unknown): CloudMutationEnvelope {
@@ -188,12 +217,15 @@ export async function pushMutation(
     const receivedOrder = currentOrder + 1;
     transaction.set(orderRef, { value: receivedOrder }, { merge: true });
 
+    const journalPayload = mutation.payload
+      ? removeUndefinedFields(mutation.payload as Record<string, unknown>).clean
+      : undefined;
     transaction.set(journalRef, {
       id: mutation.id,
       entity: mutation.entity,
       entityId: mutation.entityId,
       operation: mutation.operation,
-      ...(mutation.payload ? { payload: mutation.payload } : {}),
+      ...(journalPayload ? { payload: journalPayload } : {}),
       version: mutation.version,
       receivedOrder,
       receivedAt: serverTimestamp(),
@@ -211,7 +243,7 @@ export async function pushMutation(
         });
       } else {
         transaction.set(entityRef, {
-          ...(mutation.payload ?? {}),
+          ...buildCanonicalEntityWrite(mutation.payload as SyncEntityPayload),
           version: mutation.version,
           syncUpdatedAt: serverTimestamp(),
         }, { merge: true });
@@ -284,8 +316,6 @@ export async function readCloudEntity(
     delete payload.version;
     delete payload.syncUpdatedAt;
     return {
-      // Cloud rows carry transport metadata (version, syncUpdatedAt) that is
-      // not part of the local entity shape; strip it before handing out.
       payload: payload as unknown as SyncEntityPayload,
       version: data.version,
       deleted: false,
