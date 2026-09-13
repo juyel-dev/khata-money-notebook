@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { beginAccountLink, completeAccountLink, getAccountLink, markReconciliationRequired } from "@/lib/firebase/accountLink";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { DEFAULT_SYNC_TIMEOUT_MS, syncOnce, withTimeout } from "@/lib/firebase/syncEngine";
@@ -150,7 +150,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [linking, refresh, user]);
 
   const performSync = useCallback(async (forceRetryFailed: boolean) => {
-    if (!user || !navigator.onLine) return;
+    if (!user || !navigator.onLine || syncing) return;
     const link = await getAccountLink();
     if (!link || link.uid !== user.uid || link.status !== "linked") return;
 
@@ -183,7 +183,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setSyncing(false);
       await refresh();
     }
-  }, [refresh, user]);
+  }, [refresh, syncing, user]);
 
   const syncNow = useCallback(() => performSync(true), [performSync]);
   const syncAutomatically = useCallback(() => performSync(false), [performSync]);
@@ -195,12 +195,25 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     void refresh();
   }, [authLoading, refresh]);
 
+  // performSync flips `syncing`, which changes the identity of `refresh` and
+  // `syncAutomatically` on every call. Reading them through a ref keeps this
+  // effect's own start/stop lifecycle independent of that churn — otherwise
+  // each sync completing would re-run the effect and immediately fire the
+  // next one, producing an endless back-to-back sync loop instead of a
+  // steady 60s cadence.
+  const syncAutomaticallyRef = useRef(syncAutomatically);
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    syncAutomaticallyRef.current = syncAutomatically;
+    refreshRef.current = refresh;
+  }, [refresh, syncAutomatically]);
+
   useEffect(() => {
     if (authLoading || !user || linkStatus !== "linked") return;
 
     const syncIfOnline = () => {
-      if (navigator.onLine) void syncAutomatically().catch(() => undefined);
-      else void refresh();
+      if (navigator.onLine) void syncAutomaticallyRef.current().catch(() => undefined);
+      else void refreshRef.current();
     };
 
     syncIfOnline();
@@ -216,7 +229,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("online", syncIfOnline);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [authLoading, linkStatus, refresh, syncAutomatically, user]);
+  }, [authLoading, linkStatus, user]);
 
   useEffect(() => {
     if (!user) return;
