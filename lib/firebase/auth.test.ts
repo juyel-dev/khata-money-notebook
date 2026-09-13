@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   GoogleAuthProvider: vi.fn(() => ({
     setCustomParameters: vi.fn(),
   })),
-  getRedirectResult: vi.fn(() => Promise.resolve(null)),
+  getRedirectResult: vi.fn((): Promise<unknown> => Promise.resolve(null)),
   onAuthStateChanged: vi.fn(),
   signInWithPopup: vi.fn(),
   signInWithRedirect: vi.fn(),
