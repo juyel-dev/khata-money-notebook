@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { AlertCircle, Check, Cloud, CloudOff, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { showToast } from "@/components/shared/Toast";
+import { getSyncErrorMessage } from "@/lib/firebase/syncErrorMessages";
 import { useSync } from "./SyncProvider";
 
 function formatLastSync(timestamp: number | undefined, locale: "en" | "bn"): string {
@@ -22,8 +24,9 @@ function summaryText(
 
 export function SyncStatusCard() {
   const { locale } = useI18n();
-  const { status, reconciliation, linking, startAccountLink, confirmReconciliation, syncNow } = useSync();
+  const { status, reconciliation, linking, startAccountLink, confirmReconciliation, switchAccount, syncNow } = useSync();
   const isBn = locale === "bn";
+  const [accountSwitchBlocked, setAccountSwitchBlocked] = useState(false);
   if (!status || status.status === "local-only") return null;
 
   const copy = {
@@ -38,7 +41,7 @@ export function SyncStatusCard() {
     offline: { title: isBn ? "অফলাইন" : "Offline", body: isBn ? "নতুন হিসাব ডিভাইসেই থাকবে; অনলাইনে এলে সিঙ্ক হবে।" : "New entries stay on this device and sync when you're online." },
     syncing: { title: isBn ? "সিঙ্ক হচ্ছে…" : "Syncing…", body: isBn ? "আপনার খাতার পরিবর্তনগুলো মিলিয়ে নেওয়া হচ্ছে।" : "Your Khata changes are being synchronized." },
     synced: { title: isBn ? "সিঙ্ক সম্পন্ন" : "Synced", body: isBn ? `সর্বশেষ: ${formatLastSync(status.lastSyncedAt, locale)}` : `Last sync: ${formatLastSync(status.lastSyncedAt, locale)}` },
-    error: { title: isBn ? "সিঙ্কে সমস্যা" : "Sync needs attention", body: status.lastError || (isBn ? "কিছু পরিবর্তন সিঙ্ক হয়নি।" : "Some changes could not be synchronized.") },
+    error: { title: isBn ? "সিঙ্কে সমস্যা" : "Sync needs attention", body: status.lastError ? getSyncErrorMessage(status.lastError, isBn) : (isBn ? "কিছু পরিবর্তন সিঙ্ক হয়নি।" : "Some changes could not be synchronized.") },
   } as const;
 
   const message = copy[status.status];
@@ -54,9 +57,24 @@ export function SyncStatusCard() {
 
   async function handleStart() {
     try {
+      setAccountSwitchBlocked(false);
       await startAccountLink();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : isBn ? "ক্লাউড সিঙ্ক সেটআপ করা যায়নি।" : "Couldn't set up cloud sync.");
+      if (error instanceof Error && error.message === "ACCOUNT_SWITCH_REQUIRES_RECONCILIATION") {
+        setAccountSwitchBlocked(true);
+        return;
+      }
+      showToast(getSyncErrorMessage(error, isBn));
+    }
+  }
+
+  async function handleSwitchAccount() {
+    try {
+      await switchAccount();
+      setAccountSwitchBlocked(false);
+      await handleStart();
+    } catch {
+      showToast(isBn ? "অ্যাকাউন্ট বদলানো যায়নি। আবার চেষ্টা করুন।" : "Couldn't switch accounts. Please try again.");
     }
   }
 
@@ -100,6 +118,24 @@ export function SyncStatusCard() {
           {linking ? <Loader2 size={14} className="animate-spin" /> : <Cloud size={14} />}
           {linking ? (isBn ? "সেটআপ হচ্ছে…" : "Setting up…") : isBn ? "সেটআপ শুরু করুন" : "Set up cloud sync"}
         </button>
+      )}
+
+      {status.status === "needs-link" && accountSwitchBlocked && (
+        <div className="mt-3 rounded-xl border border-rule bg-paper px-3 py-3">
+          <div className="text-[11px] leading-relaxed text-ink-dim">
+            {isBn
+              ? "এই ডিভাইসে অন্য একটি Google অ্যাকাউন্ট আগে থেকে যুক্ত আছে। এই অ্যাকাউন্টে সুইচ করলে আগের লিংক সরিয়ে নতুন করে ডেটা মিলিয়ে নেওয়া হবে — কোনো ডেটা নিজে থেকে মুছে যাবে না।"
+              : "A different Google account is already linked on this device. Switching will drop that link and reconcile fresh with this account — nothing is deleted automatically."}
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleSwitchAccount()}
+            disabled={linking}
+            className="mt-3 rounded-full border border-rule px-3 py-2 text-xs font-semibold text-ink-dim disabled:cursor-wait disabled:opacity-60"
+          >
+            {isBn ? "এই অ্যাকাউন্টে সুইচ করুন" : "Switch to this account"}
+          </button>
+        </div>
       )}
 
       {status.status === "needs-reconciliation" && reconciliation && (
