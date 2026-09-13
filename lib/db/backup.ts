@@ -6,6 +6,8 @@ import {
   type Transaction,
 } from "./schema";
 import { NOTEBOOK_COLORS, NOTEBOOK_ICONS } from "../shared/notebookStyle";
+import { stageSyncCapture, flushSyncCaptureIntents } from "../firebase/syncCapture";
+import type { SyncEntityType, SyncEntityPayload } from "../firebase/syncTypes";
 
 // A backup is a versioned envelope — never bare table arrays — so a future
 // app version can detect, migrate, or refuse an old file instead of
@@ -281,21 +283,68 @@ export async function snapshotDb(): Promise<DbSnapshot> {
   return { notebooks, groups, people, transactions };
 }
 
+// Stage sync-capture intents for a full-table replace: anything that existed
+// before but is absent from the new rows must be tombstoned, and every new
+// row must be upserted. Mirrors migrateEntity() in reconciliationFlow.ts,
+// which does the same local-vs-target diff for the account-reconciliation
+// case.
+async function stageRestoreSyncIntents<T extends { id: string }>(
+  entity: SyncEntityType,
+  previousRows: T[],
+  nextRows: T[],
+  changedAt: number,
+): Promise<void> {
+  const nextIds = new Set(nextRows.map((row) => row.id));
+  for (const row of previousRows) {
+    if (!nextIds.has(row.id)) {
+      await stageSyncCapture({ entity, entityId: row.id, operation: "delete", changedAt });
+    }
+  }
+  for (const row of nextRows) {
+    await stageSyncCapture({
+      entity,
+      entityId: row.id,
+      operation: "upsert",
+      payload: row as unknown as SyncEntityPayload,
+      changedAt,
+    });
+  }
+}
+
 // RESTORE/REPLACE — never merge. The previous rows are snapshotted first
 // (returned for the caller), then everything is swapped inside ONE Dexie
 // readwrite transaction: if any step throws, Dexie rolls the whole thing
-// back and the current on-device data stays exactly as it was.
+// back and the current on-device data stays exactly as it was. The swap
+// also stages sync-capture intents in the same transaction (see
+// docs/ENGINEERING-INVARIANTS.md — local mutation capture durability), so a
+// linked account's cloud copy converges to the restored data on the next
+// sync instead of silently staying on its pre-restore state.
 export async function restoreBackup(backup: KhataBackup): Promise<DbSnapshot> {
   const previous = await snapshotDb();
-  await db.transaction("rw", db.transactions, db.people, db.notebooks, db.groups, async () => {
-    await db.transactions.clear();
-    await db.people.clear();
-    await db.notebooks.clear();
-    await db.groups.clear();
-    await db.groups.bulkAdd(backup.data.groups);
-    await db.notebooks.bulkAdd(backup.data.notebooks);
-    await db.people.bulkAdd(backup.data.people);
-    await db.transactions.bulkAdd(backup.data.transactions);
-  });
+  const changedAt = Date.now();
+  await db.transaction(
+    "rw",
+    db.transactions,
+    db.people,
+    db.notebooks,
+    db.groups,
+    db.syncCaptureIntents,
+    async () => {
+      await db.transactions.clear();
+      await db.people.clear();
+      await db.notebooks.clear();
+      await db.groups.clear();
+      await db.groups.bulkAdd(backup.data.groups);
+      await db.notebooks.bulkAdd(backup.data.notebooks);
+      await db.people.bulkAdd(backup.data.people);
+      await db.transactions.bulkAdd(backup.data.transactions);
+
+      await stageRestoreSyncIntents("group", previous.groups, backup.data.groups, changedAt);
+      await stageRestoreSyncIntents("notebook", previous.notebooks, backup.data.notebooks, changedAt);
+      await stageRestoreSyncIntents("person", previous.people, backup.data.people, changedAt);
+      await stageRestoreSyncIntents("transaction", previous.transactions, backup.data.transactions, changedAt);
+    },
+  );
+  await flushSyncCaptureIntents();
   return previous;
 }
