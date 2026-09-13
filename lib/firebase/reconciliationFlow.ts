@@ -108,7 +108,7 @@ async function readCloudDataset(firestore: Firestore, uid: string): Promise<Clou
   return {
     notebooks: toNotebook(raw.notebook),
     groups: toGroup(raw.group),
-    people: toPerson(raw.person),
+    people: toPerson(raw.people ?? []),
     transactions: toTransaction(raw.transaction),
     versions,
     tombstones,
@@ -177,6 +177,11 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
     readLocalDataset(),
     readCloudDataset(firestore, uid),
   ]);
+
+  // A local ledger stays intact during an account switch, but its old account's
+  // pending outbox must never be sent to the new account. Clear transport state
+  // first, then recreate fresh mutations from the local source-of-truth.
+  await resetLocalSyncStateForCloudImport();
 
   // Make every migration mutation causally newer than the entire cloud snapshot,
   // including tombstones, so an explicit "keep this device" choice is authoritative.
