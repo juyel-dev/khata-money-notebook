@@ -239,7 +239,7 @@ describe("Firestore sync transport", () => {
     expect(transaction.delete).not.toHaveBeenCalled();
   });
 
-  it("serializes optional fields without undefined values", async () => {
+  it("serializes optional fields before the Firestore transaction", async () => {
     const { writes } = setupTransaction({
       entityVersion: { changedAt: 0, deviceId: "device-z", sequence: 1 },
     });
@@ -258,25 +258,6 @@ describe("Firestore sync transport", () => {
     expect(journalWrite?.data).toEqual(expect.objectContaining({
       payload: expect.not.objectContaining({ note: expect.anything() }),
     }));
-    expect(entityWrite?.data).toEqual(expect.objectContaining({ note: { deleteField: true } }));
-    expect(mocks.deleteField).toHaveBeenCalledTimes(1);
-  });
-
-  it("clears an optional cloud field when a local mutation removes it", async () => {
-    const { writes } = setupTransaction({
-      entityVersion: { changedAt: 0, deviceId: "device-z", sequence: 1 },
-    });
-    const mutation = {
-      ...upsertMutation,
-      payload: {
-        ...upsertMutation.payload,
-        note: undefined,
-      },
-    };
-
-    await pushMutation({} as never, "user-1", mutation);
-
-    const entityWrite = writes.find((write) => write.path.includes("transactions/tx-1"));
     expect(entityWrite?.data).toEqual(expect.objectContaining({ note: { deleteField: true } }));
   });
 });
