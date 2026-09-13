@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   collection: vi.fn((firestore: unknown, path: string) => ({ firestore, path })),
+  deleteField: vi.fn(() => ({ deleteField: true })),
   doc: vi.fn((firestore: unknown, path: string) => ({ firestore, path })),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
@@ -236,5 +237,46 @@ describe("Firestore sync transport", () => {
 
     expect(transaction.set).not.toHaveBeenCalled();
     expect(transaction.delete).not.toHaveBeenCalled();
+  });
+
+  it("serializes optional fields without undefined values", async () => {
+    const { writes } = setupTransaction({
+      entityVersion: { changedAt: 0, deviceId: "device-z", sequence: 1 },
+    });
+    const mutation = {
+      ...upsertMutation,
+      payload: {
+        ...upsertMutation.payload,
+        note: undefined,
+      },
+    };
+
+    await pushMutation({} as never, "user-1", mutation);
+
+    const journalWrite = writes.find((write) => write.path.includes("_syncMutations/"));
+    const entityWrite = writes.find((write) => write.path.includes("transactions/tx-1"));
+    expect(journalWrite?.data).toEqual(expect.objectContaining({
+      payload: expect.not.objectContaining({ note: expect.anything() }),
+    }));
+    expect(entityWrite?.data).toEqual(expect.objectContaining({ note: { deleteField: true } }));
+    expect(mocks.deleteField).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears an optional cloud field when a local mutation removes it", async () => {
+    const { writes } = setupTransaction({
+      entityVersion: { changedAt: 0, deviceId: "device-z", sequence: 1 },
+    });
+    const mutation = {
+      ...upsertMutation,
+      payload: {
+        ...upsertMutation.payload,
+        note: undefined,
+      },
+    };
+
+    await pushMutation({} as never, "user-1", mutation);
+
+    const entityWrite = writes.find((write) => write.path.includes("transactions/tx-1"));
+    expect(entityWrite?.data).toEqual(expect.objectContaining({ note: { deleteField: true } }));
   });
 });
