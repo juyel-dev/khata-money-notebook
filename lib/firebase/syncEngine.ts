@@ -38,7 +38,7 @@ export function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMe
   });
 }
 
-let activeSync: Promise<SyncResult> | null = null;
+const activeSyncs = new Map<string, Promise<SyncResult>>();
 
 export class SyncEngineError extends Error {
   constructor(message: string) {
@@ -252,12 +252,15 @@ export function syncOnce(
   // Firestore requests can hang indefinitely on a flaky connection while
   // navigator.onLine still reports true. Bound every caller's wait so a
   // hung sync becomes a visible, retryable error instead of an endless
-  // "syncing" spinner. The shared in-flight sync keeps running and still
-  // clears activeSync when it actually settles.
+  // "syncing" spinner. A shared in-flight sync is isolated per UID so an
+  // account switch can never make the new account await the old one's run.
   const timeoutMs = options?.timeoutMs ?? DEFAULT_SYNC_TIMEOUT_MS;
+  const activeSync = activeSyncs.get(uid);
   if (activeSync) return withTimeout(activeSync, timeoutMs, SYNC_TIMEOUT_MESSAGE);
-  activeSync = runSync(firestore, uid, options).finally(() => {
-    activeSync = null;
+
+  const nextSync = runSync(firestore, uid, options).finally(() => {
+    if (activeSyncs.get(uid) === nextSync) activeSyncs.delete(uid);
   });
-  return withTimeout(activeSync, timeoutMs, SYNC_TIMEOUT_MESSAGE);
+  activeSyncs.set(uid, nextSync);
+  return withTimeout(nextSync, timeoutMs, SYNC_TIMEOUT_MESSAGE);
 }
