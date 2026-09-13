@@ -16,6 +16,16 @@ A local mutation must not wait for network access. Cloud sync is an asynchronous
 
 Zustand is for transient UI/session state; persistent ledger facts belong in Dexie.
 
+## Local mutation capture durability
+
+A source-of-truth ledger write and its sync-capture intent must commit atomically in the same Dexie database transaction.
+
+The sync transport queue is a separate durability layer. Queue/database failures after a local commit must not erase the capture trail; durable local intents remain retryable until the transport mutation and local version state are persisted.
+
+Stable capture-intent IDs must make replay idempotent across crashes between queue persistence and intent cleanup.
+
+Reconciliation/account switching must clear stale local capture intents before rebuilding transport mutations for the selected account.
+
 ## Entity contract
 
 ```text
