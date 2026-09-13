@@ -97,7 +97,7 @@ function buildCanonicalEntityWrite(
   payload: SyncEntityPayload,
   clearedFields: string[] = [],
 ): Record<string, unknown> {
-  const { clean, clearedFields: payloadClearedFields } = serializeFirestoreRecord(payload as Record<string, unknown>);
+  const { clean, clearedFields: payloadClearedFields } = serializeFirestoreRecord(payload as unknown as Record<string, unknown>);
   const fieldsToClear = [...new Set([...payloadClearedFields, ...clearedFields])];
   return Object.fromEntries([
     ...Object.entries(clean),
@@ -215,7 +215,7 @@ export async function pushMutation(
     transaction.set(orderRef, { value: receivedOrder }, { merge: true });
 
     const journalPayload = mutation.payload
-      ? serializeFirestoreRecord(mutation.payload as Record<string, unknown>).clean
+      ? serializeFirestoreRecord(mutation.payload as unknown as Record<string, unknown>).clean
       : undefined;
     const clearedFields = mutation.clearedFields?.length ? [...new Set(mutation.clearedFields)] : undefined;
     transaction.set(journalRef, {
@@ -242,7 +242,7 @@ export async function pushMutation(
         });
       } else {
         transaction.set(entityRef, {
-          ...buildCanonicalEntityWrite(mutation.payload as SyncEntityPayload, clearedFields),
+          ...buildCanonicalEntityWrite(mutation.payload as unknown as SyncEntityPayload, clearedFields),
           version: mutation.version,
           syncUpdatedAt: serverTimestamp(),
         }, { merge: true });
