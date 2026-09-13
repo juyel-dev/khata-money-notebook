@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -19,6 +20,7 @@ import {
   transactionDocPath,
   userDocPath,
 } from "./firestoreSchema";
+import { serializeFirestoreRecord } from "./firestoreSerialization";
 import { compareSyncVersions, isSyncEntityType, isSyncOperation, type SyncEntityPayload, type SyncEntityType, type SyncMutation, type SyncOperation, type SyncVersion } from "./syncTypes";
 import { quarantineJournalRow } from "./syncQuarantine";
 
@@ -34,6 +36,7 @@ export interface CloudMutationEnvelope {
   entityId: string;
   operation: SyncOperation;
   payload?: SyncEntityPayload;
+  clearedFields?: string[];
   version: SyncVersion;
   receivedOrder: number;
   receivedAt?: Timestamp;
@@ -49,6 +52,7 @@ export interface RemoteMutation {
   entityId: string;
   operation: SyncOperation;
   payload?: SyncEntityPayload;
+  clearedFields?: string[];
   version: SyncVersion;
 }
 
@@ -89,6 +93,26 @@ function orderDocPath(uid: string): string {
   return `${userDocPath(uid)}/${META_COLLECTION}/${ORDER_DOC_ID}`;
 }
 
+function buildCanonicalEntityWrite(
+  payload: SyncEntityPayload,
+  clearedFields: string[] = [],
+): Record<string, unknown> {
+  const { clean, clearedFields: payloadClearedFields } = serializeFirestoreRecord(payload as unknown as Record<string, unknown>);
+  const fieldsToClear = [...new Set([...payloadClearedFields, ...clearedFields])];
+  return Object.fromEntries([
+    ...Object.entries(clean),
+    ...fieldsToClear.map((field) => [field, deleteField()] as const),
+  ]);
+}
+
+function parseClearedFields(value: unknown): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some((field) => typeof field !== "string" || !field)) {
+    throw new Error("corrupt Firestore sync journal cleared fields");
+  }
+  return value;
+}
+
 function parseJournalRow(row: unknown): CloudMutationEnvelope {
   if (!row || typeof row !== "object") {
     throw new Error("corrupt Firestore sync journal row");
@@ -111,6 +135,7 @@ function parseJournalRow(row: unknown): CloudMutationEnvelope {
   }
 
   validateVersion(data.version);
+  const clearedFields = parseClearedFields(data.clearedFields);
 
   let payload: SyncEntityPayload | undefined;
   if (data.operation === "upsert") {
@@ -130,6 +155,7 @@ function parseJournalRow(row: unknown): CloudMutationEnvelope {
     entityId: data.entityId,
     operation: data.operation,
     ...(payload ? { payload } : {}),
+    ...(clearedFields?.length ? { clearedFields } : {}),
     version: data.version,
     ...(isFirestoreTimestamp(data.receivedAt) ? { receivedAt: data.receivedAt } : {}),
     receivedOrder: data.receivedOrder,
@@ -188,12 +214,17 @@ export async function pushMutation(
     const receivedOrder = currentOrder + 1;
     transaction.set(orderRef, { value: receivedOrder }, { merge: true });
 
+    const journalPayload = mutation.payload
+      ? serializeFirestoreRecord(mutation.payload as unknown as Record<string, unknown>).clean
+      : undefined;
+    const clearedFields = mutation.clearedFields?.length ? [...new Set(mutation.clearedFields)] : undefined;
     transaction.set(journalRef, {
       id: mutation.id,
       entity: mutation.entity,
       entityId: mutation.entityId,
       operation: mutation.operation,
-      ...(mutation.payload ? { payload: mutation.payload } : {}),
+      ...(journalPayload ? { payload: journalPayload } : {}),
+      ...(clearedFields ? { clearedFields } : {}),
       version: mutation.version,
       receivedOrder,
       receivedAt: serverTimestamp(),
@@ -211,7 +242,7 @@ export async function pushMutation(
         });
       } else {
         transaction.set(entityRef, {
-          ...(mutation.payload ?? {}),
+          ...buildCanonicalEntityWrite(mutation.payload as unknown as SyncEntityPayload, clearedFields),
           version: mutation.version,
           syncUpdatedAt: serverTimestamp(),
         }, { merge: true });
@@ -251,6 +282,7 @@ export async function readMutationJournal(
         entityId: data.entityId,
         operation: data.operation,
         payload: data.payload,
+        clearedFields: data.clearedFields,
         version: data.version,
       });
       nextCursor = { receivedOrder: data.receivedOrder };
@@ -284,8 +316,6 @@ export async function readCloudEntity(
     delete payload.version;
     delete payload.syncUpdatedAt;
     return {
-      // Cloud rows carry transport metadata (version, syncUpdatedAt) that is
-      // not part of the local entity shape; strip it before handing out.
       payload: payload as unknown as SyncEntityPayload,
       version: data.version,
       deleted: false,

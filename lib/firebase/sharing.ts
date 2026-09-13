@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 import { db, type Notebook, type Person, type Transaction } from "../db/schema";
 import { getAccountLink } from "./accountLink";
+import { serializeFirestoreRecord } from "./firestoreSerialization";
 import { syncOnce } from "./syncEngine";
 
 export type ShareScope = "khata" | "individual";
@@ -75,7 +76,8 @@ async function commitChunked<T extends { id: string }>(
   for (let offset = 0; offset < rows.length; offset += BATCH_SIZE) {
     const batch = writeBatch(firestore);
     for (const row of rows.slice(offset, offset + BATCH_SIZE)) {
-      batch.set(doc(shareChildCollection(firestore, token, collectionName), row.id), row);
+      const { clean } = serializeFirestoreRecord(row as Record<string, unknown>);
+      batch.set(doc(shareChildCollection(firestore, token, collectionName), row.id), clean);
     }
     await batch.commit();
   }

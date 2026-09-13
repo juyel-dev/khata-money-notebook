@@ -35,6 +35,7 @@ export interface SyncMutation<TPayload = SyncEntityPayload> {
   entityId: string;
   operation: SyncOperation;
   payload?: TPayload;
+  clearedFields?: string[];
   changedAt: number;
   version: SyncVersion;
   status: SyncQueueStatus;

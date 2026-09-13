@@ -213,6 +213,43 @@ describe("sync engine", () => {
     expect(mocks.setSyncCursor).not.toHaveBeenCalled();
   });
 
+  it("isolates concurrent in-flight syncs by account UID", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.assertAccountLinkTarget.mockImplementation(async (uid: string) => ({ status: "linked", uid }));
+      mocks.getAccountLink.mockImplementation(async () => ({ status: "linked", uid: "user-a" }));
+      mocks.getPendingMutations
+        .mockResolvedValueOnce([
+          {
+            id: "transaction:tx-a:1:device-a:1",
+            entity: "transaction" as const,
+            entityId: "tx-a",
+            operation: "delete" as const,
+            changedAt: 1,
+            version: { changedAt: 1, deviceId: "device-a", sequence: 1 },
+            status: "pending" as const,
+            attempts: 0,
+          },
+        ])
+        .mockResolvedValue([]);
+      mocks.pushMutation.mockImplementationOnce(() => new Promise<never>(() => {}));
+
+      const first = syncOnce({} as never, "user-a", { timeoutMs: 1000 });
+      const second = syncOnce({} as never, "user-b", { timeoutMs: 1000 });
+      // Attach the rejection assertion before advancing timers — otherwise the
+      // timer fires and rejects `first` before anything is listening for it,
+      // which vitest reports as an unhandled rejection even though it's
+      // handled a tick later.
+      const firstRejects = expect(first).rejects.toThrow("Sync timed out");
+
+      await expect(second).resolves.toMatchObject({ pushed: 0, pulled: 0, pages: 1 });
+      await vi.advanceTimersByTimeAsync(1000);
+      await firstRejects;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("withTimeout resolves values that settle in time", async () => {
     await expect(withTimeout(Promise.resolve(7), 1000, "too slow")).resolves.toBe(7);
   });
@@ -230,8 +267,7 @@ describe("sync engine", () => {
   });
 
   it("syncOnce rejects instead of spinning forever when Firestore hangs", async () => {
-    // Must stay last: the hung run below keeps the module-level in-flight
-    // sync pending on purpose.
+    // Must stay last: the hung run below keeps the in-flight sync pending on purpose.
     mocks.getPendingMutations.mockResolvedValueOnce([
       { id: "tx-hang", version: { changedAt: 1, deviceId: "device-a", sequence: 1 } },
     ]);

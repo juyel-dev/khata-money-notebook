@@ -122,6 +122,19 @@ describe("sharing snapshots", () => {
     expect(store.get(`shares/${result.token}/transactions/${transactionB.id}`)).toEqual(transactionB);
   });
 
+  it("omits undefined optional fields from shared snapshot documents", async () => {
+    await db.notebooks.put(notebook);
+    await db.people.put({ ...personA, phone: undefined });
+    await db.transactions.put({ ...transactionA, note: undefined });
+
+    const result = await createShareSnapshot(firestore, uid, { scope: "khata", notebookId: notebook.id });
+    const sharedPerson = store.get(`shares/${result.token}/people/${personA.id}`)!;
+    const sharedTransaction = store.get(`shares/${result.token}/transactions/${transactionA.id}`)!;
+
+    expect(sharedPerson).not.toHaveProperty("phone");
+    expect(sharedTransaction).not.toHaveProperty("note");
+  });
+
   it("creates an individual snapshot without leaking another person's rows", async () => {
     await db.notebooks.put(notebook);
     await db.people.bulkPut([personA, personB]);

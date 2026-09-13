@@ -53,6 +53,29 @@ describe("sync queue", () => {
     expect(pending[0].version.sequence).toBeGreaterThan(0);
   });
 
+  it("normalizes optional fields and keeps explicit clears in the mutation", async () => {
+    const id = await enqueueMutation({
+      entity: "transaction",
+      entityId: "tx-1",
+      operation: "upsert",
+      changedAt: 100,
+      payload: {
+        id: "tx-1",
+        notebookId: "n1",
+        personId: "p1",
+        type: "gave",
+        amount: 100,
+        note: undefined,
+        occurredAt: 100,
+        createdAt: 100,
+      },
+    });
+
+    const mutation = await syncDb.syncMutations.get(id);
+    expect(mutation?.payload).not.toHaveProperty("note");
+    expect(mutation?.clearedFields).toEqual(["note"]);
+  });
+
   it("tracks retry metadata and allows a failed mutation back to pending", async () => {
     vi.spyOn(Date, "now").mockReturnValue(1000);
     const id = await enqueueMutation({

@@ -172,11 +172,24 @@ async function migrateEntity<T extends SyncEntityPayload>(
   }
 }
 
+async function resetLocalSyncStateForCloudImport(): Promise<void> {
+  await syncDb.syncMutations.clear();
+  await syncDb.syncTombstones.clear();
+  const meta = await syncDb.syncMeta.toArray();
+  const keysToDelete = meta.map((row) => row.key).filter((key) => !PRESERVED_META_KEYS.has(key));
+  if (keysToDelete.length) await syncDb.syncMeta.bulkDelete(keysToDelete);
+}
+
 async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<void> {
   const [local, cloud] = await Promise.all([
     readLocalDataset(),
     readCloudDataset(firestore, uid),
   ]);
+
+  // A local ledger stays intact during an account switch, but its old account's
+  // pending outbox must never be sent to the new account. Clear transport state
+  // first, then recreate fresh mutations from the local source-of-truth.
+  await resetLocalSyncStateForCloudImport();
 
   // Make every migration mutation causally newer than the entire cloud snapshot,
   // including tombstones, so an explicit "keep this device" choice is authoritative.
@@ -189,14 +202,6 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
 
   await completeAccountLink(uid);
   await syncOnce(firestore, uid);
-}
-
-async function resetLocalSyncStateForCloudImport(): Promise<void> {
-  await syncDb.syncMutations.clear();
-  await syncDb.syncTombstones.clear();
-  const meta = await syncDb.syncMeta.toArray();
-  const keysToDelete = meta.map((row) => row.key).filter((key) => !PRESERVED_META_KEYS.has(key));
-  if (keysToDelete.length) await syncDb.syncMeta.bulkDelete(keysToDelete);
 }
 
 async function replaceLocalWithCloud(firestore: Firestore, uid: string): Promise<void> {
