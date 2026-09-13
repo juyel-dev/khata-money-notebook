@@ -36,6 +36,7 @@ export interface CloudMutationEnvelope {
   entityId: string;
   operation: SyncOperation;
   payload?: SyncEntityPayload;
+  clearedFields?: string[];
   version: SyncVersion;
   receivedOrder: number;
   receivedAt?: Timestamp;
@@ -51,6 +52,7 @@ export interface RemoteMutation {
   entityId: string;
   operation: SyncOperation;
   payload?: SyncEntityPayload;
+  clearedFields?: string[];
   version: SyncVersion;
 }
 
@@ -93,12 +95,22 @@ function orderDocPath(uid: string): string {
 
 function buildCanonicalEntityWrite(
   payload: SyncEntityPayload,
+  clearedFields: string[] = [],
 ): Record<string, unknown> {
-  const { clean, clearedFields } = serializeFirestoreRecord(payload as Record<string, unknown>);
+  const { clean, clearedFields: payloadClearedFields } = serializeFirestoreRecord(payload as Record<string, unknown>);
+  const fieldsToClear = [...new Set([...payloadClearedFields, ...clearedFields])];
   return Object.fromEntries([
     ...Object.entries(clean),
-    ...clearedFields.map((field) => [field, deleteField()] as const),
+    ...fieldsToClear.map((field) => [field, deleteField()] as const),
   ]);
+}
+
+function parseClearedFields(value: unknown): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some((field) => typeof field !== "string" || !field)) {
+    throw new Error("corrupt Firestore sync journal cleared fields");
+  }
+  return value;
 }
 
 function parseJournalRow(row: unknown): CloudMutationEnvelope {
@@ -123,6 +135,7 @@ function parseJournalRow(row: unknown): CloudMutationEnvelope {
   }
 
   validateVersion(data.version);
+  const clearedFields = parseClearedFields(data.clearedFields);
 
   let payload: SyncEntityPayload | undefined;
   if (data.operation === "upsert") {
@@ -142,6 +155,7 @@ function parseJournalRow(row: unknown): CloudMutationEnvelope {
     entityId: data.entityId,
     operation: data.operation,
     ...(payload ? { payload } : {}),
+    ...(clearedFields?.length ? { clearedFields } : {}),
     version: data.version,
     ...(isFirestoreTimestamp(data.receivedAt) ? { receivedAt: data.receivedAt } : {}),
     receivedOrder: data.receivedOrder,
@@ -203,12 +217,14 @@ export async function pushMutation(
     const journalPayload = mutation.payload
       ? serializeFirestoreRecord(mutation.payload as Record<string, unknown>).clean
       : undefined;
+    const clearedFields = mutation.clearedFields?.length ? [...new Set(mutation.clearedFields)] : undefined;
     transaction.set(journalRef, {
       id: mutation.id,
       entity: mutation.entity,
       entityId: mutation.entityId,
       operation: mutation.operation,
       ...(journalPayload ? { payload: journalPayload } : {}),
+      ...(clearedFields ? { clearedFields } : {}),
       version: mutation.version,
       receivedOrder,
       receivedAt: serverTimestamp(),
@@ -226,7 +242,7 @@ export async function pushMutation(
         });
       } else {
         transaction.set(entityRef, {
-          ...buildCanonicalEntityWrite(mutation.payload as SyncEntityPayload),
+          ...buildCanonicalEntityWrite(mutation.payload as SyncEntityPayload, clearedFields),
           version: mutation.version,
           syncUpdatedAt: serverTimestamp(),
         }, { merge: true });
@@ -266,6 +282,7 @@ export async function readMutationJournal(
         entityId: data.entityId,
         operation: data.operation,
         payload: data.payload,
+        clearedFields: data.clearedFields,
         version: data.version,
       });
       nextCursor = { receivedOrder: data.receivedOrder };
