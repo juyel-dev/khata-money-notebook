@@ -27,6 +27,14 @@ export interface SyncStatusInputs {
   pendingCount?: number;
   failedCount?: number;
   queueStatuses?: SyncQueueStatus[];
+  /**
+   * Whether an account-link attempt is currently in flight in this tab.
+   * Defaults to true for backward compatibility. Callers that track the
+   * attempt (SyncProvider) pass their live state so a stale stored
+   * "linking" row — left behind by a failed or hung attempt — falls back
+   * to needs-link instead of reporting syncing forever.
+   */
+  linkingInProgress?: boolean;
 }
 
 const listeners = new Set<(snapshot: SyncStatusSnapshot) => void>();
@@ -49,14 +57,19 @@ export function deriveSyncStatus({
   linkStatus,
   pendingCount = 0,
   failedCount = 0,
+  linkingInProgress = true,
 }: SyncStatusInputs): SyncStatus {
   if (!signedIn) return "local-only";
-  if (linkStatus === "reconciliation-required") return "needs-reconciliation";
-  if (!linkStatus) return "needs-link";
+  // A stored "linking" row with no attempt running is stale: a previous
+  // attempt died or hung before completing. Surface needs-link so the user
+  // gets the setup action back instead of an endless syncing spinner.
+  const effectiveLinkStatus = linkStatus === "linking" && !linkingInProgress ? undefined : linkStatus;
+  if (effectiveLinkStatus === "reconciliation-required") return "needs-reconciliation";
+  if (!effectiveLinkStatus) return "needs-link";
   if (!online) return "offline";
   if (failedCount > 0) return "error";
-  if (pendingCount > 0 || linkStatus === "linking") return "syncing";
-  if (linkStatus === "linked") return "synced";
+  if (pendingCount > 0 || effectiveLinkStatus === "linking") return "syncing";
+  if (effectiveLinkStatus === "linked") return "synced";
   return "syncing";
 }
 

@@ -61,7 +61,7 @@ vi.mock("./syncTombstones", () => ({
   shouldRejectUpsert: mocks.shouldRejectUpsert,
 }));
 
-import { syncOnce } from "./syncEngine";
+import { syncOnce, withTimeout } from "./syncEngine";
 
 describe("sync engine", () => {
   beforeEach(() => {
@@ -211,5 +211,32 @@ describe("sync engine", () => {
     expect(result.pages).toBe(1);
     expect(mocks.readMutationJournal).toHaveBeenCalledTimes(1);
     expect(mocks.setSyncCursor).not.toHaveBeenCalled();
+  });
+
+  it("withTimeout resolves values that settle in time", async () => {
+    await expect(withTimeout(Promise.resolve(7), 1000, "too slow")).resolves.toBe(7);
+  });
+
+  it("withTimeout rejects a hanging promise", async () => {
+    vi.useFakeTimers();
+    try {
+      const hanging = new Promise<never>(() => {});
+      const assertion = expect(withTimeout(hanging, 1000, "too slow")).rejects.toThrow("too slow");
+      await vi.advanceTimersByTimeAsync(1000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("syncOnce rejects instead of spinning forever when Firestore hangs", async () => {
+    // Must stay last: the hung run below keeps the module-level in-flight
+    // sync pending on purpose.
+    mocks.getPendingMutations.mockResolvedValueOnce([
+      { id: "tx-hang", version: { changedAt: 1, deviceId: "device-a", sequence: 1 } },
+    ]);
+    mocks.pushMutation.mockImplementationOnce(() => new Promise<never>(() => {}));
+
+    await expect(syncOnce({} as never, "user-1", { timeoutMs: 50 })).rejects.toThrow("Sync timed out");
   });
 });

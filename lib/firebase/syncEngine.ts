@@ -20,6 +20,24 @@ const DEFAULT_PUSH_BATCH = 50;
 const DEFAULT_PULL_PAGE = 100;
 const DEFAULT_MAX_PAGES = 20;
 
+export const DEFAULT_SYNC_TIMEOUT_MS = 30_000;
+const SYNC_TIMEOUT_MESSAGE = "Sync timed out. Check your connection and try again.";
+
+/**
+ * Races a promise against a timeout so hung network/storage operations
+ * surface as errors instead of spinning forever. The wrapped promise keeps
+ * running in the background; only the caller's wait is bounded.
+ */
+export function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new SyncEngineError(timeoutMessage)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
 let activeSync: Promise<SyncResult> | null = null;
 
 export class SyncEngineError extends Error {
@@ -228,11 +246,18 @@ export function syncOnce(
     pushBatchSize?: number;
     pullPageSize?: number;
     maxPullPages?: number;
+    timeoutMs?: number;
   },
 ): Promise<SyncResult> {
-  if (activeSync) return activeSync;
+  // Firestore requests can hang indefinitely on a flaky connection while
+  // navigator.onLine still reports true. Bound every caller's wait so a
+  // hung sync becomes a visible, retryable error instead of an endless
+  // "syncing" spinner. The shared in-flight sync keeps running and still
+  // clears activeSync when it actually settles.
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_SYNC_TIMEOUT_MS;
+  if (activeSync) return withTimeout(activeSync, timeoutMs, SYNC_TIMEOUT_MESSAGE);
   activeSync = runSync(firestore, uid, options).finally(() => {
     activeSync = null;
   });
-  return activeSync;
+  return withTimeout(activeSync, timeoutMs, SYNC_TIMEOUT_MESSAGE);
 }
