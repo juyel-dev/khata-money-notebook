@@ -6,9 +6,31 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { showToast } from "@/components/shared/Toast";
 
+type FirebaseAuthError = Error & { code?: string };
+
+function getAuthErrorMessage(error: unknown, isBn: boolean): string {
+  const code = (error as FirebaseAuthError | null)?.code ?? "";
+
+  switch (code) {
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return isBn ? "Google সাইন ইন বাতিল হয়েছে। আবার চেষ্টা করুন।" : "Google sign-in was cancelled. Please try again.";
+    case "auth/popup-blocked":
+      return isBn ? "ব্রাউজার Google সাইন-ইন উইন্ডোটি ব্লক করেছে। Popup অনুমতি দিন এবং আবার চেষ্টা করুন।" : "Your browser blocked the Google sign-in window. Allow popups and try again.";
+    case "auth/unauthorized-domain":
+      return isBn ? "এই ডোমেইন থেকে Google সাইন ইন অনুমোদিত নয়। Firebase-এর Authorized domains সেটিংস যাচাই করুন।" : "Google sign-in is not authorized for this domain. Check Firebase Authorized domains.";
+    case "auth/operation-not-allowed":
+      return isBn ? "Firebase-এ Google সাইন ইন চালু নেই। Google provider-এর সেটিংস যাচাই করুন।" : "Google sign-in is not enabled in Firebase. Check the Google provider settings.";
+    case "auth/network-request-failed":
+      return isBn ? "ইন্টারনেট সংযোগের কারণে সাইন ইন সম্পন্ন হয়নি। আবার চেষ্টা করুন।" : "Sign-in could not reach Firebase. Check your internet connection and try again.";
+    default:
+      return isBn ? "Google দিয়ে সাইন ইন করা যায়নি। আবার চেষ্টা করুন।" : "Google sign-in failed. Please try again.";
+  }
+}
+
 export function AccountCard({ compact = false }: { compact?: boolean }) {
   const { locale, t } = useI18n();
-  const { user, loading, signIn, signOut } = useAuth();
+  const { user, loading, error: authError, signIn, signOut } = useAuth();
   const [busy, setBusy] = useState(false);
   const isBn = locale === "bn";
 
@@ -16,8 +38,8 @@ export function AccountCard({ compact = false }: { compact?: boolean }) {
     setBusy(true);
     try {
       await signIn();
-    } catch {
-      showToast(isBn ? "সাইন ইন করা যায়নি। আবার চেষ্টা করুন।" : "Couldn't sign in. Please try again.");
+    } catch (error) {
+      showToast(getAuthErrorMessage(error, isBn));
     } finally {
       setBusy(false);
     }
@@ -57,6 +79,11 @@ export function AccountCard({ compact = false }: { compact?: boolean }) {
             <div className="mt-0.5 text-xs leading-relaxed text-ink-dim">
               {t("menu.cloudSyncDesc")}
             </div>
+            {authError ? (
+              <div className="mt-2 text-xs leading-relaxed text-red-700 dark:text-red-300">
+                {getAuthErrorMessage(authError, isBn)}
+              </div>
+            ) : null}
           </div>
         </div>
         <button

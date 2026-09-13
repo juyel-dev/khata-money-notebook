@@ -1,5 +1,6 @@
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
   signInWithRedirect,
@@ -39,18 +40,27 @@ export function signInWithGoogle() {
     : signInWithPopup(auth, googleProvider);
 }
 
+export function resolveRedirectSignIn() {
+  const services = getFirebaseServices();
+  if (!services) return Promise.resolve(null);
+  return getRedirectResult(services.auth);
+}
+
 export function signOutUser() {
   return signOut(requireAuth());
 }
 
-export function observeAuthState(callback: (user: User | null) => void): Unsubscribe {
+export function observeAuthState(
+  callback: (user: User | null) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
   const services = getFirebaseServices();
   if (!services) {
     callback(null);
     return () => {};
   }
 
-  return onAuthStateChanged(services.auth, callback);
+  return onAuthStateChanged(services.auth, callback, onError);
 }
 
 export function getCurrentUser(): User | null {

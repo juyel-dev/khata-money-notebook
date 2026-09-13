@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   GoogleAuthProvider: vi.fn(() => ({
     setCustomParameters: vi.fn(),
   })),
+  getRedirectResult: vi.fn(() => Promise.resolve(null)),
   onAuthStateChanged: vi.fn(),
   signInWithPopup: vi.fn(),
   signInWithRedirect: vi.fn(),
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("firebase/auth", () => mocks);
 vi.mock("./client", () => ({ getFirebaseServices: mocks.getFirebaseServices }));
 
-import { shouldUseRedirectAuth, signInWithGoogle } from "./auth";
+import { observeAuthState, resolveRedirectSignIn, shouldUseRedirectAuth, signInWithGoogle } from "./auth";
 
 function setBrowserContext({ userAgent, standalone, displayModeStandalone }: {
   userAgent: string;
@@ -41,6 +42,7 @@ function setBrowserContext({ userAgent, standalone, displayModeStandalone }: {
 describe("Google authentication flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getRedirectResult.mockResolvedValue(null);
     setBrowserContext({
       userAgent: "Mozilla/5.0 desktop",
       standalone: false,
@@ -85,6 +87,25 @@ describe("Google authentication flow", () => {
     expect(mocks.signInWithRedirect).toHaveBeenCalledWith({ id: "auth" }, expect.anything());
     expect(mocks.signInWithPopup).not.toHaveBeenCalled();
     expect(shouldUseRedirectAuth()).toBe(true);
+  });
+
+  it("resolves a redirect sign-in result through Firebase Auth", async () => {
+    const credential = { user: { uid: "user-1" } };
+    mocks.getRedirectResult.mockResolvedValue(credential);
+
+    await expect(resolveRedirectSignIn()).resolves.toEqual(credential);
+    expect(mocks.getRedirectResult).toHaveBeenCalledWith({ id: "auth" });
+  });
+
+  it("forwards auth observer errors instead of hiding them", () => {
+    const onError = vi.fn();
+    observeAuthState(vi.fn(), onError);
+
+    expect(mocks.onAuthStateChanged).toHaveBeenCalledWith(
+      { id: "auth" },
+      expect.any(Function),
+      onError
+    );
   });
 
   it("selects popup safely when no browser globals are available", () => {
