@@ -108,7 +108,7 @@ async function readCloudDataset(firestore: Firestore, uid: string): Promise<Clou
   return {
     notebooks: toNotebook(raw.notebook),
     groups: toGroup(raw.group),
-    people: toPerson(raw.people ?? []),
+    people: toPerson(raw.person),
     transactions: toTransaction(raw.transaction),
     versions,
     tombstones,
@@ -172,6 +172,14 @@ async function migrateEntity<T extends SyncEntityPayload>(
   }
 }
 
+async function resetLocalSyncStateForCloudImport(): Promise<void> {
+  await syncDb.syncMutations.clear();
+  await syncDb.syncTombstones.clear();
+  const meta = await syncDb.syncMeta.toArray();
+  const keysToDelete = meta.map((row) => row.key).filter((key) => !PRESERVED_META_KEYS.has(key));
+  if (keysToDelete.length) await syncDb.syncMeta.bulkDelete(keysToDelete);
+}
+
 async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<void> {
   const [local, cloud] = await Promise.all([
     readLocalDataset(),
@@ -194,14 +202,6 @@ async function migrateLocalToCloud(firestore: Firestore, uid: string): Promise<v
 
   await completeAccountLink(uid);
   await syncOnce(firestore, uid);
-}
-
-async function resetLocalSyncStateForCloudImport(): Promise<void> {
-  await syncDb.syncMutations.clear();
-  await syncDb.syncTombstones.clear();
-  const meta = await syncDb.syncMeta.toArray();
-  const keysToDelete = meta.map((row) => row.key).filter((key) => !PRESERVED_META_KEYS.has(key));
-  if (keysToDelete.length) await syncDb.syncMeta.bulkDelete(keysToDelete);
 }
 
 async function replaceLocalWithCloud(firestore: Firestore, uid: string): Promise<void> {
