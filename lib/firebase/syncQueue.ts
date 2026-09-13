@@ -22,12 +22,12 @@ export async function enqueueMutation(input: EnqueueMutationInput): Promise<stri
   };
   const id = createMutationId(input.entity, input.entityId, version);
   const serialized = input.payload
-    ? serializeFirestoreRecord(input.payload as Record<string, unknown>)
+    ? serializeFirestoreRecord(input.payload as unknown as Record<string, unknown>)
     : null;
   const mutation: SyncMutation = {
     ...input,
     ...(serialized ? {
-      payload: serialized.clean as SyncEntityPayload,
+      payload: serialized.clean as unknown as SyncEntityPayload,
       ...(serialized.clearedFields.length ? { clearedFields: serialized.clearedFields } : {}),
     } : {}),
     id,
