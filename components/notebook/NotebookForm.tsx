@@ -10,6 +10,7 @@ import type { Notebook, NotebookColor, NotebookIcon } from "@/lib/db/schema";
 import { createNotebook, updateNotebook, archiveNotebook } from "@/lib/db/notebooks";
 import { getGroups, findOrCreateGroup } from "@/lib/db/groups";
 import { rupeesToPaise, rupeesInputValue, MAX_AMOUNT_RUPEES } from "@/lib/money";
+import { showToast } from "@/components/shared/Toast";
 
 export function NotebookForm({ existing }: { existing?: Notebook }) {
   const { t } = useI18n();
@@ -51,20 +52,29 @@ export function NotebookForm({ existing }: { existing?: Notebook }) {
   const handleSave = async () => {
     if (!canSave) return;
     setSaving(true);
-    const balancePaise = rupeesToPaise(Number(openingBalance || 0));
+    try {
+      const balancePaise = rupeesToPaise(Number(openingBalance || 0));
 
-    let groupId: string | null = null;
-    if (groupQuery.trim()) {
-      const group = exactGroupMatch ?? (await findOrCreateGroup(groupQuery.trim()));
-      groupId = group.id;
-    }
+      let groupId: string | null = null;
+      if (groupQuery.trim()) {
+        const group = exactGroupMatch ?? (await findOrCreateGroup(groupQuery.trim()));
+        groupId = group.id;
+      }
 
-    if (existing) {
-      await updateNotebook(existing.id, { name, openingBalance: balancePaise, color, icon, groupId });
-      router.push(`/notebook/${existing.id}`);
-    } else {
-      const nb = await createNotebook({ name, openingBalance: balancePaise, color, icon, groupId });
-      router.push(`/notebook/${nb.id}`);
+      if (existing) {
+        await updateNotebook(existing.id, { name, openingBalance: balancePaise, color, icon, groupId });
+        router.push(`/notebook/${existing.id}`);
+      } else {
+        const nb = await createNotebook({ name, openingBalance: balancePaise, color, icon, groupId });
+        router.push(`/notebook/${nb.id}`);
+      }
+    } catch {
+      // Reaching here means the write itself failed (e.g. storage quota) —
+      // without resetting `saving`, the button would stay disabled until
+      // the next full reload with no way to tell why.
+      showToast(t("common.errSaveFailed"));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -191,8 +201,12 @@ export function NotebookForm({ existing }: { existing?: Notebook }) {
       {existing && (
         <button
           onClick={async () => {
-            await archiveNotebook(existing.id, true);
-            router.push("/");
+            try {
+              await archiveNotebook(existing.id, true);
+              router.push("/");
+            } catch {
+              showToast(t("common.errSaveFailed"));
+            }
           }}
           className="text-sm text-danger underline text-center"
         >

@@ -158,7 +158,8 @@
     "deleted": "Deleted",
     "linkCopied": "Link copied",
     "cancel": "Cancel",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "errSaveFailed": "Couldn't save. Please try again."
   },
   "appTagline": "Simple Money Notebook"
 }

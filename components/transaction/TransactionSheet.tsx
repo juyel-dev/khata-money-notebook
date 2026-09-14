@@ -145,6 +145,10 @@ export function TransactionSheet() {
           personId = person.id;
         }
         const occurredAtMs = new Date(occurredAt).getTime();
+        if (!Number.isFinite(occurredAtMs)) {
+          showToast(t("common.errSaveFailed"));
+          return;
+        }
 
         if (sheetMode === "edit" && sheetTransactionId) {
           await updateTransaction(sheetTransactionId, {
@@ -170,6 +174,11 @@ export function TransactionSheet() {
           t("sheet.savedToast", { amount: formatMoney(paise), direction, person: personQuery.trim() })
         );
         closeSheet();
+      } catch {
+        // Without this, a thrown write error (e.g. storage quota) left the
+        // sheet open with no feedback and an unhandled promise rejection —
+        // the mutation guard's `run()` doesn't swallow errors itself.
+        showToast(t("common.errSaveFailed"));
       } finally {
         setSaving(false);
       }
@@ -179,15 +188,19 @@ export function TransactionSheet() {
   const handleDelete = async () => {
     if (!sheetTransactionId) return;
     const txnId = sheetTransactionId;
-    const snapshot = await getTransaction(txnId);
-    await deleteTransaction(txnId);
-    closeSheet();
-    showToast(t("common.deleted"), {
-      actionLabel: t("common.undo"),
+    try {
+      const snapshot = await getTransaction(txnId);
+      await deleteTransaction(txnId);
+      closeSheet();
+      showToast(t("common.deleted"), {
+        actionLabel: t("common.undo"),
         onAction: () => {
           if (snapshot) restoreTransaction(snapshot);
         },
-    });
+      });
+    } catch {
+      showToast(t("common.errSaveFailed"));
+    }
   };
 
   return (
