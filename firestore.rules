@@ -10,11 +10,43 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function validExpiry(data) {
+      return data.get('expiresAt', null) == null
+        || data.get('expiresAt', null) is number;
+    }
+
+    function validShareRootCreate(token) {
+      return isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'token', 'ownerUid', 'scope', 'notebookId', 'personId',
+          'title', 'createdAt', 'expiresAt', 'active', 'schemaVersion'
+        ])
+        && request.resource.data.token == token
+        && request.resource.data.ownerUid == request.auth.uid
+        && (request.resource.data.scope == 'khata' || request.resource.data.scope == 'individual')
+        && request.resource.data.notebookId is string
+        && request.resource.data.notebookId.size() > 0
+        && request.resource.data.title is string
+        && request.resource.data.createdAt is number
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.active == false
+        && validExpiry(request.resource.data)
+        && (
+          (request.resource.data.scope == 'khata'
+            && request.resource.data.get('personId', null) == null)
+          ||
+          (request.resource.data.scope == 'individual'
+            && request.resource.data.get('personId', null) is string
+            && request.resource.data.get('personId', '').size() > 0)
+        );
+    }
+
     function activeShare(token) {
       return exists(/databases/$(database)/documents/shares/$(token))
         && get(/databases/$(database)/documents/shares/$(token)).data.active == true
+        && validExpiry(get(/databases/$(database)/documents/shares/$(token)).data)
         && (
-          get(/databases/$(database)/documents/shares/$(token)).data.expiresAt == null
+          get(/databases/$(database)/documents/shares/$(token)).data.get('expiresAt', null) == null
           || get(/databases/$(database)/documents/shares/$(token)).data.expiresAt > request.time.toMillis()
         );
     }
@@ -25,38 +57,128 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/shares/$(token)).data.ownerUid == request.auth.uid;
     }
 
-    // Khata cloud data is private to its owning Firebase account.
+    function immutableShareFieldsUnchanged() {
+      return request.resource.data.token == resource.data.token
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.scope == resource.data.scope
+        && request.resource.data.notebookId == resource.data.notebookId
+        && request.resource.data.get('personId', null) == resource.data.get('personId', null)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.schemaVersion == resource.data.schemaVersion;
+    }
+
+    function validShareChildId(documentId, childData) {
+      return childData.id == documentId;
+    }
+
+    function shareNotebookMatches(token, documentId) {
+      return get(/databases/$(database)/documents/shares/$(token)).data.notebookId == documentId;
+    }
+
+    function sharePersonMatches(token, childData, documentId) {
+      return childData.id == documentId
+        && childData.notebookId == get(/databases/$(database)/documents/shares/$(token)).data.notebookId
+        && (
+          get(/databases/$(database)/documents/shares/$(token)).data.scope == 'khata'
+          || documentId == get(/databases/$(database)/documents/shares/$(token)).data.personId
+        );
+    }
+
+    function shareTransactionMatches(token, childData, documentId) {
+      return childData.id == documentId
+        && childData.notebookId == get(/databases/$(database)/documents/shares/$(token)).data.notebookId
+        && (
+          get(/databases/$(database)/documents/shares/$(token)).data.scope == 'khata'
+          || childData.personId == get(/databases/$(database)/documents/shares/$(token)).data.personId
+        );
+    }
+
+    // Explicitly allow-list the application's private user paths.
+    // Do not replace this with a recursive wildcard: a future sensitive
+    // subcollection should not inherit access by accident.
     match /users/{uid} {
       allow read, write: if isOwner(uid);
     }
 
-    match /users/{uid}/{document=**} {
+    match /users/{uid}/notebooks/{documentId} {
       allow read, write: if isOwner(uid);
     }
 
-    // Share metadata is bearer-token readable only while active and unexpired.
-    // Listing the public share collection is intentionally disabled.
-    match /shares/{token} {
-      allow get: if shareOwner(token)
-        || (
-          resource.data.active == true
-          && (
-            resource.data.expiresAt == null
-            || resource.data.expiresAt > request.time.toMillis()
-          )
-        );
-      allow list: if false;
-      allow create: if isSignedIn()
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.token == token;
-      allow update, delete: if shareOwner(token);
+    match /users/{uid}/groups/{documentId} {
+      allow read, write: if isOwner(uid);
     }
 
-    // Snapshot payloads inherit the token's public read boundary. Only the owner
-    // can mutate a snapshot after its root metadata document exists.
-    match /shares/{token}/{subcollection}/{documentId} {
+    match /users/{uid}/people/{documentId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /users/{uid}/transactions/{documentId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /users/{uid}/shareRefs/{token} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /users/{uid}/_syncMutations/{mutationId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /users/{uid}/_syncTombstones/{documentId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /users/{uid}/_syncMeta/{documentId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Share metadata: public reads are bearer-token scoped and time bounded.
+    // Creation is always inactive; publication requires the separate owner-only
+    // activation update after all snapshot children exist.
+    match /shares/{token} {
+      allow get: if shareOwner(token) || activeShare(token);
+      allow list: if false;
+      allow create: if validShareRootCreate(token);
+      allow update: if shareOwner(token)
+        && immutableShareFieldsUnchanged()
+        && request.resource.data.active is bool
+        && validExpiry(request.resource.data);
+      allow delete: if shareOwner(token);
+    }
+
+    // Only the three snapshot collections used by the application are publicly
+    // readable. Their writes are owner-only and must remain inside the root
+    // share's declared scope.
+    match /shares/{token}/notebooks/{documentId} {
       allow read: if activeShare(token) || shareOwner(token);
-      allow write: if shareOwner(token);
+      allow create, update: if shareOwner(token)
+        && validShareChildId(documentId, request.resource.data)
+        && shareNotebookMatches(token, documentId);
+      allow delete: if shareOwner(token)
+        && resource.data.id == documentId
+        && shareNotebookMatches(token, documentId);
+    }
+
+    match /shares/{token}/people/{documentId} {
+      allow read: if activeShare(token) || shareOwner(token);
+      allow create, update: if shareOwner(token)
+        && sharePersonMatches(token, request.resource.data, documentId);
+      allow delete: if shareOwner(token)
+        && sharePersonMatches(token, resource.data, documentId);
+    }
+
+    match /shares/{token}/transactions/{documentId} {
+      allow read: if activeShare(token) || shareOwner(token);
+      allow create, update: if shareOwner(token)
+        && shareTransactionMatches(token, request.resource.data, documentId);
+      allow delete: if shareOwner(token)
+        && shareTransactionMatches(token, resource.data, documentId);
+    }
+
+    // Default deny: unknown collections/subcollections are inaccessible until a
+    // deliberate rule is added.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
