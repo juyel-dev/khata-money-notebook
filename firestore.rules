@@ -15,6 +15,21 @@ service cloud.firestore {
         || data.get('expiresAt', null) is number;
     }
 
+    function ownerNotebookExists(notebookId) {
+      return exists(
+        /databases/$(database)/documents/users/$(request.auth.uid)/notebooks/$(notebookId)
+      );
+    }
+
+    function ownerPersonMatches(personId, notebookId) {
+      return exists(
+        /databases/$(database)/documents/users/$(request.auth.uid)/people/$(personId)
+      )
+        && get(
+          /databases/$(database)/documents/users/$(request.auth.uid)/people/$(personId)
+        ).data.notebookId == notebookId;
+    }
+
     function validShareRootCreate(token) {
       return isSignedIn()
         && request.resource.data.keys().hasOnly([
@@ -26,6 +41,7 @@ service cloud.firestore {
         && (request.resource.data.scope == 'khata' || request.resource.data.scope == 'individual')
         && request.resource.data.notebookId is string
         && request.resource.data.notebookId.size() > 0
+        && ownerNotebookExists(request.resource.data.notebookId)
         && request.resource.data.title is string
         && request.resource.data.createdAt is number
         && request.resource.data.schemaVersion == 1
@@ -37,7 +53,11 @@ service cloud.firestore {
           ||
           (request.resource.data.scope == 'individual'
             && request.resource.data.get('personId', null) is string
-            && request.resource.data.get('personId', '').size() > 0)
+            && request.resource.data.get('personId', '').size() > 0
+            && ownerPersonMatches(
+              request.resource.data.get('personId', ''),
+              request.resource.data.notebookId
+            ))
         );
     }
 
