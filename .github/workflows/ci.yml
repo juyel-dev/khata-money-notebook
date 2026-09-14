@@ -23,6 +23,9 @@ jobs:
   rules:
     name: Firestore rules (emulator)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,21 +35,29 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
       - run: npm ci
       - name: Run rules test suite
         id: rules_test
-        run: npm run test:rules 2>&1 | tee /tmp/rules-output.log
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:rules 2>&1 | tee /tmp/rules-output.log
       - name: Post output as PR comment on failure
         if: failure() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -x
           {
             echo "### Firestore rules test suite failed"
             echo '```'
             tail -c 60000 /tmp/rules-output.log
             echo '```'
           } > /tmp/comment-body.md
-          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-            -f body=@/tmp/comment-body.md
+          jq -n --rawfile body /tmp/comment-body.md '{body: $body}' > /tmp/comment-payload.json
+          curl -sS -X POST \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            -d @/tmp/comment-payload.json
