@@ -32,11 +32,14 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
       - run: npm ci
       - name: Run rules test suite
         id: rules_test
-        run: npm run test:rules 2>&1 | tee /tmp/rules-output.log
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:rules 2>&1 | tee /tmp/rules-output.log
       - name: Post output as PR comment on failure
         if: failure() && github.event_name == 'pull_request'
         env:
