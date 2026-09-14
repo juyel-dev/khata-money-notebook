@@ -18,6 +18,7 @@ import { dayLabel, groupByDay } from "@/lib/shared/grouping";
 import { useI18n } from "@/lib/i18n";
 import { useUIStore } from "@/lib/store";
 import { archiveNotebook, setNotebookPinned } from "@/lib/db/notebooks";
+import { showToast } from "@/components/shared/Toast";
 
 type DetailTab = "transactions" | "individuals";
 
@@ -75,7 +76,7 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
               >
                 <button
                   onClick={() => {
-                    setNotebookPinned(id, !notebook.pinned);
+                    setNotebookPinned(id, !notebook.pinned).catch(() => showToast(t("common.errSaveFailed")));
                     setMenuOpen(false);
                   }}
                   className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
@@ -101,8 +102,13 @@ export default function NotebookDetailPage({ params }: { params: Promise<{ id: s
                 </Link>
                 <button
                   onClick={async () => {
-                    await archiveNotebook(id, true);
-                    router.push("/");
+                    setMenuOpen(false);
+                    try {
+                      await archiveNotebook(id, true);
+                      router.push("/");
+                    } catch {
+                      showToast(t("common.errSaveFailed"));
+                    }
                   }}
                   className="block w-full text-left px-4 py-3 text-sm text-danger hover:bg-accent-soft"
                 >
