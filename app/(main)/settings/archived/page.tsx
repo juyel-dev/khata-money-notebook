@@ -7,6 +7,7 @@ import { db } from "@/lib/db/schema";
 import { archiveNotebook, deleteNotebookPermanently } from "@/lib/db/notebooks";
 import { useI18n } from "@/lib/i18n";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { showToast } from "@/components/shared/Toast";
 
 export default function ArchivedNotebooksPage() {
   const router = useRouter();
@@ -30,12 +31,18 @@ export default function ArchivedNotebooksPage() {
           <div key={nb.id} className="flex items-center justify-between py-3 border-b border-rule">
             <span className="text-sm text-ink">{nb.name}</span>
             <div className="flex gap-3">
-              <button onClick={() => archiveNotebook(nb.id, false)} className="text-accent" aria-label="restore">
+              <button
+                onClick={() => archiveNotebook(nb.id, false).catch(() => showToast(t("common.errSaveFailed")))}
+                className="text-accent"
+                aria-label="restore"
+              >
                 <ArchiveRestore size={18} />
               </button>
               <button
                 onClick={() => {
-                  if (confirm(t("notebook.deletePermanently") + "?")) deleteNotebookPermanently(nb.id);
+                  if (confirm(t("notebook.deletePermanently") + "?")) {
+                    deleteNotebookPermanently(nb.id).catch(() => showToast(t("common.errSaveFailed")));
+                  }
                 }}
                 className="text-danger"
                 aria-label="delete"
