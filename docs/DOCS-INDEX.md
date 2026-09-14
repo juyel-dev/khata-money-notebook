@@ -35,6 +35,10 @@
 
 - `ROADMAP.md` — current milestone history and remaining gates. Treat completed milestones as history, not active tasks.
 
+## Testing
+
+- `TESTING.md` — the three test layers (lib/ui/rules), where a new test goes, and the component-test conventions (`tests/test-utils.tsx`).
+
 ## Documentation rules for agents
 
 - Docs are implementation guidance, not permission to invent new product behavior.
