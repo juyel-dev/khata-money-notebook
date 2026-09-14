@@ -48,11 +48,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -x
           {
             echo "### Firestore rules test suite failed"
             echo '```'
             tail -c 60000 /tmp/rules-output.log
             echo '```'
           } > /tmp/comment-body.md
-          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-            -f body=@/tmp/comment-body.md
+          jq -n --rawfile body /tmp/comment-body.md '{body: $body}' > /tmp/comment-payload.json
+          curl -sS -X POST \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            -d @/tmp/comment-payload.json
