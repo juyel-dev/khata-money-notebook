@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import "fake-indexeddb/auto";
 import { syncDb } from "./syncDb";
 import { getDeviceId, nextLogicalClock, observeLogicalClock } from "./syncIdentity";
 
