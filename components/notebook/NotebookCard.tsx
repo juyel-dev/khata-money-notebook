@@ -6,6 +6,7 @@ import { CalendarDays, ChevronRight, Pin } from "lucide-react";
 import type { Notebook } from "@/lib/db/schema";
 import { getNotebookBalance } from "@/lib/db/notebooks";
 import { db } from "@/lib/db/schema";
+import { countActivePeople } from "@/lib/db/people";
 import { formatMoney } from "@/lib/money";
 import { colorHex } from "@/lib/shared/notebookStyle";
 import { NOTEBOOK_ICON_MAP } from "./icons";
@@ -20,7 +21,13 @@ export function NotebookCard({ notebook }: { notebook: Notebook }) {
   );
 
   const peopleCount = useLiveQuery(
-    () => db.people.where("notebookId").equals(notebook.id).count(),
+    async () => {
+      const transactions = await db.transactions
+        .where("notebookId")
+        .equals(notebook.id)
+        .toArray();
+      return countActivePeople(transactions);
+    },
     [notebook.id]
   );
 
