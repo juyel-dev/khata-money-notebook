@@ -8,6 +8,20 @@ import { showToast } from "@/components/shared/Toast";
 import { useI18n } from "@/lib/i18n";
 import type { Person } from "@/lib/db/schema";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const EXPIRY_OPTIONS: { labelBn: string; labelEn: string; ms: number | null }[] = [
+  { labelBn: "কখনো না", labelEn: "Never", ms: null },
+  { labelBn: "৭ দিন", labelEn: "7 days", ms: 7 * DAY_MS },
+  { labelBn: "৩০ দিন", labelEn: "30 days", ms: 30 * DAY_MS },
+  { labelBn: "৯০ দিন", labelEn: "90 days", ms: 90 * DAY_MS },
+];
+
+function formatExpiry(expiresAt: number | null, isBn: boolean): string {
+  if (expiresAt === null) return isBn ? "কখনো শেষ হবে না" : "Never expires";
+  const daysLeft = Math.max(1, Math.ceil((expiresAt - Date.now()) / DAY_MS));
+  return isBn ? `${daysLeft} দিন বাকি` : `Expires in ${daysLeft}d`;
+}
+
 interface ShareSheetProps {
   open: boolean;
   onClose: () => void;
@@ -21,6 +35,7 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
   const isBn = locale === "bn";
   const [scope, setScope] = useState<ShareScope>("khata");
   const [personId, setPersonId] = useState(people[0]?.id ?? "");
+  const [expiresInMs, setExpiresInMs] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [shares, setShares] = useState<ShareRecord[]>([]);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
@@ -30,6 +45,7 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
     if (!open) return;
     setScope("khata");
     setPersonId(people[0]?.id ?? "");
+    setExpiresInMs(null);
     setCreatedUrl(null);
     const services = getFirebaseServices();
     const user = services?.auth.currentUser;
@@ -71,6 +87,7 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
         scope,
         notebookId,
         ...(scope === "individual" ? { personId } : {}),
+        expiresInMs,
       });
       setCreatedUrl(result.url);
       await refreshShares();
@@ -162,6 +179,22 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
           </label>
         )}
 
+        <div className="mt-4">
+          <div className="text-xs font-semibold text-ink">{isBn ? "মেয়াদ" : "Expires"}</div>
+          <div className="mt-1.5 grid grid-cols-4 gap-1 rounded-2xl border border-rule bg-paper p-1">
+            {EXPIRY_OPTIONS.map((option) => (
+              <button
+                key={option.labelEn}
+                type="button"
+                onClick={() => setExpiresInMs(option.ms)}
+                className={`rounded-xl px-2 py-2 text-[11px] font-semibold ${expiresInMs === option.ms ? "bg-accent text-paper" : "text-ink-dim"}`}
+              >
+                {isBn ? option.labelBn : option.labelEn}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-4 rounded-2xl bg-accent-soft px-3 py-3 text-xs leading-relaxed text-ink-dim">
           {isBn
             ? scope === "khata" ? "শুধু দেখার জন্য পুরো খাতার একটি snapshot তৈরি হবে।" : "শুধু দেখার জন্য এই ব্যক্তির লেনদেনের একটি snapshot তৈরি হবে।"
@@ -187,7 +220,10 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
                 const url = `${window.location.origin}/share/${share.token}`;
                 return (
                   <div key={share.token} className="flex items-center gap-2 rounded-xl border border-rule bg-paper px-3 py-2.5">
-                    <div className="min-w-0 flex-1 text-xs text-ink-dim truncate">{share.scope === "khata" ? (isBn ? "পুরো খাতা" : "This Khata") : (isBn ? "একজন ব্যক্তি" : "An individual")}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-ink-dim truncate">{share.scope === "khata" ? (isBn ? "পুরো খাতা" : "This Khata") : (isBn ? "একজন ব্যক্তি" : "An individual")}</div>
+                      <div className="text-[10px] text-ink-dim/70">{formatExpiry(share.expiresAt, isBn)}</div>
+                    </div>
                     <button type="button" onClick={() => void handleCopy(url)} className="rounded-full p-2 text-ink-dim hover:bg-accent-soft" aria-label={isBn ? "লিংক কপি" : "Copy link"}><Copy size={14} /></button>
                     <button type="button" disabled={busy} onClick={() => void handleRevoke(share.token)} className="rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-danger hover:bg-owe-you-soft disabled:opacity-50">{isBn ? "বাতিল" : "Revoke"}</button>
                   </div>
