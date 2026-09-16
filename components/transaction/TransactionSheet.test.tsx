@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, resetTestDb } from "../../tests/test-utils";
+import { renderWithProviders, resetTestDb } from "@/tests/test-utils";
 import { TransactionSheet } from "./TransactionSheet";
 import { useUIStore } from "@/lib/store";
 import { db } from "@/lib/db/schema";

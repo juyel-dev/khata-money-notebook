@@ -34,6 +34,16 @@ export async function renamePerson(id: string, name: string) {
   await flushSyncCaptureIntents();
 }
 
+export async function updatePersonPhone(id: string, phone: string | null) {
+  const trimmed = phone?.trim() || undefined;
+  await db.transaction("rw", db.people, db.syncCaptureIntents, async () => {
+    await db.people.update(id, { phone: trimmed });
+    const updated = await db.people.get(id);
+    if (updated) await stageSyncCapture({ entity: "person", entityId: id, operation: "upsert", payload: updated, changedAt: updated.createdAt });
+  });
+  await flushSyncCaptureIntents();
+}
+
 export async function deletePersonIfEmpty(id: string): Promise<boolean> {
   const count = await db.transactions.where("personId").equals(id).count();
   if (count > 0) return false;
