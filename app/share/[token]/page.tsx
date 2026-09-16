@@ -227,18 +227,23 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
                     const isGave = transaction.type === "gave";
                     return (
                       <div key={transaction.id} className="border-b border-rule px-4 py-3.5 last:border-b-0">
-                        <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center justify-between gap-4">
                           <div className="min-w-0 flex-1">
                             <div className="truncate text-sm font-semibold text-ink">{person?.name || "Unknown person"}</div>
-                            {transaction.note && (
-                              <div className="mt-0.5 truncate text-xs text-ink-dim">{transaction.note}</div>
-                            )}
+                            <div className="mt-0.5 truncate text-xs tabular-nums text-ink-dim">
+                              {formatTime(transaction.occurredAt)}
+                              {transaction.note && (
+                                <>
+                                  <span className="mx-1.5" aria-hidden="true">·</span>
+                                  {transaction.note}
+                                </>
+                              )}
+                            </div>
                           </div>
                           <div className={`shrink-0 text-sm font-semibold tabular-nums ${isGave ? "text-owe-you" : "text-accent"}`}>
                             {isGave ? "−" : "+"} {formatMoney(transaction.amount)}
                           </div>
                         </div>
-                        <div className="mt-1.5 text-right text-xs tabular-nums text-ink-dim">{formatTime(transaction.occurredAt)}</div>
                       </div>
                     );
                   })}
