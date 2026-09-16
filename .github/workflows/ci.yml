@@ -9,6 +9,9 @@ jobs:
   test:
     name: Typecheck, lint, unit tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,7 +21,28 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit -p tsconfig.json
       - run: npm run lint
-      - run: npm test
+      - name: Run unit tests
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee /tmp/test-output.log
+      - name: Post output as PR comment on failure
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### Unit test suite failed"
+            echo '```'
+            tail -c 60000 /tmp/test-output.log
+            echo '```'
+          } > /tmp/comment-body.md
+          jq -n --rawfile body /tmp/comment-body.md '{body: $body}' > /tmp/comment-payload.json
+          curl -sS -X POST \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            -d @/tmp/comment-payload.json
 
   rules:
     name: Firestore rules (emulator)
