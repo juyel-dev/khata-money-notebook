@@ -7,7 +7,7 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db, type Notebook, type Person, type Transaction } from "./schema";
-import { deriveIndividuals } from "./people";
+import { countActivePeople, deriveIndividuals } from "./people";
 import {
   addTransaction,
   deleteTransaction,
@@ -203,6 +203,26 @@ describe("deriveIndividuals", () => {
     const entries = deriveIndividuals(allTx, allPl);
     expect(entries).toHaveLength(3);
     expect(entries.every((e) => e.count > 0)).toBe(true);
+  });
+});
+
+describe("countActivePeople", () => {
+  it("counts unique people represented by transactions", () => {
+    const people = [
+      txn("t1", "p-rahim", "gave", 100, 1),
+      txn("t2", "p-rahim", "got", 50, 2),
+      txn("t3", "p-karim", "gave", 25, 3),
+    ];
+    expect(countActivePeople(people)).toBe(2);
+  });
+
+  it("returns zero when saved people have no transactions", () => {
+    expect(countActivePeople([])).toBe(0);
+  });
+
+  it("drops back to zero when the last person's transaction is deleted", () => {
+    const remaining: Transaction[] = [];
+    expect(countActivePeople(remaining)).toBe(0);
   });
 });
 
