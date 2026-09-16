@@ -1,16 +1,91 @@
 "use client";
 
+import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
-import { Clock3, Eye, Share2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, Eye, Share2 } from "lucide-react";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { readPublicShare, type ShareSnapshot } from "@/lib/firebase/sharing";
-import { useI18n } from "@/lib/i18n";
 import { dayLabel, groupByDay } from "@/lib/shared/grouping";
 import { formatMoney } from "@/lib/money";
 
+function formatDateTime(timestamp: number): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    numberingSystem: "latn",
+  }).format(timestamp);
+}
+
+function formatTime(timestamp: number): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    numberingSystem: "latn",
+  }).format(timestamp);
+}
+
+function getSnapshotBalance(snapshot: ShareSnapshot): number | null {
+  if (snapshot.record.scope !== "khata") return null;
+
+  const got = snapshot.transactions
+    .filter((transaction) => transaction.type === "got")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const gave = snapshot.transactions
+    .filter((transaction) => transaction.type === "gave")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+  return snapshot.notebook.openingBalance + got - gave;
+}
+
+function LoadingSnapshot() {
+  return (
+    <main className="min-h-screen bg-paper" aria-busy="true" aria-live="polite">
+      <div className="mx-auto max-w-md px-5 pb-10 pt-6">
+        <div className="flex items-center gap-2 text-xs font-medium text-ink-dim">
+          <Eye size={15} />
+          <span className="h-3 w-16 animate-pulse rounded bg-rule" />
+        </div>
+
+        <div className="mt-3 flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="h-7 w-44 animate-pulse rounded-lg bg-rule" />
+            <div className="mt-2 h-4 w-52 animate-pulse rounded bg-rule" />
+          </div>
+          <div className="h-7 w-28 shrink-0 animate-pulse rounded-full bg-rule" />
+        </div>
+
+        <div className="mt-6 rounded-3xl border border-rule bg-paper-card p-5 shadow-sm">
+          <div className="h-4 w-32 animate-pulse rounded bg-rule" />
+          <div className="mt-2 h-3 w-40 animate-pulse rounded bg-rule" />
+          <div className="mt-5 h-3 w-24 animate-pulse rounded bg-rule" />
+          <div className="mt-2 h-9 w-36 animate-pulse rounded-xl bg-rule" />
+          <div className="mt-5 h-3 w-44 animate-pulse rounded bg-rule" />
+        </div>
+
+        <div className="mt-7">
+          <div className="h-4 w-24 animate-pulse rounded bg-rule" />
+          <div className="mt-3 overflow-hidden rounded-2xl border border-rule bg-paper-card">
+            {["w-32", "w-40", "w-28"].map((width, index) => (
+              <div key={index} className="border-b border-rule px-4 py-4 last:border-b-0">
+                <div className="flex items-center justify-between gap-4">
+                  <div className={`h-4 ${width} animate-pulse rounded bg-rule`} />
+                  <div className="h-4 w-20 animate-pulse rounded bg-rule" />
+                </div>
+                <div className="mt-2 h-3 w-24 animate-pulse rounded bg-rule" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="mt-6 text-center text-xs text-ink-dim">Preparing your shared khata…</p>
+      </div>
+    </main>
+  );
+}
+
 export default function PublicSharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
-  const { t, locale } = useI18n();
   const [snapshot, setSnapshot] = useState<ShareSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,9 +113,14 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
   }, [token]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  const orderedTransactions = useMemo(
+    () => [...(snapshot?.transactions ?? [])].sort((a, b) => b.occurredAt - a.occurredAt),
+    [snapshot?.transactions],
+  );
+
   const grouped = useMemo(
-    () => groupByDay(snapshot?.transactions ?? [], (timestamp) => dayLabel(timestamp, t, locale)),
-    [locale, snapshot?.transactions, t],
+    () => groupByDay(orderedTransactions, (timestamp) => dayLabel(timestamp, (key) => key, "en")),
+    [orderedTransactions],
   );
 
   const peopleMap = useMemo(
@@ -48,101 +128,139 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
     [snapshot?.people],
   );
 
-  const copy = {
-    loading: locale === "bn" ? "শেয়ার snapshot লোড হচ্ছে…" : "Loading snapshot…",
-    sharedSnapshot: locale === "bn" ? "শেয়ার করা snapshot" : "Shared snapshot",
-    notAvailable: locale === "bn" ? "এই শেয়ার লিংকটি আর কাজ করছে না।" : "This share link is no longer available.",
-    readOnly: locale === "bn" ? "শুধু দেখার জন্য" : "Read only",
-    transactions: locale === "bn" ? "লেনদেন" : "Transactions",
-    people: locale === "bn" ? "জন" : "People",
-    noTransactions: locale === "bn" ? "এই snapshot-এ কোনো লেনদেন নেই।" : "No transactions in this snapshot.",
-    sharedAt: (time: string) => locale === "bn" ? `শেয়ার: ${time}` : `Shared ${time}`,
-  };
-
-  if (loading) {
-    return <main className="mx-auto min-h-screen max-w-md px-5 py-8 text-sm text-ink-dim">{copy.loading}</main>;
-  }
+  if (loading) return <LoadingSnapshot />;
 
   if (!snapshot) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-md items-center px-5 py-8">
-        <div className="w-full rounded-3xl border border-rule bg-paper-card p-6 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent"><Share2 size={21} /></div>
-          <h1 className="mt-4 text-lg font-semibold text-ink">{copy.sharedSnapshot}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-ink-dim">{copy.notAvailable}</p>
+      <main className="min-h-screen bg-paper">
+        <div className="mx-auto flex min-h-screen max-w-md items-center px-5 py-8">
+          <div className="w-full rounded-3xl border border-rule bg-paper-card p-7 text-center shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent">
+              <Share2 size={21} />
+            </div>
+            <h1 className="mt-4 text-lg font-semibold text-ink">Shared snapshot</h1>
+            <p className="mt-2 text-sm leading-relaxed text-ink-dim">This share link is no longer available.</p>
+            <Link
+              href="/"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-paper shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            >
+              Open Khata
+              <ArrowRight size={15} />
+            </Link>
+          </div>
         </div>
       </main>
     );
   }
 
-  const sharedDate = new Intl.DateTimeFormat(
-    locale === "bn" ? "bn-BD" : "en-IN",
-    { dateStyle: "medium" },
-  ).format(snapshot.record.createdAt);
+  const balance = getSnapshotBalance(snapshot);
+  const sharedDate = formatDateTime(snapshot.record.createdAt);
+  const transactionCount = snapshot.transactions.length;
+  const peopleCount = snapshot.people.length;
+  const isIndividual = snapshot.record.scope === "individual";
 
   return (
-    <main className="min-h-screen bg-paper pb-8">
-      <div className="mx-auto max-w-md px-5 pt-5">
-        <div className="flex items-center gap-2 text-xs font-medium text-ink-dim">
-          <Eye size={15} />
-          {copy.readOnly}
-        </div>
-        <div className="mt-2 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-ink">{snapshot.record.title}</h1>
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-ink-dim">
-              <Clock3 size={13} />
-              {copy.sharedAt(sharedDate)}
-            </div>
+    <main className="min-h-screen bg-paper pb-safe">
+      <div className="mx-auto max-w-md px-5 pb-10 pt-6">
+        <header>
+          <div className="flex items-center gap-2 text-xs font-medium text-ink-dim">
+            <Eye size={15} aria-hidden="true" />
+            <span>Read only</span>
           </div>
-          <div className="shrink-0 rounded-full border border-rule bg-paper-card px-3 py-1.5 text-[11px] font-semibold text-accent">
-            {copy.sharedSnapshot}
-          </div>
-        </div>
 
-        <div className="mt-6 rounded-3xl border border-rule bg-paper-card p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-ink">{snapshot.notebook.name}</div>
-              <div className="mt-0.5 text-xs text-ink-dim">
-                {snapshot.transactions.length} {locale === "bn" ? "টি লেনদেন" : snapshot.transactions.length === 1 ? "transaction" : "transactions"}
+          <div className="mt-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-semibold tracking-tight text-ink">{snapshot.record.title}</h1>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-ink-dim">
+                <Clock3 size={13} aria-hidden="true" />
+                <span>Shared {sharedDate}</span>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-[11px] text-ink-dim">{copy.people}</div>
-              <div className="text-lg font-semibold tabular-nums text-ink">{snapshot.people.length}</div>
+            <div className="shrink-0 rounded-full border border-rule bg-paper-card px-3 py-1.5 text-[11px] font-semibold text-accent">
+              {isIndividual ? "Individual snapshot" : "Shared snapshot"}
             </div>
           </div>
-        </div>
+        </header>
 
-        <section className="mt-6">
-          <h2 className="mb-2 text-sm font-semibold text-ink">{copy.transactions}</h2>
-          {grouped.length === 0 ? (
-            <div className="rounded-2xl border border-rule bg-paper-card px-4 py-8 text-center text-sm text-ink-dim">{copy.noTransactions}</div>
-          ) : grouped.map((group) => (
-            <div key={group.label} className="mb-4">
-              <div className="sticky top-0 bg-paper py-2 text-xs font-semibold uppercase tracking-wide text-ink-dim">{group.label}</div>
-              <div className="overflow-hidden rounded-2xl border border-rule bg-paper-card">
-                {group.items.map((transaction) => {
-                  const person = peopleMap.get(transaction.personId);
-                  return (
-                    <div key={transaction.id} className="flex items-center gap-3 border-b border-rule px-4 py-3 last:border-b-0">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-ink">{person?.name ?? ""}</div>
-                        {transaction.note && <div className="mt-0.5 truncate text-xs text-ink-dim">{transaction.note}</div>}
-                      </div>
-                      <div className={`shrink-0 text-sm font-semibold tabular-nums ${transaction.type === "gave" ? "text-owe-you" : "text-accent"}`}>
-                        {transaction.type === "gave" ? t("notebook.gave") : t("notebook.got")} · {formatMoney(transaction.amount)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+        <section aria-label="Snapshot summary" className="mt-6 rounded-3xl border border-rule bg-paper-card p-5 shadow-sm">
+          <div className="text-sm font-semibold text-ink">{snapshot.notebook.name}</div>
+          <div className="mt-0.5 text-xs text-ink-dim">
+            {transactionCount} {transactionCount === 1 ? "transaction" : "transactions"}
+            <span className="mx-1.5" aria-hidden="true">·</span>
+            {peopleCount} {peopleCount === 1 ? "person" : "people"}
+          </div>
+
+          {balance !== null && (
+            <div className="mt-5 border-t border-rule pt-4">
+              <div className="text-xs font-medium text-ink-dim">Current balance</div>
+              <div className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-ink">{formatMoney(balance)}</div>
             </div>
-          ))}
+          )}
         </section>
 
-        <div className="mt-8 text-center text-xs text-ink-dim">{copy.readOnly}</div>
+        <section aria-labelledby="transactions-heading" className="mt-7">
+          <h2 id="transactions-heading" className="mb-2 text-sm font-semibold text-ink">Transactions</h2>
+
+          {grouped.length === 0 ? (
+            <div className="rounded-2xl border border-rule bg-paper-card px-4 py-9 text-center">
+              <p className="text-sm font-medium text-ink">No transactions</p>
+              <p className="mt-1 text-xs text-ink-dim">There are no transactions in this snapshot.</p>
+            </div>
+          ) : (
+            grouped.map((group) => (
+              <div key={group.label} className="mb-5 last:mb-0">
+                <div className="sticky top-0 z-10 bg-paper py-2 text-xs font-semibold uppercase tracking-wide text-ink-dim">
+                  {group.label}
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-rule bg-paper-card">
+                  {group.items.map((transaction) => {
+                    const person = peopleMap.get(transaction.personId);
+                    const isGave = transaction.type === "gave";
+                    return (
+                      <div key={transaction.id} className="border-b border-rule px-4 py-3.5 last:border-b-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-semibold text-ink">{person?.name || "Unknown person"}</div>
+                            {transaction.note && (
+                              <div className="mt-0.5 truncate text-xs text-ink-dim">{transaction.note}</div>
+                            )}
+                          </div>
+                          <div className={`shrink-0 text-sm font-semibold tabular-nums ${isGave ? "text-owe-you" : "text-accent"}`}>
+                            {isGave ? "−" : "+"} {formatMoney(transaction.amount)}
+                          </div>
+                        </div>
+                        <div className="mt-1.5 text-right text-xs tabular-nums text-ink-dim">{formatTime(transaction.occurredAt)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+
+        <section className="mt-10 rounded-3xl border border-rule bg-paper-card px-5 py-6 text-center shadow-sm">
+          <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent">
+            <CheckCircle2 size={18} aria-hidden="true" />
+          </div>
+          <h2 className="mt-3 text-base font-semibold text-ink">That’s the snapshot</h2>
+          <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-ink-dim">
+            Keep your own money records simple with Khata.
+          </p>
+          <div className="mt-3 text-[11px] font-medium text-ink-dim">Private · Offline · Simple</div>
+          <Link
+            href="/"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-paper shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          >
+            Open Khata
+            <ArrowRight size={16} />
+          </Link>
+        </section>
+
+        <footer className="mt-6 text-center text-xs text-ink-dim">
+          <div>Made with Khata</div>
+          <div className="mt-1">Read only</div>
+        </footer>
       </div>
     </main>
   );
