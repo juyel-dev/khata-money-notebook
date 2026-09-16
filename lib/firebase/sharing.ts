@@ -38,6 +38,8 @@ export interface CreateShareInput {
   scope: ShareScope;
   notebookId: string;
   personId?: string;
+  // Milliseconds from creation until the share expires. undefined/null = never.
+  expiresInMs?: number | null;
 }
 
 const SHARES_COLLECTION = "shares";
@@ -140,7 +142,7 @@ export async function createShareSnapshot(
     ...(personId ? { personId } : {}),
     title,
     createdAt,
-    expiresAt: null,
+    expiresAt: input.expiresInMs ? createdAt + input.expiresInMs : null,
     active: false,
     schemaVersion: 1,
   };

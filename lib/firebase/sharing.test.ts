@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { db } from "../db/schema";
-import { createShareSnapshot, listActiveShares, readPublicShare, revokeShare } from "./sharing";
+import { createShareSnapshot, listActiveShares, readPublicShare, revokeShare, type ShareRecord } from "./sharing";
 
 const { accountLinkMock, syncOnceMock, store } = vi.hoisted(() => ({
   accountLinkMock: vi.fn(),
@@ -122,8 +122,25 @@ describe("sharing snapshots", () => {
     expect(store.get(`shares/${result.token}/transactions/${transactionB.id}`)).toEqual(transactionB);
   });
 
-  it("omits undefined optional fields from shared snapshot documents", async () => {
+  it("sets expiresAt from expiresInMs, and leaves it null when omitted", async () => {
     await db.notebooks.put(notebook);
+    await db.people.bulkPut([personA, personB]);
+    await db.transactions.bulkPut([transactionA, transactionB]);
+
+    const never = await createShareSnapshot(firestore, uid, { scope: "khata", notebookId: notebook.id });
+    const neverRecord = store.get(`shares/${never.token}`)!;
+    expect(neverRecord.expiresAt).toBeNull();
+
+    const timed = await createShareSnapshot(firestore, uid, {
+      scope: "khata",
+      notebookId: notebook.id,
+      expiresInMs: 7 * 24 * 60 * 60 * 1000,
+    });
+    const timedRecord = store.get(`shares/${timed.token}`) as unknown as ShareRecord;
+    expect(timedRecord.expiresAt).toBe(timedRecord.createdAt + 7 * 24 * 60 * 60 * 1000);
+  });
+
+  it("omits undefined optional fields from shared snapshot documents", async () => {    await db.notebooks.put(notebook);
     await db.people.put({ ...personA, phone: undefined });
     await db.transactions.put({ ...transactionA, note: undefined });
 
