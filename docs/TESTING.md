@@ -34,7 +34,7 @@ so one import line gets you both.
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, resetTestDb, mockRouter } from "../../tests/test-utils";
+import { renderWithProviders, resetTestDb, mockRouter } from "@/tests/test-utils";
 import { MyComponent } from "./MyComponent";
 
 vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));

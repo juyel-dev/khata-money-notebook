@@ -106,7 +106,17 @@
   },
   "person": {
     "totalGiven": "মোট দিয়েছি",
-    "totalTaken": "মোট নিয়েছি"
+    "totalTaken": "মোট নিয়েছি",
+    "addPhone": "ফোন নম্বর যোগ করুন",
+    "phonePlaceholder": "ফোন নম্বর",
+    "call": "কল",
+    "whatsapp": "হোয়াটসঅ্যাপ",
+    "rename": "নাম পরিবর্তন",
+    "renamePlaceholder": "মানুষের নাম",
+    "delete": "মুছে ফেলুন",
+    "deleteBlocked": "মুছে ফেলা যাবে না — এই মানুষের লেনদেন আছে",
+    "deleted": "মুছে ফেলা হয়েছে",
+    "actions": "ব্যক্তির অ্যাকশন"
   },
   "history": {
     "title": "ইতিহাস",
@@ -159,6 +169,7 @@
     "linkCopied": "লিংক কপি হয়েছে",
     "cancel": "বাতিল",
     "confirm": "নিশ্চিত করুন",
+    "save": "সেভ করুন",
     "errSaveFailed": "সেভ করা যায়নি। আবার চেষ্টা করুন।"
   },
   "appTagline": "সহজ হিসাবের খাতা"

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, resetTestDb, mockRouter } from "../../tests/test-utils";
+import { renderWithProviders, resetTestDb, mockRouter } from "@/tests/test-utils";
 import { NotebookForm } from "./NotebookForm";
 import { db } from "@/lib/db/schema";
 import { useToastStore } from "@/components/shared/Toast";

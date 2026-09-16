@@ -106,7 +106,17 @@
   },
   "person": {
     "totalGiven": "Total given",
-    "totalTaken": "Total taken"
+    "totalTaken": "Total taken",
+    "addPhone": "Add phone number",
+    "phonePlaceholder": "Phone number",
+    "call": "Call",
+    "whatsapp": "WhatsApp",
+    "rename": "Rename",
+    "renamePlaceholder": "Person name",
+    "delete": "Delete person",
+    "deleteBlocked": "Can't delete — this person has transactions",
+    "deleted": "Person deleted",
+    "actions": "Person actions"
   },
   "history": {
     "title": "History",
@@ -159,6 +169,7 @@
     "linkCopied": "Link copied",
     "cancel": "Cancel",
     "confirm": "Confirm",
+    "save": "Save",
     "errSaveFailed": "Couldn't save. Please try again."
   },
   "appTagline": "Simple Money Notebook"
