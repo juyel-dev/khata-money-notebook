@@ -43,7 +43,7 @@ function LoadingSnapshot() {
     <main className="min-h-screen bg-paper" aria-busy="true" aria-live="polite">
       <div className="mx-auto max-w-md px-5 pb-10 pt-6">
         <div className="flex items-center gap-2 text-xs font-medium text-ink-dim">
-          <Eye size={15} />
+          <Eye size={15} aria-hidden="true" />
           <span className="h-3 w-16 animate-pulse rounded bg-rule" />
         </div>
 
@@ -119,7 +119,16 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
   );
 
   const grouped = useMemo(
-    () => groupByDay(orderedTransactions, (timestamp) => dayLabel(timestamp, (key) => key, "en")),
+    () =>
+      groupByDay(
+        orderedTransactions,
+        (timestamp) =>
+          dayLabel(
+            timestamp,
+            (key) => (key === "history.today" ? "Today" : key === "history.yesterday" ? "Yesterday" : key),
+            "en",
+          ),
+      ),
     [orderedTransactions],
   );
 
@@ -136,7 +145,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
         <div className="mx-auto flex min-h-screen max-w-md items-center px-5 py-8">
           <div className="w-full rounded-3xl border border-rule bg-paper-card p-7 text-center shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent">
-              <Share2 size={21} />
+              <Share2 size={21} aria-hidden="true" />
             </div>
             <h1 className="mt-4 text-lg font-semibold text-ink">Shared snapshot</h1>
             <p className="mt-2 text-sm leading-relaxed text-ink-dim">This share link is no longer available.</p>
