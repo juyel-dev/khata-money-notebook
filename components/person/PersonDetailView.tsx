@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AnimatePresence, motion } from "framer-motion";
@@ -15,7 +15,8 @@ import { showToast } from "@/components/shared/Toast";
 import { avatarColorFor } from "@/lib/shared/notebookStyle";
 import { waLink, telLink } from "@/lib/shared/contact";
 import { buildPersonStatementText } from "@/lib/shared/statementText";
-import { shareText } from "@/lib/shared/share";
+import { shareText, shareImageFile } from "@/lib/shared/share";
+import { PersonStatementCard } from "@/components/person/PersonStatementCard";
 
 // The actual UI/logic for the person detail page, kept separate from
 // app/(main)/notebook/[id]/person/[personId]/page.tsx (which just unwraps
@@ -40,6 +41,7 @@ export function PersonDetailView({
   const [editingPhone, setEditingPhone] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const statementCardRef = useRef<HTMLDivElement>(null);
 
   const person = useLiveQuery(() => db.people.get(personId), [personId]);
   const notebook = useLiveQuery(() => db.notebooks.get(notebookId), [notebookId]);
@@ -59,6 +61,21 @@ export function PersonDetailView({
       locale,
     });
     await shareText(text, person!.name, t("person.statementCopied"), showToast);
+  }
+
+  async function handleShareStatementImage() {
+    setMenuOpen(false);
+    const node = statementCardRef.current;
+    if (!node) return;
+    try {
+      const { toBlob } = await import("html-to-image");
+      const blob = await toBlob(node, { pixelRatio: 2 });
+      if (!blob) throw new Error("toBlob returned null");
+      const file = new File([blob], `${person!.name}.png`, { type: "image/png" });
+      await shareImageFile(file, person!.name);
+    } catch {
+      showToast(t("common.errSaveFailed"));
+    }
   }
 
   function startRename() {
@@ -175,6 +192,12 @@ export function PersonDetailView({
                   {t("person.shareStatement")}
                 </button>
                 <button
+                  onClick={() => void handleShareStatementImage()}
+                  className="block w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
+                >
+                  {t("person.shareStatementImage")}
+                </button>
+                <button
                   onClick={() => void handleDelete()}
                   className="block w-full text-left px-4 py-3 text-sm text-danger hover:bg-accent-soft"
                 >
@@ -277,6 +300,19 @@ export function PersonDetailView({
         </div>
       </div>
       <div className="h-20" />
+
+      {/* Off-screen — never shown, only captured to an image by
+          handleShareStatementImage(). Needs real layout (not display:none)
+          for html-to-image to measure/rasterize it correctly. */}
+      <div style={{ position: "fixed", top: 0, left: -9999, pointerEvents: "none" }} aria-hidden>
+        <PersonStatementCard
+          ref={statementCardRef}
+          notebookName={notebook?.name ?? ""}
+          personName={person.name}
+          transactions={transactions ?? []}
+          locale={locale}
+        />
+      </div>
     </div>
   );
 }

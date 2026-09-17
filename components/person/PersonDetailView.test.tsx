@@ -7,6 +7,9 @@ import { db } from "@/lib/db/schema";
 import { useToastStore } from "@/components/shared/Toast";
 import * as peopleDb from "@/lib/db/people";
 
+const toBlobMock = vi.fn();
+vi.mock("html-to-image", () => ({ toBlob: (...args: unknown[]) => toBlobMock(...args) }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
 }));
@@ -33,6 +36,7 @@ beforeEach(async () => {
   await db.people.add({ id: PERSON_ID, notebookId: NOTEBOOK_ID, name: "Rahim", createdAt: 1 });
   mockRouter.back.mockClear();
   useToastStore.getState().hide();
+  toBlobMock.mockReset();
 });
 
 afterEach(() => {
@@ -142,6 +146,44 @@ describe("PersonDetailView — header", () => {
     expect(call.text).toMatch(/−₹500/);
 
     Reflect.deleteProperty(navigator, "share");
+  });
+
+  it("shares a statement image via the kebab menu, falling back to download when file sharing isn't supported", async () => {
+    const blob = new Blob(["fake-png"], { type: "image/png" });
+    toBlobMock.mockResolvedValue(blob);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const createObjectURL = vi.fn().mockReturnValue("blob:fake-url");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
+    // No navigator.share in this jsdom environment by default, so
+    // shareImageFile() should fall through to the download path.
+
+    const user = userEvent.setup();
+    renderView();
+    await screen.findByText("Rahim");
+
+    await user.click(screen.getByRole("button", { name: "Person actions" }));
+    await user.click(screen.getByRole("button", { name: "Share as image" }));
+
+    await waitFor(() => expect(toBlobMock).toHaveBeenCalled());
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled());
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
+
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("shows a toast instead of crashing when image capture fails", async () => {
+    toBlobMock.mockRejectedValue(new Error("boom"));
+    const user = userEvent.setup();
+    renderView();
+    await screen.findByText("Rahim");
+
+    await user.click(screen.getByRole("button", { name: "Person actions" }));
+    await user.click(screen.getByRole("button", { name: "Share as image" }));
+
+    await waitFor(() => expect(useToastStore.getState().message).toBe("Couldn't save. Please try again."));
   });
 });
 

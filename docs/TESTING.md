@@ -86,6 +86,15 @@ and `IntersectionObserver`, since jsdom doesn't implement them and
 another missing browser API, add the polyfill there rather than in the
 individual test file.
 
+**Off-screen/`aria-hidden` helper markup** (e.g. a component that renders
+something only for image capture, never for display) is excluded from
+`getByText`/`findByText` globally via `configure({ defaultIgnore: ... })`
+in `vitest.setup.ts` — the selector covers both the `aria-hidden` element
+itself and its descendants (`[aria-hidden='true'] *`), since RTL's `ignore`
+option only checks a node's own attributes, not its ancestors. If you add
+new off-screen markup, wrap it in a container with `aria-hidden` and this
+already handles it; you don't need a per-test workaround.
+
 ## What's covered so far, and what isn't
 
 `NotebookForm` and `TransactionSheet` have real coverage — both were where
