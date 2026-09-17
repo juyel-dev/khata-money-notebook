@@ -71,6 +71,13 @@ export interface IndividualEntry {
   totals: PersonTotals;
 }
 
+// Counts unique people represented by transactions. This is intentionally
+// transaction-based so saved people without any transactions are not active
+// people on the Home notebook card.
+export function countActivePeople(transactions: Transaction[]): number {
+  return new Set(transactions.map((txn) => txn.personId)).size;
+}
+
 // Derives the Individuals view from transactions — transactions are the
 // source of truth, so a person appears here if and only if they have at
 // least one transaction. Pure single-pass over already-fetched arrays:

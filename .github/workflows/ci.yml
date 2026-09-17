@@ -26,16 +26,26 @@ jobs:
         run: |
           set -o pipefail
           npm test 2>&1 | tee /tmp/test-output.log
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/build-output.log
       - name: Post output as PR comment on failure
         if: failure() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           {
-            echo "### Unit test suite failed"
-            echo '```'
-            tail -c 60000 /tmp/test-output.log
-            echo '```'
+            echo "### CI failed on main"
+            for f in /tmp/test-output.log /tmp/build-output.log; do
+              if [ -f "$f" ]; then
+                echo "#### $f"
+                echo '```'
+                tail -c 30000 "$f"
+                echo '```'
+              fi
+            done
           } > /tmp/comment-body.md
           jq -n --rawfile body /tmp/comment-body.md '{body: $body}' > /tmp/comment-payload.json
           curl -sS -X POST \
