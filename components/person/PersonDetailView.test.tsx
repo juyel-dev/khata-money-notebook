@@ -71,6 +71,7 @@ describe("PersonDetailView — header", () => {
       personId: PERSON_ID,
       type: "got",
       amount: 100,
+      note: "Test transaction",
       occurredAt: Date.now(),
       createdAt: Date.now(),
     });
@@ -112,6 +113,35 @@ describe("PersonDetailView — header", () => {
     await user.type(input, " Uddin{Enter}");
 
     await waitFor(() => expect(useToastStore.getState().message).toBe("Couldn't save. Please try again."));
+  });
+
+  it("shares a plain-text statement via the kebab menu", async () => {
+    const shareMock = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { value: shareMock, configurable: true });
+    await db.transactions.add({
+      id: "t1",
+      notebookId: NOTEBOOK_ID,
+      personId: PERSON_ID,
+      type: "gave",
+      amount: 50000,
+      note: "Cloth",
+      occurredAt: Date.now(),
+      createdAt: Date.now(),
+    });
+    const user = userEvent.setup();
+    renderView();
+    await screen.findByText("Rahim");
+
+    await user.click(screen.getByRole("button", { name: "Person actions" }));
+    await user.click(screen.getByRole("button", { name: "Share statement" }));
+
+    await waitFor(() => expect(shareMock).toHaveBeenCalled());
+    const call = shareMock.mock.calls[0][0];
+    expect(call.title).toBe("Rahim");
+    expect(call.text).toContain("Cloth Shop — Rahim");
+    expect(call.text).toMatch(/−₹500/);
+
+    Reflect.deleteProperty(navigator, "share");
   });
 });
 

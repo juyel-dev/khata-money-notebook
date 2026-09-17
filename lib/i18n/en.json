@@ -113,6 +113,8 @@
     "whatsapp": "WhatsApp",
     "rename": "Rename",
     "renamePlaceholder": "Person name",
+    "shareStatement": "Share statement",
+    "statementCopied": "Statement copied",
     "delete": "Delete person",
     "deleteBlocked": "Can't delete — this person has transactions",
     "deleted": "Person deleted",
