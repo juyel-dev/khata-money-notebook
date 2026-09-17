@@ -218,10 +218,18 @@ export function ShareSheet({ open, onClose, notebookId, notebookName, people }: 
             <div className="mt-2 space-y-2">
               {shares.map((share) => {
                 const url = `${window.location.origin}/share/${share.token}`;
+                const sharedPerson = share.scope === "individual"
+                  ? people.find((person) => person.id === share.personId)
+                  : undefined;
+                const shareLabel = share.scope === "khata"
+                  ? (isBn ? "পুরো খাতা" : "This Khata")
+                  : sharedPerson
+                    ? `${isBn ? "ব্যক্তি" : "person"} | ${sharedPerson.name}`
+                    : (isBn ? "একজন ব্যক্তি" : "An individual");
                 return (
                   <div key={share.token} className="flex items-center gap-2 rounded-xl border border-rule bg-paper px-3 py-2.5">
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs text-ink-dim truncate">{share.scope === "khata" ? (isBn ? "পুরো খাতা" : "This Khata") : (isBn ? "একজন ব্যক্তি" : "An individual")}</div>
+                      <div className="text-xs text-ink-dim truncate">{shareLabel}</div>
                       <div className="text-[10px] text-ink-dim/70">{formatExpiry(share.expiresAt, isBn)}</div>
                     </div>
                     <button type="button" onClick={() => void handleCopy(url)} className="rounded-full p-2 text-ink-dim hover:bg-accent-soft" aria-label={isBn ? "লিংক কপি" : "Copy link"}><Copy size={14} /></button>
