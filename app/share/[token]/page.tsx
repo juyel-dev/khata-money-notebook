@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { use, useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, Clock3, Eye, Share2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, Eye, Share2, UserRound } from "lucide-react";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { readPublicShare, type ShareSnapshot } from "@/lib/firebase/sharing";
 import { dayLabel, groupByDay } from "@/lib/shared/grouping";
@@ -168,6 +168,9 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
   const transactionCount = snapshot.transactions.length;
   const peopleCount = snapshot.people.length;
   const isIndividual = snapshot.record.scope === "individual";
+  const sharedPerson = isIndividual && snapshot.record.personId
+    ? peopleMap.get(snapshot.record.personId)
+    : undefined;
 
   return (
     <main className="min-h-screen bg-paper pb-safe">
@@ -196,7 +199,17 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           <div className="my-4 border-t border-rule" />
 
           <div className="flex items-start justify-between gap-3">
-            <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight text-ink">{snapshot.record.title}</h1>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-2xl font-semibold tracking-tight text-ink">
+                {isIndividual ? (sharedPerson?.name || "Individual") : snapshot.record.title}
+              </h1>
+              {isIndividual && (
+                <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-ink-dim">
+                  <UserRound size={13} aria-hidden="true" />
+                  <span>Individual · {snapshot.notebook.name}</span>
+                </div>
+              )}
+            </div>
             <div className="shrink-0 rounded-full border border-rule bg-paper px-3 py-1.5 text-[11px] font-semibold text-accent">
               {isIndividual ? "Individual snapshot" : "Shared snapshot"}
             </div>
