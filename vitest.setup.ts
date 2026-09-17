@@ -1,6 +1,15 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
+
+// Queries like getByText/findByText search raw DOM text and, unlike
+// role-based queries, don't skip aria-hidden content by default. Several
+// components render off-screen, aria-hidden helper markup (e.g.
+// PersonStatementCard, captured to an image and never actually shown) that
+// can duplicate visible text — extending the default ignore list here is
+// the semantically correct fix (aria-hidden content isn't something a user
+// sees) and avoids every test file needing its own workaround for it.
+configure({ defaultIgnore: "script, style, [aria-hidden='true'], [aria-hidden='true'] *" });
 
 // RTL's automatic cleanup only wires itself up under vitest's `globals: true`
 // mode. This project doesn't use that (existing lib/ tests explicitly

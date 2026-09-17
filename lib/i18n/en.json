@@ -114,6 +114,7 @@
     "rename": "Rename",
     "renamePlaceholder": "Person name",
     "shareStatement": "Share statement",
+    "shareStatementImage": "Share as image",
     "statementCopied": "Statement copied",
     "delete": "Delete person",
     "deleteBlocked": "Can't delete — this person has transactions",
