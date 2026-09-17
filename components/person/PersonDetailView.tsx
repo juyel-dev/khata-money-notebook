@@ -14,6 +14,8 @@ import { useUIStore } from "@/lib/store";
 import { showToast } from "@/components/shared/Toast";
 import { avatarColorFor } from "@/lib/shared/notebookStyle";
 import { waLink, telLink } from "@/lib/shared/contact";
+import { buildPersonStatementText } from "@/lib/shared/statementText";
+import { shareText } from "@/lib/shared/share";
 
 // The actual UI/logic for the person detail page, kept separate from
 // app/(main)/notebook/[id]/person/[personId]/page.tsx (which just unwraps
@@ -30,7 +32,7 @@ export function PersonDetailView({
   personId: string;
 }) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const openAddSheet = useUIStore((s) => s.openAddSheet);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -40,12 +42,24 @@ export function PersonDetailView({
   const [busy, setBusy] = useState(false);
 
   const person = useLiveQuery(() => db.people.get(personId), [personId]);
+  const notebook = useLiveQuery(() => db.notebooks.get(notebookId), [notebookId]);
   const transactions = useLiveQuery(() => getPersonTransactions(personId), [personId]);
 
   if (!person) return null;
 
   const bg = avatarColorFor(person.name);
   const initial = person.name.trim().charAt(0).toUpperCase();
+
+  async function handleShareStatement() {
+    setMenuOpen(false);
+    const text = buildPersonStatementText({
+      notebookName: notebook?.name ?? "",
+      personName: person!.name,
+      transactions: transactions ?? [],
+      locale,
+    });
+    await shareText(text, person!.name, t("person.statementCopied"), showToast);
+  }
 
   function startRename() {
     setNameDraft(person!.name);
@@ -153,6 +167,12 @@ export function PersonDetailView({
                   className="block w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
                 >
                   {t("person.rename")}
+                </button>
+                <button
+                  onClick={() => void handleShareStatement()}
+                  className="block w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
+                >
+                  {t("person.shareStatement")}
                 </button>
                 <button
                   onClick={() => void handleDelete()}
