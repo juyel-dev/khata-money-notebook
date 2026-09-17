@@ -1,6 +1,9 @@
 import { v4 as uuid } from "uuid";
 import { db, type Notebook, type NotebookColor, type NotebookIcon, type NotebookGroup } from "./schema";
 import { flushSyncCaptureIntents, stageSyncCapture } from "../firebase/syncCapture";
+import { getAccountLink } from "../firebase/accountLink";
+import { getFirebaseServices } from "../firebase/client";
+import { revokeSharesForNotebook } from "../firebase/sharing";
 
 export async function createNotebook(input: {
   name: string;
@@ -66,6 +69,18 @@ export async function deleteNotebookPermanently(id: string) {
     db.transactions.where("notebookId").equals(id).toArray(),
   ]);
   if (!notebook) return;
+
+  // A deleted Khata must invalidate every public share snapshot tied to it.
+  // Revoke before the local delete so a successful deletion cannot leave an
+  // active share link pointing at the deleted Khata's snapshot.
+  const services = getFirebaseServices();
+  if (services) {
+    const accountLink = await getAccountLink();
+    if (accountLink?.status === "linked") {
+      await revokeSharesForNotebook(services.firestore, accountLink.uid, id);
+    }
+  }
+
   const changedAt = Date.now();
   await db.transaction("rw", db.notebooks, db.people, db.transactions, db.syncCaptureIntents, async () => {
     await db.transactions.where("notebookId").equals(id).delete();

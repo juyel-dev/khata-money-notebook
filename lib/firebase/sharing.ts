@@ -169,6 +169,31 @@ export async function revokeShare(firestore: Firestore, uid: string, token: stri
   await setShareActiveState(firestore, uid, token, false);
 }
 
+export async function revokeSharesForNotebook(
+  firestore: Firestore,
+  uid: string,
+  notebookId: string,
+): Promise<void> {
+  const link = await getAccountLink();
+  if (!link || link.uid !== uid || link.status !== "linked") {
+    throw new Error("ACCOUNT_LINK_REQUIRED");
+  }
+
+  const snapshot = await getDocs(collection(firestore, "users", uid, "shareRefs"));
+  const shares = snapshot.docs
+    .map((shareSnapshot) => shareSnapshot.data() as ShareRecord)
+    .filter((share) => share.active && share.notebookId === notebookId);
+
+  for (let offset = 0; offset < shares.length; offset += BATCH_SIZE) {
+    const batch = writeBatch(firestore);
+    for (const share of shares.slice(offset, offset + BATCH_SIZE)) {
+      batch.update(shareDoc(firestore, share.token), { active: false });
+      batch.update(shareRefDoc(firestore, uid, share.token), { active: false });
+    }
+    await batch.commit();
+  }
+}
+
 export async function listActiveShares(
   firestore: Firestore,
   uid: string,
