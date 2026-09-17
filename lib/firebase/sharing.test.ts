@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 import { db } from "../db/schema";
-import { createShareSnapshot, listActiveShares, readPublicShare, revokeShare, type ShareRecord } from "./sharing";
+import { createShareSnapshot, listActiveShares, readPublicShare, revokeShare, revokeSharesForNotebook, type ShareRecord } from "./sharing";
 
 const { accountLinkMock, syncOnceMock, store } = vi.hoisted(() => ({
   accountLinkMock: vi.fn(),
@@ -140,7 +140,8 @@ describe("sharing snapshots", () => {
     expect(timedRecord.expiresAt).toBe(timedRecord.createdAt + 7 * 24 * 60 * 60 * 1000);
   });
 
-  it("omits undefined optional fields from shared snapshot documents", async () => {    await db.notebooks.put(notebook);
+  it("omits undefined optional fields from shared snapshot documents", async () => {
+    await db.notebooks.put(notebook);
     await db.people.put({ ...personA, phone: undefined });
     await db.transactions.put({ ...transactionA, note: undefined });
 
@@ -208,6 +209,43 @@ describe("sharing snapshots", () => {
 
     expect(store.get(`shares/${token}`)).toMatchObject({ active: false });
     expect(store.get(`users/${uid}/shareRefs/${token}`)).toMatchObject({ active: false });
+  });
+
+  it("revokes all active shares for a deleted Khata without touching another Khata", async () => {
+    const targetKhataShare = "target-khata";
+    const targetIndividualShare = "target-individual";
+    const otherKhataShare = "other-khata";
+    for (const [token, notebookId, scope] of [
+      [targetKhataShare, notebook.id, "khata"],
+      [targetIndividualShare, notebook.id, "individual"],
+      [otherKhataShare, "notebook-b", "khata"],
+    ] as const) {
+      putShareRecord(token, {
+        token,
+        ownerUid: uid,
+        scope,
+        notebookId,
+        title: "Shared",
+        createdAt: 1,
+        expiresAt: null,
+        active: true,
+        schemaVersion: 1,
+      });
+      store.set(`users/${uid}/shareRefs/${token}`, {
+        token,
+        notebookId,
+        active: true,
+      });
+    }
+
+    await revokeSharesForNotebook(firestore, uid, notebook.id);
+
+    expect(store.get(`shares/${targetKhataShare}`)).toMatchObject({ active: false });
+    expect(store.get(`users/${uid}/shareRefs/${targetKhataShare}`)).toMatchObject({ active: false });
+    expect(store.get(`shares/${targetIndividualShare}`)).toMatchObject({ active: false });
+    expect(store.get(`users/${uid}/shareRefs/${targetIndividualShare}`)).toMatchObject({ active: false });
+    expect(store.get(`shares/${otherKhataShare}`)).toMatchObject({ active: true });
+    expect(store.get(`users/${uid}/shareRefs/${otherKhataShare}`)).toMatchObject({ active: true });
   });
 
   it("only exposes an active, valid public snapshot", async () => {
