@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { use, useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, Clock3, Eye, Share2 } from "lucide-react";
 import { getFirebaseServices } from "@/lib/firebase/client";
@@ -171,28 +172,39 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
   return (
     <main className="min-h-screen bg-paper pb-safe">
       <div className="mx-auto max-w-md px-5 pb-10 pt-6">
-        <header>
-          <div className="flex items-center gap-2 text-xs font-medium text-ink-dim">
-            <Eye size={15} aria-hidden="true" />
-            <span>Read only</span>
-          </div>
-
-          <div className="mt-3 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="truncate text-2xl font-semibold tracking-tight text-ink">{snapshot.record.title}</h1>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-ink-dim">
-                <Clock3 size={13} aria-hidden="true" />
-                <span>Shared {sharedDate}</span>
+        <header className="rounded-3xl border border-rule bg-paper-card p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Image
+                src="/icons/khata-logo.svg"
+                alt="Khata logo"
+                width={32}
+                height={32}
+                className="h-8 w-8 shrink-0 rounded-xl shadow-sm"
+              />
+              <div className="min-w-0">
+                <div className="truncate text-[15px] font-bold leading-tight text-ink">Khata</div>
+                <div className="truncate text-[11px] leading-tight text-ink-dim">Simple Money Notebook</div>
               </div>
             </div>
-            <div className="shrink-0 rounded-full border border-rule bg-paper-card px-3 py-1.5 text-[11px] font-semibold text-accent">
+            <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-rule bg-paper px-2.5 py-1 text-[11px] font-semibold text-ink-dim">
+              <Eye size={13} aria-hidden="true" />
+              <span>Read only</span>
+            </div>
+          </div>
+
+          <div className="my-4 border-t border-rule" />
+
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight text-ink">{snapshot.record.title}</h1>
+            <div className="shrink-0 rounded-full border border-rule bg-paper px-3 py-1.5 text-[11px] font-semibold text-accent">
               {isIndividual ? "Individual snapshot" : "Shared snapshot"}
             </div>
           </div>
-        </header>
-
-        <section aria-label="Snapshot summary" className="mt-6 rounded-3xl border border-rule bg-paper-card p-5 shadow-sm">
-          <div className="text-sm font-semibold text-ink">{snapshot.notebook.name}</div>
+          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-ink-dim">
+            <Clock3 size={13} aria-hidden="true" />
+            <span>Shared {sharedDate}</span>
+          </div>
           <div className="mt-0.5 text-xs text-ink-dim">
             {transactionCount} {transactionCount === 1 ? "transaction" : "transactions"}
             <span className="mx-1.5" aria-hidden="true">·</span>
@@ -200,12 +212,12 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           </div>
 
           {balance !== null && (
-            <div className="mt-5 border-t border-rule pt-4">
-              <div className="text-xs font-medium text-ink-dim">Current balance</div>
-              <div className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-ink">{formatMoney(balance)}</div>
+            <div className="mt-4 rounded-2xl bg-accent px-4 py-4 text-paper shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-wide opacity-80">Current balance</div>
+              <div className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">{formatMoney(balance)}</div>
             </div>
           )}
-        </section>
+        </header>
 
         <section aria-labelledby="transactions-heading" className="mt-7">
           <h2 id="transactions-heading" className="mb-2 text-sm font-semibold text-ink">Transactions</h2>
@@ -217,8 +229,8 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
             </div>
           ) : (
             grouped.map((group) => (
-              <div key={group.label} className="mb-5 last:mb-0">
-                <div className="sticky top-0 z-10 bg-paper py-2 text-xs font-semibold uppercase tracking-wide text-ink-dim">
+              <div key={group.label} className="mb-3 last:mb-0">
+                <div className="sticky top-0 z-10 bg-paper py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-dim">
                   {group.label}
                 </div>
                 <div className="overflow-hidden rounded-2xl border border-rule bg-paper-card">
@@ -226,24 +238,17 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
                     const person = peopleMap.get(transaction.personId);
                     const isGave = transaction.type === "gave";
                     return (
-                      <div key={transaction.id} className="border-b border-rule px-4 py-3.5 last:border-b-0">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-semibold text-ink">{person?.name || "Unknown person"}</div>
-                            <div className="mt-0.5 truncate text-xs tabular-nums text-ink-dim">
-                              {formatTime(transaction.occurredAt)}
-                              {transaction.note && (
-                                <>
-                                  <span className="mx-1.5" aria-hidden="true">·</span>
-                                  {transaction.note}
-                                </>
-                              )}
-                            </div>
-                          </div>
+                      <div key={transaction.id} className="border-b border-rule px-4 py-3 last:border-b-0">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <div className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{person?.name || "Unknown person"}</div>
+                          <div className="shrink-0 text-xs tabular-nums text-ink-dim">{formatTime(transaction.occurredAt)}</div>
                           <div className={`shrink-0 text-sm font-semibold tabular-nums ${isGave ? "text-owe-you" : "text-accent"}`}>
                             {isGave ? "−" : "+"} {formatMoney(transaction.amount)}
                           </div>
                         </div>
+                        {transaction.note && (
+                          <div className="mt-1.5 truncate rounded-md bg-note px-2 py-1 text-xs text-ink">{transaction.note}</div>
+                        )}
                       </div>
                     );
                   })}

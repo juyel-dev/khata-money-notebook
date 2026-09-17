@@ -18,6 +18,7 @@
 
   --color-neutral-settled: #6B6455;
   --color-danger: #A13A2E;
+  --color-note: #FCF0D3;
 
   --background: var(--color-paper);
   --foreground: var(--color-ink);
@@ -37,6 +38,7 @@
   --color-you-owe-soft: var(--color-you-owe-soft);
   --color-neutral-settled: var(--color-neutral-settled);
   --color-danger: var(--color-danger);
+  --color-note: var(--color-note);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
@@ -63,6 +65,7 @@
   --color-you-owe: #3E8563;
   --color-you-owe-soft: #1E3427;
   --color-danger: #C04335;
+  --color-note: #2E2A1C;
 }
 
 body {
