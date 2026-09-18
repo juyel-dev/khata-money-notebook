@@ -3,20 +3,20 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, MoreVertical, Phone, MessageCircle } from "lucide-react";
+import { Phone, MessageCircle } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { db } from "@/lib/db/schema";
 import { getPersonTransactions } from "@/lib/db/transactions";
-import { renamePerson, updatePersonPhone, deletePersonIfEmpty } from "@/lib/db/people";
+import { updatePersonPhone } from "@/lib/db/people";
 import { TransactionRow } from "@/components/transaction/TransactionRow";
 import { useI18n } from "@/lib/i18n";
 import { useUIStore } from "@/lib/store";
 import { showToast } from "@/components/shared/Toast";
 import { avatarColorFor } from "@/lib/shared/notebookStyle";
 import { waLink, telLink } from "@/lib/shared/contact";
-import { buildPersonStatementText } from "@/lib/shared/statementText";
-import { shareText, shareImageFile } from "@/lib/shared/share";
 import { PersonStatementCard } from "@/components/person/PersonStatementCard";
+import { PersonKebabMenu } from "@/components/person/PersonKebabMenu";
+import { usePersonActions } from "@/components/person/usePersonActions";
 
 // The actual UI/logic for the person detail page, kept separate from
 // app/(main)/notebook/[id]/person/[personId]/page.tsx (which just unwraps
@@ -35,7 +35,6 @@ export function PersonDetailView({
   const router = useRouter();
   const { t, locale } = useI18n();
   const openAddSheet = useUIStore((s) => s.openAddSheet);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [editingPhone, setEditingPhone] = useState(false);
@@ -47,58 +46,23 @@ export function PersonDetailView({
   const notebook = useLiveQuery(() => db.notebooks.get(notebookId), [notebookId]);
   const transactions = useLiveQuery(() => getPersonTransactions(personId), [personId]);
 
+  const actions = usePersonActions(notebookId, person ?? { id: personId, notebookId, name: "", createdAt: 0 });
+
   if (!person) return null;
 
   const bg = avatarColorFor(person.name);
   const initial = person.name.trim().charAt(0).toUpperCase();
 
-  async function handleShareStatement() {
-    setMenuOpen(false);
-    const text = buildPersonStatementText({
-      notebookName: notebook?.name ?? "",
-      personName: person!.name,
-      transactions: transactions ?? [],
-      locale,
-    });
-    await shareText(text, person!.name, t("person.statementCopied"), showToast);
-  }
-
-  async function handleShareStatementImage() {
-    setMenuOpen(false);
-    const node = statementCardRef.current;
-    if (!node) return;
-    try {
-      const { toBlob } = await import("html-to-image");
-      const blob = await toBlob(node, { pixelRatio: 2 });
-      if (!blob) throw new Error("toBlob returned null");
-      const file = new File([blob], `${person!.name}.png`, { type: "image/png" });
-      await shareImageFile(file, person!.name);
-    } catch {
-      showToast(t("common.errSaveFailed"));
-    }
-  }
-
   function startRename() {
     setNameDraft(person!.name);
     setRenaming(true);
-    setMenuOpen(false);
   }
 
   async function saveRename() {
-    const next = nameDraft.trim();
-    if (!next || next === person!.name) {
-      setRenaming(false);
-      return;
-    }
     setBusy(true);
-    try {
-      await renamePerson(personId, next);
-      setRenaming(false);
-    } catch {
-      showToast(t("common.errSaveFailed"));
-    } finally {
-      setBusy(false);
-    }
+    const ok = await actions.rename(nameDraft);
+    setBusy(false);
+    if (ok) setRenaming(false);
   }
 
   function startEditPhone() {
@@ -119,18 +83,8 @@ export function PersonDetailView({
   }
 
   async function handleDelete() {
-    setMenuOpen(false);
-    try {
-      const deleted = await deletePersonIfEmpty(personId);
-      if (!deleted) {
-        showToast(t("person.deleteBlocked"));
-        return;
-      }
-      showToast(t("person.deleted"));
-      router.back();
-    } catch {
-      showToast(t("common.errSaveFailed"));
-    }
+    const ok = await actions.remove();
+    if (ok) router.back();
   }
 
   return (
@@ -161,52 +115,20 @@ export function PersonDetailView({
             {person.name}
           </span>
         )}
-        <button
-          onClick={() => setMenuOpen((v) => !v)}
-          className="p-2 text-ink rounded-full active:bg-accent-soft active:scale-90 transition-all"
-          aria-label={t("person.actions")}
-        >
-          <MoreVertical size={20} />
-        </button>
-
-        <AnimatePresence>
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                className="absolute right-3 top-12 z-40 bg-paper-card border border-rule rounded-xl shadow-lg overflow-hidden w-48"
-              >
-                <button
-                  onClick={startRename}
-                  className="block w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
-                >
-                  {t("person.rename")}
-                </button>
-                <button
-                  onClick={() => void handleShareStatement()}
-                  className="block w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
-                >
-                  {t("person.shareStatement")}
-                </button>
-                <button
-                  onClick={() => void handleShareStatementImage()}
-                  className="block w-full text-left px-4 py-3 text-sm text-ink hover:bg-accent-soft"
-                >
-                  {t("person.shareStatementImage")}
-                </button>
-                <button
-                  onClick={() => void handleDelete()}
-                  className="block w-full text-left px-4 py-3 text-sm text-danger hover:bg-accent-soft"
-                >
-                  {t("person.delete")}
-                </button>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        <PersonKebabMenu
+          ariaLabel={t("person.actions")}
+          actions={[
+            { label: t("person.rename"), onClick: startRename },
+            { label: t("person.shareStatement"), onClick: () => void actions.shareStatementText() },
+            {
+              label: t("person.shareStatementImage"),
+              onClick: () => {
+                if (statementCardRef.current) void actions.shareStatementImage(statementCardRef.current);
+              },
+            },
+            { label: t("person.delete"), onClick: () => void handleDelete(), danger: true },
+          ]}
+        />
       </div>
 
       <div className="flex flex-col items-center gap-2 px-6 pt-3 pb-4 text-center">
@@ -302,8 +224,8 @@ export function PersonDetailView({
       <div className="h-20" />
 
       {/* Off-screen — never shown, only captured to an image by
-          handleShareStatementImage(). Needs real layout (not display:none)
-          for html-to-image to measure/rasterize it correctly. */}
+          shareStatementImage(). Needs real layout (not display:none) for
+          html-to-image to measure/rasterize it correctly. */}
       <div style={{ position: "fixed", top: 0, left: -9999, pointerEvents: "none" }} aria-hidden>
         <PersonStatementCard
           ref={statementCardRef}
