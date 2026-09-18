@@ -141,3 +141,7 @@ Re-read every diff hunk before opening a PR. Documentation that becomes stale mu
 Firebase/Vercel production setup and the human verification gate live in [`docs/PRODUCTION-RUNBOOK.md`](docs/PRODUCTION-RUNBOOK.md).
 
 A green unit-test suite does not certify Google OAuth, Firestore permissions, cross-device sync, or real share/revoke behavior.
+
+## Contributors
+
+Parts of this repository are AI-assisted (OpenCode). Human review and verification gate every change before merge.
