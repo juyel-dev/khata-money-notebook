@@ -115,6 +115,36 @@ active = false
 
 The snapshot payload can remain stored because public access is controlled by the root authorization state.
 
+A viewer's local offline cache (see below) is not touched by revoke — the
+next successful *live* read after a revoke will correctly show
+unavailable and clear that viewer's cache, but a viewer who stays fully
+offline continues to see their last-cached copy until it expires. This is
+treated the same as a screenshot: revoke stops *new* access, not a copy
+someone already has.
+
+## Local view cache (offline fallback for viewers)
+
+`lib/shared/shareViewCache.ts` — a small dedicated Dexie database
+(`khata-share-view-cache`, separate from the owner's own `khata-db`/
+`khata-sync-db`, since a viewer opening a public link may have no account
+and may never install the app at all) that lets a viewer reopen a share
+link without internet after they've successfully loaded it at least once.
+
+- On every successful live read, the snapshot is cached with a timestamp.
+- On a definitive "unavailable" response from the server (revoked,
+  expired, never existed — `readPublicShare` returning `null`), the cache
+  for that token is cleared. This is what keeps revoke meaningful for a
+  viewer who *is* online: they get the real answer, not a stale cache.
+- On a failed read (`readPublicShare` throwing — most likely no
+  connectivity, not a definitive answer from the server), the viewer falls
+  back to the cached copy if one exists and is under 7 days old
+  (`SHARE_CACHE_MAX_AGE_MS`), with a visible "showing the copy last viewed
+  on ..." banner — never silently.
+- No image/PDF export exists or is planned; the local cache is the
+  offline mechanism for viewers, same as local Dexie is the offline
+  mechanism for the app's own owner/user. A viewer who wants a portable
+  copy to send elsewhere is expected to screenshot.
+
 ## Snapshot integrity checks
 
 The public reader validates the root record and snapshot consistency before returning data.
@@ -138,5 +168,10 @@ Do not introduce without an explicit product decision:
 - comments/reactions
 - viewer accounts
 - transaction-level sharing as a new UI concept
+- image/PDF export of a shared snapshot for the viewer (considered and
+  deliberately rejected in favor of the local view cache above — a single
+  exported image doesn't scale to a large snapshot, and screenshotting
+  already covers the "send this elsewhere" case)
 
-Expiry is represented by `expiresAt`, but the current creation path uses `null` (Never).
+Expiry is represented by `expiresAt` and is settable at creation
+(never/7/30/90 days, see ShareSheet) — `null` (never) is still the default.
