@@ -220,7 +220,7 @@ service cloud.firestore {
     // /admin management UI needs to see inactive/draft banners too, hence
     // isAdmin() also satisfying read, not just active==true.
     match /banners/{bannerId} {
-      allow read: if resource.data.active == true || isAdmin();
+      allow read: if resource.data.get('active', false) == true || isAdmin();
       allow create, update: if isAdmin() && validBanner(bannerId, request.resource.data);
       allow delete: if isAdmin();
     }
