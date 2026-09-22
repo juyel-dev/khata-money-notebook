@@ -5,7 +5,7 @@
 // this environment's network egress allow-list. Run it somewhere with
 // normal internet access before relying on it.
 import { readFileSync } from "node:fs";
-import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   assertFails,
   assertSucceeds,
@@ -15,11 +15,14 @@ import {
 } from "@firebase/rules-unit-testing";
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
   type Firestore,
 } from "firebase/firestore";
 
@@ -28,6 +31,7 @@ const emulatorPort = Number(emulatorPortStr);
 
 const ALICE = "alice-uid";
 const BOB = "bob-uid";
+const ADMIN = "REPLACE_WITH_ADMIN_UID";
 
 let testEnv: RulesTestEnvironment;
 
@@ -319,5 +323,94 @@ describe("share child write scope", () => {
   it("denies a non-owner writing share children even for an existing token", async () => {
     const bob = modular(testEnv.authenticatedContext(BOB));
     await assertFails(setDoc(doc(bob, "shares", "tok1", "transactions", "t1"), transaction()));
+  });
+});
+
+const banner = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  id: "b1",
+  imageUrl: "https://example.com/banner.png",
+  destinationUrl: "https://example.com",
+  order: 0,
+  active: true,
+  ...overrides,
+});
+
+describe("banners", () => {
+  it("lets anyone (including unauthenticated) read an active banner", async () => {
+    await seed((db) => setDoc(doc(db, "banners", "b1"), banner()));
+
+    const anon = modular(testEnv.unauthenticatedContext());
+    await assertSucceeds(getDoc(doc(anon, "banners", "b1")));
+    // A list query must be scoped with the same where("active","==",true)
+    // filter the real fetchActiveBanners() uses — Firestore's rules
+    // engine can only prove a list request safe when the query itself
+    // matches what the rule condition can verify; an unfiltered
+    // collection() list against a rule that depends on document content
+    // can't be proven and is rejected outright, regardless of what the
+    // actual documents contain.
+    await assertSucceeds(getDocs(query(collection(anon, "banners"), where("active", "==", true))));
+  });
+
+  it("denies an unfiltered list from an anonymous caller, even though a get on the same doc succeeds", async () => {
+    // Documents this deliberately: fetchActiveBanners() in
+    // lib/firebase/banners.ts must keep the where("active","==",true)
+    // filter — an unscoped collection() list is what the admin page uses
+    // (as the admin), and would be rejected for anyone else.
+    await seed((db) => setDoc(doc(db, "banners", "b1"), banner()));
+    const anon = modular(testEnv.unauthenticatedContext());
+    await assertFails(getDocs(collection(anon, "banners")));
+  });
+
+  it("denies reading an inactive banner unless you're the admin", async () => {
+    await seed((db) => setDoc(doc(db, "banners", "b1"), banner({ active: false })));
+
+    const alice = modular(testEnv.authenticatedContext(ALICE));
+    await assertFails(getDoc(doc(alice, "banners", "b1")));
+
+    const admin = modular(testEnv.authenticatedContext(ADMIN));
+    await assertSucceeds(getDoc(doc(admin, "banners", "b1")));
+  });
+
+  it("lets the admin do an unfiltered list of every banner (active or not)", async () => {
+    // What the /admin page's listAllBanners() actually does — isAdmin()
+    // doesn't depend on resource.data, so Firestore can prove the OR
+    // holds for every document regardless of content, unlike the
+    // anonymous unfiltered-list case above.
+    await seed(async (db) => {
+      await setDoc(doc(db, "banners", "b1"), banner({ active: true }));
+      await setDoc(doc(db, "banners", "b2"), banner({ id: "b2", active: false }));
+    });
+    const admin = modular(testEnv.authenticatedContext(ADMIN));
+    const result = await assertSucceeds(getDocs(collection(admin, "banners")));
+    expect(result.docs).toHaveLength(2);
+  });
+
+  it("lets the admin create, update, and delete banners", async () => {
+    const admin = modular(testEnv.authenticatedContext(ADMIN));
+    await assertSucceeds(setDoc(doc(admin, "banners", "b1"), banner()));
+    await assertSucceeds(setDoc(doc(admin, "banners", "b1"), banner({ active: false })));
+
+    const adminDeleteCheck = modular(testEnv.authenticatedContext(ADMIN));
+    await assertSucceeds(deleteDoc(doc(adminDeleteCheck, "banners", "b1")));
+  });
+
+  it("denies a non-admin writing banners even while signed in", async () => {
+    const alice = modular(testEnv.authenticatedContext(ALICE));
+    await assertFails(setDoc(doc(alice, "banners", "b1"), banner()));
+  });
+
+  it("denies an unauthenticated write", async () => {
+    const anon = modular(testEnv.unauthenticatedContext());
+    await assertFails(setDoc(doc(anon, "banners", "b1"), banner()));
+  });
+
+  it("rejects a banner write with an id that doesn't match the document id", async () => {
+    const admin = modular(testEnv.authenticatedContext(ADMIN));
+    await assertFails(setDoc(doc(admin, "banners", "b1"), banner({ id: "different" })));
+  });
+
+  it("rejects a banner write with extra/undeclared fields", async () => {
+    const admin = modular(testEnv.authenticatedContext(ADMIN));
+    await assertFails(setDoc(doc(admin, "banners", "b1"), banner({ extraField: "nope" })));
   });
 });

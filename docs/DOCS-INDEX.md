@@ -20,6 +20,7 @@
 - `FIREBASE-SETUP.md` — Firebase project/service/env requirements.
 - `ACCOUNT-LINKING.md` — first Google account link and local/cloud reconciliation.
 - `SHARING.md` — immutable read-only snapshot sharing, token boundary, publication and revoke semantics.
+- `ADMIN.md` — /admin panel (home-screen banners today), the single-admin-UID rules model, and how to add a new admin-controlled feature.
 - `PRODUCTION-RUNBOOK.md` — Firebase/Vercel production setup plus human end-to-end verification.
 
 ## Product/UI contracts

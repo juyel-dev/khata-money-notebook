@@ -10,6 +10,25 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    // Single hardcoded owner UID — this app has exactly one admin (the
+    // maker), same single-owner model as everything else here. Replace
+    // this placeholder with the real Firebase Auth UID before deploying;
+    // until then every /banners write is denied (reads still work once a
+    // banner is set active — there's just no way to set one active yet).
+    function isAdmin() {
+      return isSignedIn() && request.auth.uid == 'REPLACE_WITH_ADMIN_UID';
+    }
+
+    function validBanner(documentId, data) {
+      return data.keys().hasOnly(['id', 'imageUrl', 'destinationUrl', 'order', 'active'])
+        && data.id == documentId
+        && data.imageUrl is string
+        && data.imageUrl.size() > 0
+        && (data.get('destinationUrl', null) == null || data.destinationUrl is string)
+        && data.order is number
+        && data.active is bool;
+    }
+
     function validExpiry(data) {
       return data.get('expiresAt', null) == null
         || data.get('expiresAt', null) is number;
@@ -193,6 +212,17 @@ service cloud.firestore {
         && shareTransactionMatches(token, request.resource.data, documentId);
       allow delete: if shareOwner(token)
         && shareTransactionMatches(token, resource.data, documentId);
+    }
+
+    // Ad/sponsor banners shown on the home screen. Public read of active
+    // banners (anyone, no auth — the app's home screen has no account
+    // requirement); write restricted to the single admin UID above. The
+    // /admin management UI needs to see inactive/draft banners too, hence
+    // isAdmin() also satisfying read, not just active==true.
+    match /banners/{bannerId} {
+      allow read: if resource.data.get('active', false) == true || isAdmin();
+      allow create, update: if isAdmin() && validBanner(bannerId, request.resource.data);
+      allow delete: if isAdmin();
     }
 
     // Default deny: unknown collections/subcollections are inaccessible until a
