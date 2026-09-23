@@ -66,7 +66,7 @@ describe("AdminPage — signed in, authorized", () => {
     renderWithProviders(<AdminPage />);
 
     expect(await screen.findByText("admin-uid")).toBeInTheDocument();
-    expect(await screen.findByDisplayValue(banner().imageUrl)).toBeInTheDocument();
+    expect(await screen.findByDisplayValue(banner().imageUrl ?? "")).toBeInTheDocument();
   });
 
   it("adds a new banner", async () => {
@@ -87,7 +87,7 @@ describe("AdminPage — signed in, authorized", () => {
     const user = userEvent.setup();
     renderWithProviders(<AdminPage />);
 
-    const input = await screen.findByDisplayValue(banner().imageUrl);
+    const input = await screen.findByDisplayValue(banner().imageUrl ?? "");
     await user.clear(input);
     await user.type(input, "https://example.com/new.png");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -105,7 +105,7 @@ describe("AdminPage — signed in, authorized", () => {
     const user = userEvent.setup();
     renderWithProviders(<AdminPage />);
 
-    await screen.findByDisplayValue(banner().imageUrl);
+    await screen.findByDisplayValue(banner().imageUrl ?? "");
     await user.click(screen.getByRole("button", { name: /Delete/i }));
 
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith(expect.anything(), "b1"));

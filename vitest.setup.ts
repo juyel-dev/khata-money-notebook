@@ -19,6 +19,49 @@ afterEach(() => {
   cleanup();
 });
 
+// jsdom on some Node builds exposes `window` but leaves `localStorage`
+// undefined (ExperimentalWarning: localStorage is not available because
+// --localstorage-file was not provided). lib/i18n reads bare `localStorage`
+// after mount — without this polyfill every component test that mounts
+// I18nProvider throws before rendering. Check the API, not just key
+// presence: the property can exist and still be undefined/broken.
+function ensureLocalStorage(): void {
+  if (typeof window === "undefined") return;
+
+  const current = window.localStorage;
+  if (current && typeof current.getItem === "function") return;
+
+  const store = new Map<string, string>();
+  const polyfill = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, String(value));
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    clear: () => {
+      store.clear();
+    },
+    key: (index: number) => [...store.keys()][index] ?? null,
+    get length() {
+      return store.size;
+    },
+  };
+
+  try {
+    Object.defineProperty(window, "localStorage", { value: polyfill, configurable: true });
+  } catch {
+    // ignore — non-configurable host binding
+  }
+  try {
+    Object.defineProperty(globalThis, "localStorage", { value: polyfill, configurable: true });
+  } catch {
+    // ignore — free-variable binding may be separate from window
+  }
+}
+ensureLocalStorage();
+
 // jsdom doesn't implement matchMedia — lib/theme.tsx (via ThemeProvider)
 // reads it directly, so any component test that mounts ThemeProvider needs
 // this or it throws immediately.

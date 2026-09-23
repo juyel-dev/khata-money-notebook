@@ -27,11 +27,32 @@ function getByPath(obj: unknown, path: string): unknown {
 
 const LOCALE_STORAGE_KEY = "khata:locale";
 
+// Free-variable `localStorage` can be undefined in some jsdom/Node test
+// builds even when `window` exists — always go through window and treat a
+// missing storage API as "no stored preference".
+function readStoredLocale(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage?.getItem(LOCALE_STORAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredLocale(value: Locale): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage?.setItem(LOCALE_STORAGE_KEY, value);
+  } catch {
+    // storage unavailable (private mode, test env) — locale still updates in memory
+  }
+}
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
 
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem(LOCALE_STORAGE_KEY) : null;
+    const stored = readStoredLocale();
     // This one-time read of localStorage/navigator.language can only happen after
     // mount (these APIs don't exist during SSR), so syncing it into state here —
     // rather than as a lazy useState initializer — is what avoids a server/client
@@ -46,7 +67,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);
-    if (typeof window !== "undefined") localStorage.setItem(LOCALE_STORAGE_KEY, l);
+    writeStoredLocale(l);
   }, []);
 
   const t = useCallback(

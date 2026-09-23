@@ -2,13 +2,36 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  ArrowUpRight,
+  BadgePercent,
+  DatabaseBackup,
+  Pin,
+  Smartphone,
+  Users,
+  WifiOff,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 import { useLiveBanners } from "@/lib/shared/useLiveBanners";
+import { useI18n } from "@/lib/i18n";
 import type { Banner } from "@/lib/banners";
+
+const ICON_MAP: Record<NonNullable<Banner["icon"]>, LucideIcon> = {
+  Users,
+  DatabaseBackup,
+  Pin,
+  WifiOff,
+  Smartphone,
+  BadgePercent,
+};
 
 const AUTOPLAY_MS = 4200;
 const RESUME_AFTER_INTERACTION_MS = 4500;
 
 export function HeroBannerCarousel() {
+  const { locale } = useI18n();
+
   const trackRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -91,7 +114,7 @@ export function HeroBannerCarousel() {
     return () => observer.disconnect();
   }, [banners.length]);
 
-  if (!banners.length) return null; // no configured banners — render nothing (per docs/SCREENS.md)
+  if (!banners.length) return null; // unreachable while BANNERS is non-empty; kept as a safety net
 
   return (
     <div className="mb-4">
@@ -114,15 +137,24 @@ export function HeroBannerCarousel() {
           scrollPaddingRight: "3.5%",
         }}
       >
-        {banners.map((banner, index) => (
-          <ImageBanner
-            key={banner.id}
-            banner={banner}
-            refCallback={(element) => {
-              cardRefs.current[index] = element;
-            }}
-          />
-        ))}
+        {banners.map((banner, index) => {
+          const refCallback = (element: HTMLDivElement | null) => {
+            cardRefs.current[index] = element;
+          };
+
+          // Admin/live banners are image-only (no title) — full-bleed 3:1.
+          // Hardcoded fallback banners carry presentation fields — plain card.
+          return banner.title ? (
+            <FallbackBanner
+              key={banner.id}
+              banner={banner}
+              locale={locale}
+              refCallback={refCallback}
+            />
+          ) : (
+            <ImageBanner key={banner.id} banner={banner} refCallback={refCallback} />
+          );
+        })}
       </div>
 
       {banners.length > 1 && (
@@ -149,9 +181,8 @@ export function HeroBannerCarousel() {
   );
 }
 
-// A banner is just an image, full-bleed, 3:1. All copy/branding lives in
-// the image itself (uploaded via /admin) — no title/subtitle/sponsor text
-// overlay, deliberately, per the simplified banner design.
+// Admin-supplied banner: just an image, full-bleed 3:1. Copy/branding
+// lives inside the image — no overlay text, per the admin data model.
 function ImageBanner({
   banner,
   refCallback,
@@ -159,6 +190,8 @@ function ImageBanner({
   banner: Banner;
   refCallback: (el: HTMLDivElement | null) => void;
 }) {
+  if (!banner.imageUrl) return null;
+
   const open = () => {
     if (!banner.destinationUrl) return;
     window.open(banner.destinationUrl, "_blank", "noopener,noreferrer");
@@ -184,6 +217,93 @@ function ImageBanner({
         className="w-full h-full object-cover"
         loading="lazy"
       />
+    </div>
+  );
+}
+
+// Hardcoded fallback banner — one normal style for all five (no per-id
+// fancy variants). Flat accent tint, text left, photo/icon right.
+function FallbackBanner({
+  banner,
+  locale,
+  refCallback,
+}: {
+  banner: Banner;
+  locale: "en" | "bn";
+  refCallback: (el: HTMLDivElement | null) => void;
+}) {
+  const title = locale === "bn" ? banner.titleBn : banner.title;
+  const subtitle = locale === "bn" ? banner.subtitleBn : banner.subtitle;
+  const sponsorLabel = locale === "bn" ? banner.sponsorLabelBn : banner.sponsorLabel;
+  const cta = locale === "bn" ? banner.ctaBn : banner.cta;
+  const accent = banner.accentColor ?? "#2F6B4F";
+  const Icon = banner.icon ? ICON_MAP[banner.icon] : null;
+
+  const open = () => {
+    if (!banner.destinationUrl) return;
+
+    if (banner.destinationUrl.startsWith("/")) {
+      window.location.href = banner.destinationUrl;
+      return;
+    }
+
+    window.open(banner.destinationUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const clickable = !!banner.destinationUrl;
+
+  return (
+    <div
+      ref={refCallback}
+      onClick={clickable ? open : undefined}
+      role={clickable ? "button" : undefined}
+      className={`snap-center shrink-0 w-[93%] rounded-2xl overflow-hidden flex items-stretch ${
+        clickable ? "cursor-pointer active:opacity-90" : ""
+      }`}
+      style={{ aspectRatio: "3 / 1", backgroundColor: `${accent}17` }}
+    >
+      <div className="flex-1 min-w-0 flex flex-col justify-center pl-4 pr-2 py-2.5">
+        {sponsorLabel && (
+          <span
+            className={`mb-1 w-fit text-[10px] font-semibold uppercase ${
+              locale === "en" ? "tracking-wide" : ""
+            }`}
+            style={{ color: accent }}
+          >
+            {sponsorLabel}
+          </span>
+        )}
+        <div className="text-sm font-bold text-ink leading-snug line-clamp-2">
+          {title}
+        </div>
+        <div className="text-xs text-ink-dim leading-snug line-clamp-2 mt-0.5">
+          {subtitle}
+        </div>
+        {cta && clickable && (
+          <span
+            className="mt-1.5 inline-flex w-fit items-center gap-1 text-[10px] font-bold"
+            style={{ color: accent }}
+          >
+            {cta}
+            <ArrowUpRight size={11} />
+          </span>
+        )}
+      </div>
+
+      <div className="shrink-0 w-[104px] flex items-center justify-center overflow-hidden">
+        {banner.imageUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element -- local
+             fallback asset under /public, no domain config needed */
+          <img
+            src={banner.imageUrl}
+            alt=""
+            className="w-full h-full object-contain object-bottom"
+            loading="lazy"
+          />
+        ) : Icon ? (
+          <Icon size={36} strokeWidth={1.7} style={{ color: accent }} />
+        ) : null}
+      </div>
     </div>
   );
 }

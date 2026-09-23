@@ -53,15 +53,21 @@ images at 1200×400px or a multiple of it.
 
 ## Resilience (same pattern as the share-view cache)
 
-`lib/shared/useLiveBanners.ts`: try a live Firestore read of active
-banners; on success, cache locally (`lib/shared/bannerCache.ts`, a small
-dedicated Dexie database, same reasoning as
-`lib/shared/shareViewCache.ts` — display content, not sync state) and
-render it; on failure (offline, Firebase not configured), fall back to
-the local cache; if there's no cache either, fall back to the hardcoded
-`BANNERS` array in `lib/banners.ts` (empty by default). Never an error
-state — worst case is `HeroBannerCarousel` rendering nothing, which it
-already does gracefully when there are no banners at all.
+`lib/shared/useLiveBanners.ts` priority order:
+
+1. **Live active admin banners** — when any exist, they replace the
+   hardcoded list entirely (admin content wins; the fallback stays hidden).
+2. **Live returns empty** (admin hasn't configured anything yet) — the
+   hardcoded `BANNERS` array in `lib/banners.ts` is shown as fallback, and
+   the local cache is cleared so a later offline load can't resurrect
+   deleted admin banners.
+3. **Live fetch fails** (offline, Firebase not configured) — the local
+   cache (`lib/shared/bannerCache.ts`, a small dedicated Dexie database,
+   same reasoning as `lib/shared/shareViewCache.ts` — display content, not
+   sync state) if present, else the hardcoded `BANNERS` array.
+
+Never an error state — the hardcoded fallback always has something to
+render (`HeroBannerCarousel` only returns null if that array is emptied).
 
 ## Adding a new admin-controlled feature
 

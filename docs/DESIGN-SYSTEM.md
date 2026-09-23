@@ -44,7 +44,7 @@ Home:
 ```text
 header
 ↓
-banners when configured
+banners (admin-configured, or hardcoded fallback)
 ↓
 Khata cards
 ```

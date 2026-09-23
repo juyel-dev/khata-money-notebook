@@ -9,7 +9,7 @@ Purpose: open and manage notebooks.
 Current expectations:
 
 - App header uses the current Khata navigation pattern.
-- Configured home banners may be shown; the banner system is data-driven in `lib/banners.ts`.
+- Home banners: active admin banners from Firestore when any exist; otherwise the hardcoded fallback list in `lib/banners.ts` (plain text/photo cards — see `components/home/HeroBannerCarousel.tsx`).
 - Notebook cards are the main content.
 - A notebook may be pinned and grouped.
 - New notebook remains a direct action.
